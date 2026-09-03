@@ -1,8 +1,8 @@
 # TargetDisplay — Ansible
 
-Self-contained Ansible setup for installing and maintaining TargetDisplay on a fresh Raspberry Pi (current Raspberry Pi OS). The read-only-filesystem approach and maintenance tooling follow the same pattern used by our other Pi-kiosk projects, adapted for TargetDisplay's X11-based touchscreen app (buttons, touch-pan, timers) rather than a passive headless video kiosk.
+Self-contained Ansible setup for installing and maintaining TargetDisplay on a fresh Raspberry Pi (current Raspberry Pi OS **Lite**, 64-bit — no desktop environment needed, this installs its own minimal X11 session). The read-only-filesystem approach and maintenance tooling follow the same pattern used by our other Pi-kiosk projects, adapted for TargetDisplay's X11-based touchscreen app (buttons, touch-pan, timers) rather than a passive headless video kiosk.
 
-Verified end-to-end against a real, freshly-flashed Pi 4 (Debian 13/Trixie, 64-bit).
+Verified end-to-end against a real, freshly-flashed Pi 4 (Raspberry Pi OS Lite, Debian 13/Trixie, 64-bit).
 
 ## Setup
 
