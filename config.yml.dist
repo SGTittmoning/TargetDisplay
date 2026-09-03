@@ -1,0 +1,16 @@
+standName: Stand 1
+screenSize: [1024, 768]
+settingsPin: "CHANGEME"  # 4-6 digit numeric PIN gating Settings/Restart in the app - omit entirely to fall back to the built-in default "1234" (the app then forces a PIN change on first run)
+
+# standName/video.url/video.section_full/video.section_detail below are
+# the simple, single-stand path (fill them in directly, the app never
+# shows the setup wizard). A fleet of multiple stands instead leaves these
+# out entirely and provisions targetdisplay-stands.json/-active-stand.json
+# via Ansible + the in-app setup wizard - see ansible/README.md.
+video:
+  url: 'rtmp://user:pass@camera-host:1935/bcs/channel0_main.bcs?channel=0&stream=0&user=admin&password=CHANGEME'
+  section_full: [[x1, y1], [x2, y2], [x3, y3], [x4, y4]]
+  section_detail: [[x1, y1], [x2, y2], [x3, y3], [x4, y4]]
+  size:
+    x: 600
+    y: 600

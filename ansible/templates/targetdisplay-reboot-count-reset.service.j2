@@ -1,0 +1,6 @@
+[Unit]
+Description=Reboot-Zaehler fuer TargetDisplay zuruecksetzen (nach stabiler Laufzeit)
+
+[Service]
+Type=oneshot
+ExecStart=/root/bin/targetdisplay-reboot-count-reset.sh

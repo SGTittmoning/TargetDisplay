@@ -1,0 +1,72 @@
+[Unit]
+Description=TargetDisplay X11 Kiosk-Session
+After=systemd-user-sessions.service getty@tty1.service network.target
+Conflicts=getty@tty1.service
+# Scheitert main.py (z.B. Kamera-Stream seit STREAM_STALE_TIMEOUT_SEC/10s
+# ohne neuen Frame, siehe camera.py::is_stale/main.py), beendet sich
+# play_it (letzter Befehl in .xinitrc) mit main.py's Exit-Code -> die
+# X11-Session endet -> dieser Service scheitert -> Restart=always startet
+# sie neu. play_it zaehlt selbst NICHT mehr mit (siehe play_it) - das
+# Zaehlen passiert ausschliesslich hier, ueber StartLimitBurst. Nach 5
+# Fehlschlaegen in Folge gibt systemd auf und ruft OnFailure= auf -
+# naechste Eskalationsstufe: Pi-Reboot mit persistenter Obergrenze.
+#
+# Ein Zyklus dauert ~10s Staleness-Timeout + RestartSec + X11-Neustart-
+# Overhead, grob 15s - 5 Zyklen also grob 75s. Intervall grosszuegig
+# bemessen, damit der 5. Fehlschlag sicher noch im gleitenden Fenster
+# liegt (siehe Lehre aus der ersten, zu knapp bemessenen Version, die
+# noch play_it's eigene Retry-Schleife einkalkulieren musste).
+StartLimitIntervalSec=180
+StartLimitBurst=5
+OnFailure=targetdisplay-reboot.service
+
+[Service]
+Type=simple
+User={{ targetdisplay_service_user }}
+Group={{ targetdisplay_service_user }}
+# KEIN PAMName=login (mehr) - live gegen den Test-Pi verifiziert (2026-08-28):
+# PAMName= registriert eine eigene logind-Session, deren Prozesse (Xorg,
+# python3, matchbox) dadurch in einer SEPARATEN Cgroup
+# (/user.slice/user-*.slice/session-N.scope) laufen statt in der Cgroup
+# dieses Service (/system.slice/targetdisplay.service). systemds
+# KillMode=control-group (Default) signalisiert bei "systemctl stop/restart"
+# dadurch nur die (fast leere) Service-Cgroup - die eigentliche Last bekommt
+# nie ein SIGTERM, der Stop haengt bis TimeoutStopSec (90s) und wird dann per
+# SIGKILL erzwungen. Ein erzwungener Stop zaehlt fuer systemd als "Failed
+# with result 'timeout'" und loest SOFORT OnFailure=/den Reboot-Guard aus -
+# das war die Hauptursache der waehrend des Testings wiederholt beobachteten
+# Reboots, ausgeloest durch ganz normale "systemctl restart"-Aufrufe.
+#
+# Geraete-Zugriff (video/render/input) laeuft stattdessen ausschliesslich
+# ueber die Gruppenmitgliedschaften des Service-Users (siehe tasks/base.yml)
+# - das war ohnehin schon als Sicherheitsnetz vorgesehen, falls die PAM-
+# Session mal keine Seat-ACLs zieht, uebernimmt jetzt die alleinige Rolle.
+TTYPath=/dev/tty1
+StandardInput=tty
+StandardOutput=journal
+StandardError=journal
+UtmpIdentifier=tty1
+UtmpMode=user
+Environment=HOME=/home/{{ targetdisplay_service_user }}
+ExecStart=/usr/bin/startx /home/{{ targetdisplay_service_user }}/.xinitrc -- :0 vt1
+# Live verifiziert (2026-08-28): bei "systemctl stop/restart" bekommt xinit
+# (KillMode=control-group, Default) direkt selbst ein SIGTERM und wertet das
+# als "unexpected signal" - es beendet sich dabei zuverlaessig mit Exit-Code
+# 1, obwohl der Stop völlig regulaer war (kein Absturz). Ein eigenes
+# ExecStop, das gezielt nur main.py signalisiert, wurde ausprobiert, loest
+# das Problem aber NICHT: ExecStop ersetzt systemds eigene KillMode-Signale
+# nicht, sie laufen zusaetzlich/danach - xinit bekommt das SIGTERM so oder so.
+#
+# Deshalb stattdessen: Exit-Code 1 pauschal als Erfolg werten. Sicher, weil
+# main.py bei einem echten Stream-Ausfall bewusst mit Exit-Code 2 beendet
+# (siehe main.py, Kommentar bei "sys.exit(2)") - der einzige andere Weg zu
+# Exit-Code 1 ist genau dieser xinit-Sonderfall. Ein Python-Absturz mit
+# unbehandelter Exception liefert ueblicherweise ebenfalls exit 1 - dieser
+# (seltene) Fall wuerde dadurch nicht als Fehler gezaehlt; akzeptiert, da der
+# haeufige/erwartete Fall (regulaerer Stop) klar ueberwiegt.
+SuccessExitStatus=1
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target

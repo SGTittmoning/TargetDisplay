@@ -1,0 +1,20 @@
+#!/bin/bash
+
+cd "$(dirname "$(readlink -f "$0")")"
+
+echo "****************************************************************************************" >> /tmp/play_it.log
+echo "`date`: Starting up TargetDisplay..." >> /tmp/play_it.log
+
+# Bewusst nur EIN Versuch hier, keine eigene Retry-Schleife mehr - das
+# Zaehlen/Eskalieren passiert komplett auf systemd-Ebene
+# (targetdisplay.service: Restart=always + StartLimitBurst, siehe
+# templates/targetdisplay.service.j2). Ein Scheitern hier beendet play_it
+# (letzter Befehl in .xinitrc) -> die X11-Session endet -> der Service
+# scheitert -> systemd startet automatisch neu. Nach der konfigurierten
+# Anzahl Fehlschlaege in Folge greift dessen OnFailure= (Pi-Reboot mit
+# persistentem Zaehler, siehe tasks/reboot_guard.yml).
+.venv/bin/python3 ./main.py > /tmp/play_it.out 2>&1
+RET=$?
+
+echo "`date`: TargetDisplay beendet (exit ${RET})." >> /tmp/play_it.log
+exit "${RET}"

@@ -1,0 +1,81 @@
+---
+# Display-/Touchscreen-Hardwarekonfiguration (HDMI, KMS/fkms, Touch-
+# Kalibrierung). Der eigentliche Session-Start (X11 + App) steckt in
+# tasks/startup_service.yml - TargetDisplay ist eine echte interaktive
+# GUI-App (Buttons, Touch-Pan, Timer), anders als CamDisplay (reiner
+# Video-Kiosk) kann das nicht auf einen headless systemd+kmsdrm-Ansatz
+# umgestellt werden, es wird weiterhin ein X-Server gebraucht.
+#
+# Pfad /boot/firmware/config.txt: aktuelles Raspberry Pi OS (Bookworm/
+# Trixie), nicht mehr das alte /boot/config.txt der bisherigen
+# Bullseye-Installation.
+
+- name: HDMI-Gruppe setzen
+  lineinfile:
+    path: /boot/firmware/config.txt
+    regexp: "^hdmi_group"
+    line: "hdmi_group=2"
+    insertafter: '^\[all\]'
+  register: targetdisplay_hdmi_group
+
+# hdmi_mode=27 = DMT 1280x800@60Hz - verifiziert 2026-08-28 gegen die
+# tatsaechliche Boot-Config von Stand 1 (identischer Wert dort bereits
+# im produktiven Einsatz), nicht nur aus einer DMT-Tabelle nachgeschlagen.
+- name: HDMI-Modus setzen (1280x800, wie alle 5 produktiven Staende)
+  lineinfile:
+    path: /boot/firmware/config.txt
+    regexp: "^hdmi_mode"
+    line: "hdmi_mode=27"
+    insertafter: '^\[all\]'
+  register: targetdisplay_hdmi_mode
+
+- name: hdmi_force_hotplug setzen
+  lineinfile:
+    path: /boot/firmware/config.txt
+    regexp: "^hdmi_force_hotplug"
+    line: "hdmi_force_hotplug=1"
+    insertafter: '^\[all\]'
+  register: targetdisplay_hdmi_hotplug
+
+# Erzwingt die konfigurierte Aufloesung unabhaengig davon, was der
+# tatsaechlich angeschlossene Monitor per EDID meldet/bevorzugt - ohne das
+# wuerde die Firmware ggf. auf den nativen/EDID-"preferred" Modus des
+# angeschlossenen Monitors ausweichen, sobald der von einem der 5
+# produktiven Touchscreens abweicht (z.B. auf diesem Test-Pi mit einem
+# anderen Monitor).
+- name: hdmi_ignore_edid setzen (Aufloesung erzwingen, egal welcher Monitor haengt)
+  lineinfile:
+    path: /boot/firmware/config.txt
+    regexp: "^hdmi_ignore_edid"
+    line: "hdmi_ignore_edid=0xa5000080"
+    insertafter: '^\[all\]'
+  register: targetdisplay_hdmi_ignore_edid
+
+- name: vc4-kms-v3d deaktivieren (X11/fkms statt volles KMS)
+  replace:
+    path: /boot/firmware/config.txt
+    regexp: '^dtoverlay=vc4-kms-v3d'
+    replace: '#dtoverlay=vc4-kms-v3d'
+  register: targetdisplay_kms_disabled
+
+- name: Touch-Kalibrierung kopieren (Platzhalterwerte - siehe README)
+  copy:
+    src: 99-calibration.conf
+    dest: /usr/share/X11/xorg.conf.d/99-calibration.conf
+    owner: root
+    group: root
+    mode: "0644"
+    force: no
+
+# /boot/firmware/config.txt-Aenderungen wirken erst nach einem Reboot -
+# anders als z.B. ein Kernel-Update setzt das kein /var/run/reboot-required,
+# daher hier ein eigener, gezielter Reboot-Trigger.
+- name: Reboot nach HDMI-Konfigurationsaenderung
+  reboot:
+    msg: "Reboot nach HDMI-Konfigurationsaenderung (config.txt)"
+  when: >-
+    targetdisplay_hdmi_group is changed or
+    targetdisplay_hdmi_mode is changed or
+    targetdisplay_hdmi_hotplug is changed or
+    targetdisplay_hdmi_ignore_edid is changed or
+    targetdisplay_kms_disabled is changed

@@ -1,0 +1,36 @@
+# Pinned to the versions verified running on the production Pis (stand1, 2026-08-21).
+# Install with: pip3 install -r requirements.txt
+
+PySimpleGUI==4.60.5.1
+# 4.32.1 (the version actually running on stand1-5) was pulled from PyPI at
+# some point after that install - "pip install PySimpleGUI==4.32.1" now
+# 404s (verified during the ansible test-Pi install, 2026-08-28), so a fresh
+# install can only ever get 4.60.5.1, the last freely available release.
+# Anything newer requires a paid license and will fail/nag without one.
+# Do not upgrade past 4.60.5.1.
+
+config-with-yaml==0.1.0
+
+av
+# Bewusst ohne Versionspin: welche av-Version ein fertiges Wheel hat, haengt
+# stark von Python-Version/Architektur ab (z.B. Bullseye/Python 3.9/armv7l
+# ueber piwheels.org: nur bis av==10.0.0, danach nur noch Sourcebuilds;
+# aktuelles Raspberry Pi OS mit Python 3.11+/aarch64 bekommt ueber piwheels
+# bzw. PyPI-manylinux-Wheels dagegen deutlich neuere Versionen fertig
+# gebaut). Ein fixer Pin waere je nach Zielsystem falsch. Zusaetzlich
+# noetig (apt, nicht pip): die passende
+# libavdevice-Laufzeitbibliothek (Paketname/SONAME variiert je nach FFmpeg-
+# Version der jeweiligen OS-Generation, z.B. libavdevice58 auf Bullseye vs.
+# libavdevice61 auf Trixie) - PyAV verlinkt dagegen auch wenn Device-I/O
+# nicht genutzt wird. Am robustesten: das generische "ffmpeg"-Paket
+# installieren statt eine konkrete libavdevice-Version zu pinnen.
+
+# opencv and numpy are intentionally NOT listed here: on the Pis they come from
+# apt (python3-opencv, python3-numpy), not pip, and are tied to the OS release
+# (Bullseye -> opencv 4.5.1, numpy 1.19.5). Installing them via pip alongside
+# the apt versions risks two conflicting cv2/numpy installs on the same system.
+# Update them via `apt upgrade` (or an OS upgrade), not pip.
+#
+# For a local venv (e.g. on macOS) where there's no system opencv/numpy to
+# conflict with, install them separately:
+#   pip3 install opencv-python numpy

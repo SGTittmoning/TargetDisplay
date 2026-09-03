@@ -1,0 +1,61 @@
+---
+# Wartung/Updates. Nutzt das auf dem Pi installierte targetdisplay-update.sh
+# (siehe tasks/maintenance_scripts.yml), da ein einfaches "apt upgrade"
+# bei aktivem OverlayFS wirkungslos waere - jede Aenderung am Root-FS landet
+# sonst nur im fluechtigen tmpfs-Layer und ist nach dem naechsten Reboot
+# wieder weg. Das Skript uebernimmt den noetigen zweiphasigen Reboot-Tanz
+# (Overlay/Boot-RO deaktivieren -> Updates -> wieder aktivieren -> Reboot).
+#
+# Aufruf:
+#   ansible-playbook -i inventory.yml maintain.yml --limit <host>
+
+- hosts: targetdisplay
+  become: yes
+
+  tasks:
+
+    - name: targetdisplay-update.sh vorhanden?
+      stat:
+        path: /root/bin/targetdisplay-update.sh
+      register: targetdisplay_update_script
+
+    - name: Fehler falls Skript fehlt
+      fail:
+        msg: "/root/bin/targetdisplay-update.sh fehlt - zuerst install.yml (tasks/maintenance_scripts.yml) ausfuehren"
+      when: not targetdisplay_update_script.stat.exists
+
+    - name: "Phase 1: Update-Zyklus starten (begin)"
+      command: /root/bin/targetdisplay-update.sh begin
+
+    - name: Zwischenstatus auslesen
+      command: /root/bin/targetdisplay-update.sh status
+      register: targetdisplay_status_after_begin
+      changed_when: false
+
+    - name: Zwischen-Reboot falls noetig
+      reboot:
+        msg: "Reboot fuer targetdisplay-update.sh Phase 1 (OverlayFS deaktivieren)"
+      when: "'awaiting-reboot-1' in targetdisplay_status_after_begin.stdout"
+
+    - name: "Phase 2: Updates einspielen (apply)"
+      command: /root/bin/targetdisplay-update.sh apply
+      register: targetdisplay_apply_result
+
+    - name: Ergebnis von apply anzeigen
+      debug:
+        var: targetdisplay_apply_result.stdout_lines
+
+    - name: Finaler Reboot (OverlayFS/Boot-RO wieder aktivieren)
+      reboot:
+        msg: "Finaler Reboot nach Update - OverlayFS/Boot-RO wieder aktiv"
+
+    - name: targetdisplay.service laeuft wieder?
+      command: systemctl is-active targetdisplay.service
+      register: targetdisplay_service_status
+      changed_when: false
+      failed_when: false
+
+    - name: Warnung falls targetdisplay.service nach dem Update nicht aktiv ist
+      debug:
+        msg: "WARNUNG: targetdisplay.service ist nach dem Update nicht aktiv (Status: {{ targetdisplay_service_status.stdout }})"
+      when: targetdisplay_service_status.stdout != 'active'

@@ -1,0 +1,54 @@
+---
+# Zweite Eskalationsstufe nach den App-Neustart-Versuchen in play_it:
+# wiederholtes Scheitern von targetdisplay.service (StartLimitBurst,
+# siehe templates/targetdisplay.service.j2) loest per OnFailure= einen
+# Pi-Reboot aus - mit persistenter Obergrenze (targetdisplay-reboot-guard.sh,
+# Zaehler auf der Boot-Partition), damit ein dauerhafter Fehler nicht zu
+# einer Endlos-Reboot-Schleife fuehrt. Ein Timer setzt den Zaehler 5 Minuten
+# nach jedem stabilen Boot zurueck. Nach demselben Muster wie im
+# oeffentlichen CamDisplay-Repo (https://github.com/SGTittmoning/CamDisplay),
+# dort bereits gegen echte Pi-4-Hardware verifiziert.
+#
+# Die Skripte selbst werden schon in tasks/maintenance_scripts.yml nach
+# /root/bin kopiert (gemeinsam mit den anderen Wartungsskripten).
+
+- name: targetdisplay-reboot.service aus Template rendern
+  template:
+    src: targetdisplay-reboot.service.j2
+    dest: /etc/systemd/system/targetdisplay-reboot.service
+    owner: root
+    group: root
+    mode: "0644"
+  register: targetdisplay_reboot_unit
+
+- name: targetdisplay-reboot-count-reset.service aus Template rendern
+  template:
+    src: targetdisplay-reboot-count-reset.service.j2
+    dest: /etc/systemd/system/targetdisplay-reboot-count-reset.service
+    owner: root
+    group: root
+    mode: "0644"
+  register: targetdisplay_reset_unit
+
+- name: targetdisplay-reboot-count-reset.timer aus Template rendern
+  template:
+    src: targetdisplay-reboot-count-reset.timer.j2
+    dest: /etc/systemd/system/targetdisplay-reboot-count-reset.timer
+    owner: root
+    group: root
+    mode: "0644"
+  register: targetdisplay_reset_timer
+
+- name: systemd neu einlesen (nach Unit-Aenderungen)
+  systemd:
+    daemon_reload: yes
+  when: >-
+    targetdisplay_reboot_unit is changed or
+    targetdisplay_reset_unit is changed or
+    targetdisplay_reset_timer is changed
+
+- name: targetdisplay-reboot-count-reset.timer aktivieren und starten
+  systemd:
+    name: targetdisplay-reboot-count-reset.timer
+    enabled: yes
+    state: started

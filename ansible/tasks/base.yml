@@ -1,0 +1,194 @@
+---
+# en_US.UTF-8 fehlt auf frischen Raspberry Pi OS Lite Images oft komplett -
+# fuehrt zu "setlocale: LC_ALL: cannot change locale"-Warnungen bei jedem
+# SSH-Login/Ansible-Lauf (harmlos, aber unnoetiger Laerm). ansible.builtin
+# hat kein eigenes locale_gen-Modul mehr (das wanderte nach community.general),
+# deshalb hier bewusst ueber locale-gen/lineinfile direkt geloest, um ohne
+# zusaetzliche Collection auszukommen. Nach demselben Muster wie im
+# oeffentlichen CamDisplay-Repo: https://github.com/SGTittmoning/CamDisplay
+- name: en_US.UTF-8 Locale aktivieren (/etc/locale.gen)
+  lineinfile:
+    path: /etc/locale.gen
+    regexp: '^#?\s*en_US\.UTF-8 UTF-8'
+    line: 'en_US.UTF-8 UTF-8'
+  register: targetdisplay_locale_gen_conf
+
+- name: Locale generieren
+  command: locale-gen
+  when: targetdisplay_locale_gen_conf is changed
+
+- name: LANG in /etc/default/locale setzen
+  lineinfile:
+    path: /etc/default/locale
+    regexp: '^LANG='
+    line: 'LANG=en_US.UTF-8'
+    create: yes
+
+- name: LC_ALL in /etc/default/locale setzen
+  lineinfile:
+    path: /etc/default/locale
+    regexp: '^LC_ALL='
+    line: 'LC_ALL=en_US.UTF-8'
+    create: yes
+
+- name: apt-Cache aktualisieren (max. 1x pro Stunde)
+  apt:
+    update_cache: yes
+    cache_valid_time: 3600
+  changed_when: false
+
+- name: System auf aktuellen Stand bringen (dist-upgrade)
+  apt:
+    upgrade: dist
+
+- name: Benoetigte Pakete installieren
+  apt:
+    pkg:
+      - git
+      - acl  # noetig, damit Ansibles "become_user: {{ targetdisplay_service_user }}"
+             # (unprivilegierter Ziel-User) funktioniert - ohne POSIX-ACLs
+             # (setfacl) faellt Ansible auf einen kaputten Fallback zurueck,
+             # siehe https://docs.ansible.com/ansible-core/2.16/playbook_guide/playbooks_privilege_escalation.html#risks-of-becoming-an-unprivileged-user
+      - xserver-xorg-input-evdev
+      - xinit  # liefert "startx", das targetdisplay.service zum Starten der X11-Session nutzt
+      - matchbox-window-manager
+      - unclutter
+      - xinput-calibrator
+      - x11-xserver-utils
+      - htop
+      - python3
+      - python3-pip
+      - python3-venv
+      - python3-opencv
+      - python3-numpy
+      - python3-tk
+      - xdotool  # fuer ferngesteuerte UI-Tests (Button-Klicks per SSH), kein Laufzeit-Bedarf der App selbst
+      - ffmpeg  # liefert die von PyAV (camera.py) benoetigten libav*-Laufzeitbibliotheken
+                # (u.a. libavdevice) in der zur jeweiligen OS-Generation passenden Version -
+                # bewusst das generische Paket statt einer konkreten libavdevice-NN-Version,
+                # da sich das SONAME zwischen Debian-Releases aendert (58 auf Bullseye, 61 auf
+                # Trixie, ...)
+  register: targetdisplay_base_packages
+  # KEIN nodm (mehr) - siehe tasks/startup_service.yml: ein dedizierter
+  # systemd-Service startet X11 direkt per "startx" fuer einen eigenen,
+  # unprivilegierten User statt eines PAM-Autologins ueber ein sehr altes,
+  # kaum noch gepflegtes Paket.
+
+# Eigener, unprivilegierter User fuer die TargetDisplay-X11-Session -
+# bewusst NICHT der Ansible-Automatisierungsaccount ({{ ansible_user }}),
+# der ueblicherweise passwortloses sudo hat. Anders als bei CamDisplay
+# braucht dieser User ein echtes Home-Verzeichnis (fuer .xinitrc, den
+# App-Checkout, .Xauthority) und Zugriff auf Grafik-/Touch-Devices, aber
+# keine interaktive Shell (kein SSH/Login als dieser User vorgesehen) und
+# kein sudo. video/render/input regeln den Geraetezugriff hier bewusst
+# ALLEIN ueber Gruppenmitgliedschaft, nicht ueber logind-Seat-ACLs
+# (PAMName=login) - siehe targetdisplay.service.j2 fuer die Begruendung
+# (Cgroup-Trennung durch PAM verhinderte sauberes Stoppen des Service).
+- name: Service-User "{{ targetdisplay_service_user }}" fuer die X11-Session anlegen
+  user:
+    name: "{{ targetdisplay_service_user }}"
+    system: yes
+    home: "/home/{{ targetdisplay_service_user }}"
+    create_home: yes
+    shell: /usr/sbin/nologin
+    groups: video,render,input
+    append: yes
+
+- name: Zeitzone setzen
+  timezone:
+    name: "{{ targetdisplay_timezone }}"
+
+# sntp gibt es auf aktuellem Raspberry Pi OS/Debian nicht mehr (Trixie:
+# "No package matching 'sntp' is available") - systemd-timesyncd laeuft
+# dort bereits standardmaessig aktiv und synchronisiert kontinuierlich,
+# ein einmaliger sntp-Sync ist nicht mehr noetig. Stattdessen den lokalen
+# NTP-Server (kein Internet-Pool - die Staende haben ggf. keinen Internet-
+# Zugang) als Zeitquelle fuer timesyncd konfigurieren.
+- name: Lokalen NTP-Server fuer systemd-timesyncd konfigurieren
+  lineinfile:
+    path: /etc/systemd/timesyncd.conf
+    regexp: '^#?\s*NTP='
+    line: "NTP={{ ntpserver }}"
+    insertafter: '^\[Time\]'
+  register: targetdisplay_timesyncd_conf
+
+- name: systemd-timesyncd neu starten (nach Konfigurationsaenderung)
+  systemd:
+    name: systemd-timesyncd
+    state: restarted
+  when: targetdisplay_timesyncd_conf is changed
+
+# journald speichert standardmaessig nur fluechtig unter /run/log/journal -
+# ueberlebt keinen Reboot. Genau das machte die Fehlersuche beim Reboot-Guard-
+# Testing wiederholt unmoeglich (Logs vom Absturz/Reboot-Zyklus waren nach dem
+# naechsten Boot weg). Persistente Journal-Speicherung unter /var/log/journal
+# behebt das. Sobald spaeter das Root-Overlay aktiv ist (Produktion), landen
+# Schreibzugriffe wie bei jeder anderen Datei im fluechtigen tmpfs-Layer -
+# faellt also automatisch und unschaedlich auf das bisherige Verhalten
+# zurueck, kein gesonderter Rueckbau noetig.
+#
+# WICHTIG: NICHT /etc/systemd/journald.conf direkt editieren - Raspberry Pi
+# OS liefert ueber das Paket raspberrypi-sys-mods ein eigenes Drop-in
+# (/usr/lib/systemd/journald.conf.d/40-rpi-volatile-storage.conf) mit
+# "Storage=volatile", das die Haupt-Config immer überschreibt (Drop-ins
+# gewinnen grundsaetzlich gegen die Haupt-Config). Eigenes Drop-in mit
+# alphabetisch spaeterem Namen noetig, um das zu ueberstimmen - empirisch
+# verifiziert (2026-08-28) per "systemd-analyze cat-config systemd/journald.conf".
+#
+# Zusaetzlich WICHTIG: Ein blosses "systemctl restart systemd-journald" nach
+# der Config-Aenderung reicht NICHT - journald bleibt dabei live im
+# volatilen Modus haengen. Erst nach einem echten Reboot greift die neue
+# Storage-Einstellung zuverlaessig (ebenfalls live verifiziert).
+# Aufraeumen eines fruehen, falschen Versuchs (direkte Aenderung an der
+# Haupt-Config statt einem Drop-in, siehe oben) - dieser Task lief bereits
+# einmal live und hat "Storage=persistent" dort stehen lassen. Voellig
+# wirkungslos (wird vom RPi-Drop-in ueberschrieben), aber verwirrend fuer
+# spaeteres Lesen der Datei - Zeile wieder auskommentieren.
+- name: Alten, wirkungslosen direkten Storage-Eintrag aus der Haupt-Config wieder entfernen
+  lineinfile:
+    path: /etc/systemd/journald.conf
+    regexp: '^Storage=persistent$'
+    line: '#Storage='
+    backrefs: yes
+
+- name: Verzeichnis fuer eigene journald-Drop-ins anlegen
+  file:
+    path: /etc/systemd/journald.conf.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: journald auf persistente Speicherung umstellen (fuer Fehlersuche ueber Reboots hinweg)
+  copy:
+    dest: /etc/systemd/journald.conf.d/99-persistent-storage.conf
+    content: |
+      [Journal]
+      Storage=persistent
+    owner: root
+    group: root
+    mode: "0644"
+  register: targetdisplay_journald_conf
+
+- name: Reboot nach journald-Speicherart-Aenderung (Restart allein reicht nicht)
+  reboot:
+    msg: "Reboot nach Umstellung auf persistente journald-Speicherung"
+  when: targetdisplay_journald_conf is changed
+
+- name: Useless Pakete aus dem Cache entfernen
+  apt:
+    autoclean: yes
+
+- name: Nicht mehr benoetigte Abhaengigkeiten entfernen
+  apt:
+    autoremove: yes
+
+- name: Pruefen ob ein Reboot noetig ist
+  stat:
+    path: /var/run/reboot-required
+  register: targetdisplay_reboot_required
+
+- name: Reboot falls Kernel aktualisiert wurde
+  reboot:
+    msg: "Reboot nach Kernel-/Paket-Updates"
+  when: targetdisplay_reboot_required.stat.exists

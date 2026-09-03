@@ -1,0 +1,28 @@
+---
+# Manuelle Wartungsskripte fuer den Fall, dass gerade kein Ansible-Zugriff
+# moeglich ist (z.B. vor Ort ohne Laptop/VPN). Nach demselben Muster wie im
+# oeffentlichen CamDisplay-Repo: https://github.com/SGTittmoning/CamDisplay
+
+- name: /root/bin anlegen
+  file:
+    path: /root/bin
+    state: directory
+    owner: root
+    group: root
+    mode: '0700'
+
+- name: Wartungsskripte nach /root/bin kopieren
+  copy:
+    src: "{{ item }}"
+    dest: "/root/bin/{{ item }}"
+    owner: root
+    group: root
+    mode: '0700'
+  loop:
+    - targetdisplay-update.sh
+    - targetdisplay-writable.sh
+    - targetdisplay-reboot-guard.sh
+    - targetdisplay-reboot-count-reset.sh
+    - targetdisplay-save-sections.sh
+    - targetdisplay-save-active-stand.sh
+    - targetdisplay-save-pin.sh

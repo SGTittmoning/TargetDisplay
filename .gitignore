@@ -1,0 +1,15 @@
+*.log
+*.out
+.DS_Store
+config.yml
+__pycache__
+.python-version
+INTERNAL_NOTES.md
+archiv/
+.venv
+configs_backup/
+ansible/inventory.yml
+deploy_logs/
+testdata/
+Obsolete/
+ressources/logo.png

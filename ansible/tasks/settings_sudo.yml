@@ -1,0 +1,30 @@
+---
+# Eng gefasstes sudo-Recht fuer den unprivilegierten targetdisplay-User,
+# ausschliesslich fuer den PIN-geschuetzten Settings/Restart-Screen (und
+# den Ersteinrichtungs-Assistenten) in main.py: das Speichern von
+# section_full/section_detail-Aenderungen (targetdisplay-save-sections.sh,
+# siehe dort fuer die Begruendung der Boot-Partition statt config.yml),
+# der Stand-Auswahl (targetdisplay-save-active-stand.sh), des PIN
+# (targetdisplay-save-pin.sh) und den Geraete-Reboot-Button. Jede Aktion
+# hat ihr eigenes, einzelnes Skript statt eines gemeinsamen "Sammel"-
+# Skripts - ein kompromittierter main.py-Prozess kann dadurch nie mehr als
+# die eine Aktion ausloesen, fuer die er den Aufruf gerade auch
+# tatsaechlich verwendet. Keine Shell, kein Passwort, keine weiteren
+# Befehle - bewusst so eng wie moeglich, da main.py als dieser User laeuft
+# und im Browser/Prozess-Kontext eines Kiosk-Geraets kompromittiert werden
+# koennte.
+#
+# "visudo -cf %s" validiert die Syntax VOR dem Einspielen - eine defekte
+# sudoers-Datei koennte sonst sudo systemweit lahmlegen.
+- name: Sudo-Recht fuer Settings/Restart (targetdisplay-User) einspielen
+  copy:
+    dest: /etc/sudoers.d/targetdisplay-settings
+    content: |
+      targetdisplay ALL=(root) NOPASSWD: /root/bin/targetdisplay-save-sections.sh
+      targetdisplay ALL=(root) NOPASSWD: /root/bin/targetdisplay-save-active-stand.sh
+      targetdisplay ALL=(root) NOPASSWD: /root/bin/targetdisplay-save-pin.sh
+      targetdisplay ALL=(root) NOPASSWD: /usr/sbin/reboot
+    owner: root
+    group: root
+    mode: "0440"
+    validate: "visudo -cf %s"

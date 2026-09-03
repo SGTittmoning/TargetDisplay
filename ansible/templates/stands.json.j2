@@ -1,0 +1,7 @@
+{
+  "stands": [
+{% for stand in targetdisplay_stands %}
+    {"id": {{ stand.id | to_json }}, "displayName": {{ stand.displayName | to_json }}, "url": {{ stand.url | to_json }}}{{ "," if not loop.last }}
+{% endfor %}
+  ]
+}

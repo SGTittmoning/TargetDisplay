@@ -1,0 +1,63 @@
+---
+# Startet die X11-Session (matchbox-window-manager + play_it/App) beim Boot,
+# fuer den dedizierten "{{ targetdisplay_service_user }}"-User statt eines
+# nodm-Autologins. Ersetzt "nodm liest ~/.xsession automatisch" durch einen
+# expliziten systemd-Service, der "startx <script>" direkt ausfuehrt -
+# gleicher X-Session-Inhalt (matchbox + play_it), nur der Start-Mechanismus
+# ist neu.
+
+# Migration von der alten nodm-basierten Installation: nodm sauber stoppen/
+# deaktivieren/entfernen, falls von einem frueheren Lauf noch vorhanden -
+# sonst konkurriert es mit targetdisplay.service um dieselbe TTY/X-Session.
+- name: nodm-Dienst stoppen und deaktivieren (falls von frueherem Lauf vorhanden)
+  systemd:
+    name: nodm
+    state: stopped
+    enabled: no
+  failed_when: false
+
+- name: nodm-Paket entfernen (falls von frueherem Lauf vorhanden)
+  apt:
+    name: nodm
+    state: absent
+    purge: yes
+
+- name: .xinitrc aus Template rendern
+  template:
+    src: .xinitrc.j2
+    dest: "/home/{{ targetdisplay_service_user }}/.xinitrc"
+    owner: "{{ targetdisplay_service_user }}"
+    group: "{{ targetdisplay_service_user }}"
+    mode: "0700"
+
+- name: targetdisplay.service aus Template rendern
+  template:
+    src: targetdisplay.service.j2
+    dest: /etc/systemd/system/targetdisplay.service
+    owner: root
+    group: root
+    mode: "0644"
+  register: targetdisplay_service_unit
+
+- name: systemd neu einlesen (nach Unit-Aenderung)
+  systemd:
+    daemon_reload: yes
+  when: targetdisplay_service_unit is changed
+
+# getty@tty1 wuerde sonst mit unserem Service um dieselbe TTY konkurrieren -
+# Conflicts= in der Unit sorgt zwar dafuer, dass ein laufender getty@tty1
+# gestoppt wird sobald targetdisplay.service startet, aber nur wenn getty@tty1
+# nicht als eigenstaendig aktiviertes Ziel erneut hochkommt. Deshalb hier
+# zusaetzlich sauber deaktivieren.
+- name: getty@tty1 deaktivieren (Konflikt um dieselbe TTY vermeiden)
+  systemd:
+    name: getty@tty1.service
+    enabled: no
+    state: stopped
+  failed_when: false
+
+- name: targetdisplay.service aktivieren und (neu)starten
+  systemd:
+    name: targetdisplay.service
+    enabled: yes
+    state: "{{ 'restarted' if targetdisplay_service_unit is changed else 'started' }}"

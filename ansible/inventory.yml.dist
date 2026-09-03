@@ -1,0 +1,34 @@
+targetdisplay:
+  vars:
+    ansible_python_interpreter: /usr/bin/python3
+    ntpserver: 192.0.2.1  # your local NTP source, if the stands have no internet access
+    targetdisplay_git_repo: "https://user:pass@your-git-host.example/path/TargetDisplay/"
+    # Flottenweite Liste aller Staende - identisch an jeden Host in dieser
+    # Gruppe ausgerollt (siehe tasks/stands.yml), landet als
+    # targetdisplay-stands.json auf /boot/firmware. Welchen Stand ein
+    # konkretes Geraet zeigt, wird NICHT hier festgelegt, sondern einmalig
+    # am Geraet selbst im (erzwungenen) Ersteinrichtungs-Assistenten
+    # ausgewaehlt - dieselbe Liste funktioniert dadurch fuer beliebig viele
+    # Staende/Vereine, ohne Codeaenderung oder Pro-Host-Variablen.
+    targetdisplay_stands:
+      - id: stand1
+        displayName: "Stand 1"
+        url: "rtmp://user:pass@camera-host:1935/bcs/channel0_main.bcs?channel=0&stream=0&user=admin&password=CHANGEME"
+      - id: stand2
+        displayName: "Stand 2"
+        url: "rtmp://user:pass@camera-host2:1935/bcs/channel0_main.bcs?channel=0&stream=0&user=admin&password=CHANGEME"
+      # - id: stand3
+      #   displayName: "Stand 3"
+      #   url: "..."
+  hosts:
+    stand1.example.lan:
+      ansible_host: 192.0.2.21
+      ansible_user: pi
+      # Optional - fehlt sie, startet das Geraet mit dem eingebauten
+      # Standard-PIN "1234" und erzwingt eine PIN-Aenderung im
+      # Ersteinrichtungs-Assistenten, bevor es in den Normalbetrieb geht.
+      # my_settings_pin: "CHANGEME"  # 4-6 stelliger numerischer PIN
+    # stand2.example.lan: ...
+    # stand3.example.lan: ...
+    # stand4.example.lan: ...
+    # stand5.example.lan: ...

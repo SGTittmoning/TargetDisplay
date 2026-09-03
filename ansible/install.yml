@@ -1,0 +1,101 @@
+---
+# TargetDisplay Installation - X11 + systemd-Service (startx) + matchbox,
+# PySimpleGUI-App ueber eine venv, alles unter einem dedizierten,
+# unprivilegierten User. Fuer eine frische Installation mit aktuellem
+# Raspberry Pi OS.
+#
+# Aufruf:
+#   ansible-playbook -i inventory.yml install.yml --limit <host>
+#
+# Optionen (per -e):
+#   targetdisplay_enable_overlay=true   Read-only Root-FS (Overlay) + read-only
+#                                       Boot-Partition (bootro) aktivieren
+#                                       (Reboot!) - am besten erst NACH
+#                                       erfolgreichem Test (Bild korrekt,
+#                                       Touch kalibriert). Auf einem Host,
+#                                       auf dem das Overlay schon aktiv ist,
+#                                       kann bootro NICHT mehr nachtraeglich
+#                                       per Playbook ergaenzt werden
+#                                       (raspi-config verweigert das) - dann
+#                                       stattdessen einmal manuell
+#                                       targetdisplay-writable.sh rw/ro auf
+#                                       dem Host ausfuehren, siehe
+#                                       tasks/overlay.yml.
+
+- hosts: targetdisplay
+  become: yes
+
+  vars:
+    targetdisplay_timezone: Europe/Berlin
+    targetdisplay_enable_overlay: false
+    targetdisplay_service_user: targetdisplay
+    targetdisplay_app_path: "/home/{{ targetdisplay_service_user }}/TargetDisplay"
+    # Aufloesung aller produktiven Staende - wird per
+    # hdmi_cvt/hdmi_ignore_edid fest erzwungen (tasks/display_setup.yml),
+    # unabhaengig davon welcher Monitor tatsaechlich angeschlossen ist, und
+    # fliesst identisch in config.yml (screenSize) ein.
+    targetdisplay_screen_width: 1280
+    targetdisplay_screen_height: 800
+
+  tasks:
+
+    # my_url/section_full/section_detail/my_settings_pin sind bewusst KEINE
+    # Pflichtvariablen mehr - Kamera-URL, Ausschnitte und PIN werden seit
+    # der Mehr-Stand-Faehigkeit nicht mehr einmalig bei der Installation
+    # gesetzt, sondern kommen aus targetdisplay_stands (s.u.) plus dem
+    # (ggf. erzwungenen) Ersteinrichtungs-Assistenten am Geraet selbst -
+    # siehe tasks/stands.yml und INTERNAL_NOTES.md.
+    - name: targetdisplay_stands/targetdisplay_git_repo muessen gesetzt sein
+      assert:
+        that:
+          - targetdisplay_stands is defined
+          - targetdisplay_stands | length > 0
+          - targetdisplay_git_repo is defined
+        fail_msg: "Bitte targetdisplay_stands (mind. ein Stand) und targetdisplay_git_repo in der Inventory oder per -e setzen"
+
+    # Sicherheitscheck: alle folgenden Tasks schreiben Dateien (Pakete,
+    # App-Code, /root/bin/*, config.yml, ...). Ist das Root-Overlay auf
+    # diesem Host bereits aktiv, landen diese Schreibvorgaenge NUR im
+    # fluechtigen tmpfs-Layer und sind nach dem naechsten Reboot spurlos
+    # weg - ohne Fehlermeldung, ohne "changed"-Warnung. Uebernommen aus dem
+    # CamDisplay-Playbook, wo genau das am 2026-08-22 passiert ist.
+    - name: Root-Overlay-Status ermitteln (Sicherheitscheck)
+      command: raspi-config nonint get_overlay_now
+      register: targetdisplay_preflight_overlay
+      changed_when: false
+
+    - name: Abbruch falls Root-Overlay bereits aktiv ist
+      assert:
+        that:
+          - targetdisplay_preflight_overlay.stdout | trim != '0'
+        fail_msg: >-
+          Root-Overlay ist auf diesem Host bereits aktiv - Schreibvorgaenge
+          wuerden nur im fluechtigen tmpfs-Layer landen und beim naechsten
+          Reboot verloren gehen. Bitte zuerst auf dem Host selbst
+          'sudo /root/bin/targetdisplay-writable.sh rw' ausfuehren (ggf.
+          inkl. des angezeigten Zwischen-Reboots), danach dieses Playbook
+          laufen lassen, und abschliessend
+          'sudo /root/bin/targetdisplay-writable.sh ro' (+ Reboot) um
+          wieder read-only zu schalten.
+
+    - import_tasks: tasks/base.yml
+
+    - import_tasks: tasks/maintenance_scripts.yml
+
+    - import_tasks: tasks/settings_sudo.yml
+
+    - import_tasks: tasks/stands.yml
+
+    - import_tasks: tasks/display_setup.yml
+
+    - import_tasks: tasks/app_deploy.yml
+
+    - import_tasks: tasks/startup_service.yml
+
+    - import_tasks: tasks/reboot_guard.yml
+
+    # Reihenfolge wichtig: alles was einen Reboot ausloesen kann MUSS vor
+    # der Overlay-Aktivierung laufen, sonst startet die App noch in der
+    # alten Systemumgebung (siehe CamDisplay-Testlauf 2026-08-21).
+    - import_tasks: tasks/overlay.yml
+      when: targetdisplay_enable_overlay | bool

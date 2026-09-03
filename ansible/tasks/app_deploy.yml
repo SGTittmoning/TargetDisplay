@@ -1,0 +1,25 @@
+---
+# TargetDisplay selbst: Code, Python-Abhaengigkeiten (venv), Konfiguration.
+
+- name: "Aktuellen TargetDisplay-Stand nach {{ targetdisplay_app_path }} holen"
+  git:
+    repo: "{{ targetdisplay_git_repo }}"
+    dest: "{{ targetdisplay_app_path }}"
+    force: yes
+  become_user: "{{ targetdisplay_service_user }}"
+
+- name: Python-Abhaengigkeiten aus requirements.txt in eine venv installieren
+  pip:
+    requirements: "{{ targetdisplay_app_path }}/requirements.txt"
+    virtualenv: "{{ targetdisplay_app_path }}/.venv"
+    virtualenv_command: "python3 -m venv"
+    virtualenv_site_packages: yes
+  become_user: "{{ targetdisplay_service_user }}"
+
+- name: config.yml aus Template rendern
+  template:
+    src: config.yml.j2
+    dest: "{{ targetdisplay_app_path }}/config.yml"
+    owner: "{{ targetdisplay_service_user }}"
+    group: "{{ targetdisplay_service_user }}"
+    mode: "0600"
