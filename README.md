@@ -2,6 +2,8 @@
 
 Fullscreen kiosk display for a shooting-range target camera. Straightens out the camera's oblique viewing angle into a top-down view of the target, and gives range officers a set of on-screen tools during training and competition.
 
+![TargetDisplay main screen](docs/screenshot.png)
+
 ## Features
 
 - **Perspective correction** — a four-point transform turns an angled camera view into a straight top-down view, so the camera doesn't need to be mounted directly above the target
