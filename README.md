@@ -35,7 +35,7 @@ python3 main.py
 
 `requirements.txt` pins the versions verified against production. On Debian/Raspberry Pi OS, prefer installing `opencv-python`/`numpy` via `apt` (`python3-opencv`, `python3-numpy`) instead of pip — see the comments in `requirements.txt` for why.
 
-Optionally, drop your own logo at `ressources/logo.png` (RGBA supported) — it's shown small in the sidebar and centered as a watermark when the video feed is toggled off. Not included in this repo; the app runs fine without one.
+`ressources/logo.png` (RGBA) is shown small in the sidebar and centered as a watermark when the video feed is toggled off — ships with a generic placeholder shield, swap in your own club/range logo there. The app runs fine without one too (missing file, not an error — the logo areas just stay empty).
 
 On the production Pis, `pip`-managed dependencies live in a `.venv` (created with `--system-site-packages` so it still sees the apt-installed `opencv`/`numpy`/`tkinter`), and `play_it` runs `main.py` through `.venv/bin/python3`:
 
