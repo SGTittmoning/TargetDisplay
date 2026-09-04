@@ -521,30 +521,44 @@ class Window:
         content = tk.Frame(page, bg=BG, bd=2, relief='groove')
         content.place(relx=0.5, rely=0.5, anchor='center')
 
+        # Titeltext wechselt zur Laufzeit zwischen kurzen ("PIN eingeben")
+        # und langen Varianten ("Neuen PIN eingeben (4-6 Ziffern)", "PINs
+        # stimmen nicht überein") - lag der Titel im selben grid() wie das
+        # Tastenfeld, hat ein langer Titel (mit columnspan=3) live am
+        # Test-Pi die drei Tastenfeld-Spalten gleichmaessig auseinander-
+        # gedrueckt (Tk verteilt fehlende Breite eines spannenden Widgets
+        # per Default auf die ueberspannten Spalten). Fix: Tastenfeld in
+        # eine EIGENE Frame mit eigenem grid() ausgelagert, dadurch komplett
+        # unabhaengig von der Breite des (separat gepackten) Titels - genau
+        # das Verhalten, das PySimpleGUIs zeilenbasiertes Layout hier von
+        # Haus aus hatte (dort nie ein gemeinsames grid() zwischen Titel und
+        # Tastenfeld).
         title = tk.Label(content, text='PIN eingeben', font=('Helvetica', 30), bg=BG)
-        title.grid(row=0, column=0, columnspan=3, padx=30, pady=(20, 10))
+        title.pack(padx=30, pady=(20, 10))
         self._reg('-PIN_TITLE-', title)
 
         display = tk.Label(content, text='', font=('Courier', 40), bg=BG, width=10, justify='center')
-        display.grid(row=1, column=0, columnspan=3, pady=10)
+        display.pack(pady=10)
         self._reg('-PINDISPLAY-', display)
 
+        keypad = tk.Frame(content, bg=BG)
+        keypad.pack()
         keypad_rows = [('1', '2', '3'), ('4', '5', '6'), ('7', '8', '9')]
-        for r, row in enumerate(keypad_rows, start=2):
+        for r, row in enumerate(keypad_rows):
             for c, d in enumerate(row):
-                tk.Button(content, text=d, width=8, height=4,
+                tk.Button(keypad, text=d, width=8, height=4,
                           command=lambda d=d: self.post(d)).grid(row=r, column=c, padx=3, pady=3)
-        tk.Button(content, text='Löschen', width=8, height=4,
-                  command=lambda: self.post('-PIN_CLEAR-')).grid(row=5, column=0, padx=3, pady=3)
-        tk.Button(content, text='0', width=8, height=4,
-                  command=lambda: self.post('0')).grid(row=5, column=1, padx=3, pady=3)
-        tk.Button(content, text='OK', width=8, height=4,
-                  command=lambda: self.post('-PIN_OK-')).grid(row=5, column=2, padx=3, pady=3)
+        tk.Button(keypad, text='Löschen', width=8, height=4,
+                  command=lambda: self.post('-PIN_CLEAR-')).grid(row=3, column=0, padx=3, pady=3)
+        tk.Button(keypad, text='0', width=8, height=4,
+                  command=lambda: self.post('0')).grid(row=3, column=1, padx=3, pady=3)
+        tk.Button(keypad, text='OK', width=8, height=4,
+                  command=lambda: self.post('-PIN_OK-')).grid(row=3, column=2, padx=3, pady=3)
 
         cancel_btn = tk.Button(content, text='Abbrechen', width=26, height=2,
                                 command=lambda: self.post('-PIN_CANCEL-'))
-        cancel_btn.grid(row=6, column=0, columnspan=3, pady=(5, 20))
-        self._reg('-PIN_CANCEL-', cancel_btn, geo='grid')
+        cancel_btn.pack(pady=(5, 20))
+        self._reg('-PIN_CANCEL-', cancel_btn, geo='pack')
 
     def _build_confirm_view(self):
         page = self._new_page('-CONFIRMVIEW-')
