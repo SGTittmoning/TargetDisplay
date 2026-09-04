@@ -1166,7 +1166,13 @@ def main():
             except ZeroDivisionError:
               pass
         elif displayTimer:
-          frame = np.zeros((VideoSize[0],VideoSize[1],3), np.uint8)
+          # Bugfix: (Breite, Hoehe) statt der von numpy erwarteten
+          # (Hoehe, Breite) Reihenfolge - fiel bisher nicht auf, weil
+          # video.size in der Praxis immer quadratisch war (600x600/780x780).
+          # Der Blank-Screen-Handler oben (-TOGGLEVIDEO-) macht es bereits
+          # richtig herum, hier war es offenbar abgeschrieben und dabei
+          # vertauscht worden.
+          frame = np.zeros((VideoSize[1],VideoSize[0],3), np.uint8)
           tmpTimerSecs = (datetime.now()-timerStart).seconds
 
           prepTime = 7
