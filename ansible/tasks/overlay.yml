@@ -24,17 +24,31 @@
 #
 # get_overlay_now/get_bootro_now: 0 = aktiv, 1 = nicht aktiv (raspi-config
 # Konvention). get_overlay_now prueft nur, ob "overlayroot=tmpfs" beim
-# aktuellen Boot in der Kernel-Cmdline stand - fuer die Entscheidung "muss
-# ich enable_overlayfs aufrufen" ist deshalb stattdessen der
-# overlayroot-Paketstatus das verlaesslichere Signal (siehe CamDisplay-
-# Testlauf 2026-08-21: Flag stand bereits im Image, Paket fehlte,
-# get_overlay_now meldete faelschlich "aktiv").
+# AKTUELLEN Boot in der Kernel-Cmdline stand - das allein reicht als
+# alleiniges Signal nicht: ein Host, auf dem bereits Overlay+Bootro liefen
+# und dann per "targetdisplay-writable.sh rw" (+ Reboot) wieder deaktiviert
+# wurden, hat das overlayroot-Paket weiterhin installiert, aber
+# get_overlay_now meldet danach korrekt "1" (inaktiv) - das reine
+# Paketstatus-Signal wuerde diesen Fall faelschlich als "schon erledigt"
+# uebergehen und enable_overlayfs NIE mehr aufrufen (live am Test-Pi
+# reproduziert: nach einem rw/ro-Test blieb "-e ...enable_overlay=true"
+# bei einem erneuten Lauf wirkungslos). Umgekehrt kann auf einem frischen
+# Image die Cmdline schon "overlayroot=tmpfs" enthalten OHNE dass das Paket
+# installiert ist (siehe CamDisplay-Testlauf 2026-08-21) - dort meldete
+# get_overlay_now faelschlich "aktiv", obwohl noch gar nichts wirkt. Beide
+# Signale zusammen (aktivieren wenn EINES der beiden noch fehlt) decken
+# beide Faelle ab.
 
 - name: overlayroot Paketstatus ermitteln
   command: dpkg-query -W -f='${Status}' overlayroot
   register: targetdisplay_overlayroot_pkg
   changed_when: false
   failed_when: false
+
+- name: Overlay-Status ermitteln
+  command: raspi-config nonint get_overlay_now
+  register: targetdisplay_overlay_status
+  changed_when: false
 
 - name: Bootro-Status ermitteln
   command: raspi-config nonint get_bootro_now
@@ -48,7 +62,9 @@
 
 - name: Overlay-Root aktivieren (installiert bei Bedarf das overlayroot-Paket)
   command: raspi-config nonint enable_overlayfs
-  when: "'install ok installed' not in targetdisplay_overlayroot_pkg.stdout"
+  when: >-
+    targetdisplay_overlay_status.stdout | trim != '0' or
+    'install ok installed' not in targetdisplay_overlayroot_pkg.stdout
   register: targetdisplay_overlay_enabled
 
 - name: Reboot fuer Bootro/Overlay-Aktivierung
