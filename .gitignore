@@ -13,3 +13,4 @@ deploy_logs/
 testdata/
 Obsolete/
 ressources/*.bak
+ansible/files/logo.png

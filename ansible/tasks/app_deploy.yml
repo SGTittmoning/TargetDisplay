@@ -23,3 +23,29 @@
     owner: "{{ targetdisplay_service_user }}"
     group: "{{ targetdisplay_service_user }}"
     mode: "0600"
+
+# ressources/logo.png kommt bereits ueber den Git-Checkout oben mit (das im
+# Repo mitgelieferte generische Platzhalter-Wappen, quasi das "dist"-Logo).
+# Legt der Anwender zusaetzlich ein eigenes Logo unter ansible/files/logo.png
+# ab (auf der Ansible-Kontrollmaschine, NICHT im Repo - siehe .gitignore),
+# ueberschreibt dieser Task es automatisch auf jedem Stand - kein manuelles
+# Kopieren einzeln je Geraet mehr noetig. Kein force:no wie bei der Touch-
+# Kalibrierung: die Datei hier auf der Kontrollmaschine ist die Quelle der
+# Wahrheit, ein erneuter Lauf soll eine aktualisierte Version zuverlaessig
+# nachziehen.
+- name: Vorhandensein eines eigenen Logos pruefen (ansible/files/logo.png)
+  stat:
+    path: "{{ playbook_dir }}/files/logo.png"
+  register: targetdisplay_custom_logo
+  delegate_to: localhost
+  become: no
+
+- name: Eigenes Logo einspielen (ueberschreibt das mitgelieferte Platzhalter-Logo)
+  copy:
+    src: logo.png
+    dest: "{{ targetdisplay_app_path }}/ressources/logo.png"
+    owner: "{{ targetdisplay_service_user }}"
+    group: "{{ targetdisplay_service_user }}"
+    mode: "0644"
+  become_user: "{{ targetdisplay_service_user }}"
+  when: targetdisplay_custom_logo.stat.exists
