@@ -4,9 +4,10 @@ import signal
 import json
 import os
 import math
+import queue
 import subprocess
 import cv2
-import PySimpleGUI as sg
+import tkinter as tk
 import numpy as np
 import transformlib as tl
 import config_with_yaml as config
@@ -42,11 +43,9 @@ STREAM_STALE_TIMEOUT_SEC = 10
 # einen Ausfall WAEHREND eines bereits laufenden Streams.
 STREAM_STARTUP_TIMEOUT_SEC = 30
 
-version = '0.10.1'
+version = '0.11.0'
 
 cfg = config.load("config.yml")
-
-last_image_id = 0
 
 window = ''
 
@@ -204,25 +203,432 @@ def save_pin(new_pin):
 
 
 # Feste Canvas-Groesse fuer den Punkte-Editor (edit_section_points): das
-# Fenster/Layout wird nur EINMAL beim Programmstart gebaut (siehe
-# main()/_show_page unten - PIN/Settings/Restart sind eigene "Seiten" im
-# selben Fenster, kein separates sg.Window mehr), das tatsaechliche
-# Kamerabild-Seitenverhaeltnis ist zu diesem Zeitpunkt aber noch nicht
-# bekannt. Das Bild wird beim Zeichnen einfach oben links in dieser Flaeche
-# platziert (siehe to_display_frame/redraw).
+# Fenster wird nur EINMAL beim Programmstart gebaut (siehe main()/_show_page
+# unten - PIN/Settings/Restart sind eigene "Seiten" im selben Fenster, per
+# Frame.tkraise() umgeschaltet), das tatsaechliche Kamerabild-
+# Seitenverhaeltnis ist zu diesem Zeitpunkt aber noch nicht bekannt. Das
+# Bild wird beim Zeichnen einfach oben links in dieser Flaeche platziert
+# (siehe to_display_frame/redraw).
 EDITOR_MAX_W, EDITOR_MAX_H = 1000, 620
-
-# Alle "Seiten" des Kiosk-Fensters - _show_page blendet genau eine davon ein.
-_PAGE_KEYS = ('-MAINVIEW-', '-PINVIEW-', '-CONFIRMVIEW-', '-MENUVIEW-', '-EDITORVIEW-',
-              '-STANDVIEW-', '-CAMWAITVIEW-')
 
 # Zusaetzliche, grobe Zeichenbegrenzung fuer den Standnamen - der eigentliche
 # Schutz gegen ein auseinandergedruecktes Layout ist der feste Pixel-Rahmen
-# um das Text-Element in main() (sg.Frame(size=...), erzwingt per
-# pack_propagate(0) eine harte Breite). Diese Kuerzung hier ist nur eine
-# zusaetzliche Sicherheitsmarge, damit gar nicht erst extrem lange Strings
-# an Tk uebergeben werden.
+# um das Label in Window._build_main_view() (Frame mit fester width/height +
+# pack_propagate(False)). Diese Kuerzung hier ist nur eine zusaetzliche
+# Sicherheitsmarge, damit gar nicht erst extrem lange Strings an Tk
+# uebergeben werden.
 STANDNAME_MAX_CHARS = 30
+
+BG = '#dff0d8'  # Naeherung an das fruehere PySimpleGUI-Theme "LightGreen"
+
+WIN_CLOSED = '__WIN_CLOSED__'
+TIMEOUT_EVENT = '__TIMEOUT__'
+
+
+class Elem:
+    # Duenner Wrapper um ein natives Tk-Widget, der nur die .update(...)-
+    # Aufrufmuster abdeckt, die in diesem Skript tatsaechlich vorkommen -
+    # kein Nachbau von PySimpleGUI, nur genug, um window['-KEY-'].update(...)
+    # unveraendert weiterzuverwenden und dadurch den Rest der Datei (State-
+    # Machine, Event-Handling) fast unveraendert vom PySimpleGUI-Original
+    # uebernehmen zu koennen.
+    def __init__(self, widget, geo=None):
+        self.widget = widget
+        self.geo = geo  # 'pack'/'grid', nur fuer Widgets mit visible=-Toggle noetig
+        self._geo_info = None
+        self._image_ref = None
+
+    def update(self, value=None, disabled=None, visible=None, values=None, text_color=None, data=None):
+        w = self.widget
+        if values is not None:
+            w.delete(0, tk.END)
+            for v in values:
+                w.insert(tk.END, v)
+        if value is not None:
+            w.config(text=value)
+        if text_color is not None:
+            w.config(fg=text_color)
+        if disabled is not None:
+            w.config(state=(tk.DISABLED if disabled else tk.NORMAL))
+        if data is not None:
+            img = tk.PhotoImage(data=data)
+            self._image_ref = img  # Referenz halten, sonst wird das Tk-Image sofort freigegeben
+            w.config(image=img)
+        if visible is not None:
+            if visible:
+                if self._geo_info is not None:
+                    if self.geo == 'grid':
+                        w.grid(**self._geo_info)
+                    else:
+                        w.pack(**self._geo_info)
+            else:
+                if self.geo == 'grid':
+                    self._geo_info = w.grid_info()
+                    w.grid_remove()
+                else:
+                    self._geo_info = w.pack_info()
+                    w.pack_forget()
+
+
+class Window:
+    # Ersetzt sg.Window: EIN Tk-Root mit mehreren als Geschwister-Frames
+    # angelegten "Seiten" (siehe _PAGE_KEYS), zwischen denen per
+    # Frame.tkraise() umgeschaltet wird (siehe show_page). read()/post()
+    # bilden das blockierende window.read()-Verhalten von PySimpleGUI nach:
+    # jedes Button-Kommando legt sein Event in eine Queue, read() pumpt den
+    # Tk-Eventloop per periodischem root.update() und liefert das naechste
+    # Event (oder nach Ablauf von timeout ein TIMEOUT_EVENT). Genau dieses
+    # Verhalten hat PySimpleGUI intern ohnehin schon so umgesetzt - hier nur
+    # ohne die Abstraktionsschicht dazwischen.
+    def __init__(self, cfg, video_size):
+        self.video_size = video_size
+        self._queue = queue.Queue()
+        self.widgets = {}
+        self.pages = {}
+        self._video_image = None
+        self._video_image_id = None
+
+        self.root = tk.Tk()
+        self.root.overrideredirect(True)
+        self.root.attributes('-topmost', True)
+        screen = cfg.getProperty('screenSize')
+        self.root.geometry(f'{screen[0]}x{screen[1]}+0+0')
+        self.root.configure(bg=BG)
+        self.root.protocol('WM_DELETE_WINDOW', lambda: self.post(WIN_CLOSED))
+
+        self.container = tk.Frame(self.root, bg=BG)
+        self.container.pack(fill='both', expand=True)
+        self.container.grid_rowconfigure(0, weight=1)
+        self.container.grid_columnconfigure(0, weight=1)
+
+        self._build_main_view()
+        self._build_pin_view()
+        self._build_confirm_view()
+        self._build_menu_view()
+        self._build_editor_view()
+        self._build_stand_view()
+        self._build_camwait_view()
+
+    # -- Hilfsfunktionen Fensteraufbau -----------------------------------
+
+    def _new_page(self, key):
+        f = tk.Frame(self.container, bg=BG)
+        f.grid(row=0, column=0, sticky='nsew')
+        self.pages[key] = f
+        return f
+
+    def _reg(self, key, widget, geo=None):
+        self.widgets[key] = Elem(widget, geo=geo)
+        return widget
+
+    def __getitem__(self, key):
+        return self.widgets[key]
+
+    def post(self, key, values=None):
+        self._queue.put((key, values or {}))
+
+    def read(self, timeout=None):
+        deadline = None if timeout is None else time.monotonic() + timeout / 1000.0
+        while True:
+            try:
+                return self._queue.get_nowait()
+            except queue.Empty:
+                pass
+            self.root.update()
+            if deadline is not None and time.monotonic() >= deadline:
+                return (TIMEOUT_EVENT, {})
+            time.sleep(0.005)
+
+    def refresh(self):
+        self.root.update()
+
+    def show_page(self, key):
+        self.pages[key].tkraise()
+        self.root.update()
+
+    def close(self):
+        self.root.destroy()
+
+    def popup(self, message):
+        top = tk.Toplevel(self.root)
+        top.overrideredirect(True)
+        top.attributes('-topmost', True)
+        top.configure(bg='white', highlightthickness=2, highlightbackground='black')
+        tk.Label(top, text=message, font=('Helvetica', 16), bg='white',
+                 wraplength=420, justify='center').pack(padx=30, pady=(30, 15))
+        tk.Button(top, text='OK', font=('Helvetica', 14), width=10, height=2,
+                  command=top.destroy).pack(pady=(0, 25))
+        top.update_idletasks()
+        w, h = top.winfo_width(), top.winfo_height()
+        sw, sh = self.root.winfo_width(), self.root.winfo_height()
+        top.geometry(f'+{max(0, (sw - w) // 2)}+{max(0, (sh - h) // 2)}')
+        top.grab_set()
+        top.wait_window()
+
+    def draw_image(self, frame):
+        # PPM statt PNG: tk.PhotoImage(data=...) akzeptiert PPM-Bytes direkt,
+        # ohne Kompression - dieselbe Begruendung/Messung wie zuvor unter
+        # PySimpleGUI (das intern fuer Graph.draw_image() exakt denselben
+        # tk.PhotoImage(data=...)-Aufruf gemacht hat, siehe INTERNAL_NOTES
+        # Performance-Abschnitt). itemconfig() statt delete+neu erzeugen
+        # spart zusaetzlich die vorherige delete_figure-Buchhaltung.
+        imgbytes = cv2.imencode('.ppm', frame)[1].tobytes()
+        photo = tk.PhotoImage(data=imgbytes)
+        self._video_image = photo
+        if self._video_image_id is None:
+            self._video_image_id = self.video_canvas.create_image(0, 0, anchor='nw', image=photo)
+        else:
+            self.video_canvas.itemconfig(self._video_image_id, image=photo)
+
+    # -- Seiten ------------------------------------------------------------
+
+    def _build_main_view(self):
+        page = self._new_page('-MAINVIEW-')
+
+        left = tk.Frame(page, bg=BG)
+        left.pack(side='left', fill='y')
+
+        video_canvas = tk.Canvas(page, width=self.video_size[0], height=self.video_size[1],
+                                  bg='black', highlightthickness=0)
+        video_canvas.pack(side='left')
+        video_canvas.bind('<Button-1>', self._on_video_click)
+        self.video_canvas = video_canvas
+
+        # sg.Text(size=...) allein reicht NICHT: das ist bei Tk nur eine
+        # Mindestbreite in Zeichen, kein Maximum - bei fetter/grosser Schrift
+        # (25pt bold) wird das Element trotzdem breiter als size= wenn der
+        # Inhalt es verlangt. Der Standname kommt seit der Mehr-Stand-
+        # Faehigkeit aus der frei editierbaren targetdisplay-stands.json,
+        # nicht mehr aus einer kurzen, kontrollierten Ansible-Variable - ein
+        # zu langer Name hat live am Test-Pi das ganze Layout auseinander-
+        # gedrueckt und dadurch das Videobild verschoben/verkleinert. Ein
+        # Frame mit fester width/height + pack_propagate(False) erzwingt
+        # dagegen eine wirklich harte Breite - ueberstehender Inhalt wird
+        # abgeschnitten statt den Frame zu vergroessern.
+        name_frame = tk.Frame(left, width=440, height=45, bg=BG)
+        name_frame.pack(side='top', anchor='w')
+        name_frame.pack_propagate(False)
+        name_label = tk.Label(name_frame, text='', font=('Helvetica', 25, 'underline bold'),
+                               bg=BG, anchor='w')
+        name_label.pack(fill='both', expand=True)
+        self._reg('-STANDNAME-', name_label)
+
+        zoom_frame = tk.LabelFrame(left, text='Zoom', bg=BG)
+        zoom_frame.pack(side='top', anchor='w', pady=4)
+        b = tk.Button(zoom_frame, text='Ganze Scheibe', width=13, height=2,
+                      command=lambda: self.post('-FULL_VIDEO-'))
+        b.pack(side='left'); self._reg('-FULL_VIDEO-', b)
+        b = tk.Button(zoom_frame, text='Innen Scheibe', width=13, height=2,
+                      command=lambda: self.post('-DETAIL_VIDEO-'))
+        b.pack(side='left'); self._reg('-DETAIL_VIDEO-', b)
+        b = tk.Button(zoom_frame, text='Reset', width=13, height=2, state=tk.DISABLED,
+                      command=lambda: self.post('-RESETZOOM-'))
+        b.pack(side='left'); self._reg('-RESETZOOM-', b)
+
+        blink_frame = tk.LabelFrame(left, text='Blinken', bg=BG)
+        blink_frame.pack(side='top', anchor='w', pady=4)
+        b = tk.Button(blink_frame, text='Start', width=13, height=2,
+                      command=lambda: self.post('-BLINK_START-'))
+        b.pack(side='left'); self._reg('-BLINK_START-', b)
+        b = tk.Button(blink_frame, text='Referenz', width=13, height=2, state=tk.DISABLED,
+                      command=lambda: self.post('-BLINK_REF-'))
+        b.pack(side='left'); self._reg('-BLINK_REF-', b)
+        b = tk.Button(blink_frame, text='Stop', width=13, height=2, state=tk.DISABLED,
+                      command=lambda: self.post('-BLINK_STOP-'))
+        b.pack(side='left'); self._reg('-BLINK_STOP-', b)
+
+        timer_frame = tk.LabelFrame(left, text='Timer', bg=BG)
+        timer_frame.pack(side='top', anchor='w', pady=4)
+        row1 = tk.Frame(timer_frame, bg=BG)
+        row1.pack(side='top', fill='x')
+        b = tk.Button(row1, text='5 x 3/7 Sek.', width=13, height=2,
+                      command=lambda: self.post('-TIMER_5_3_7-'))
+        b.pack(side='left'); self._reg('-TIMER_5_3_7-', b)
+        b = tk.Button(row1, text='20 Sek.', width=13, height=2,
+                      command=lambda: self.post('-TIMER_20-'))
+        b.pack(side='left'); self._reg('-TIMER_20-', b)
+        b = tk.Button(row1, text='10 Sek.', width=13, height=2,
+                      command=lambda: self.post('-TIMER_10-'))
+        b.pack(side='left'); self._reg('-TIMER_10-', b)
+        row2 = tk.Frame(timer_frame, bg=BG)
+        row2.pack(side='top', fill='x')
+        b = tk.Button(row2, text='Stop', width=13, height=2, state=tk.DISABLED,
+                      command=lambda: self.post('-TIMER_STOP-'))
+        b.pack(side='left', fill='x', expand=True); self._reg('-TIMER_STOP-', b)
+
+        sep = tk.Frame(left, bg='#a0a0a0', height=2)
+        sep.pack(side='top', fill='x', pady=10)
+
+        toggle_frame = tk.Frame(left, bg=BG)
+        toggle_frame.pack(side='top', anchor='w')
+        b = tk.Button(toggle_frame, text='Video aus', width=13, height=2,
+                      command=lambda: self.post('-TOGGLEVIDEO-'))
+        b.pack(side='left'); self._reg('-TOGGLEVIDEO-', b)
+        b = tk.Button(toggle_frame, text='Settings (PIN)', width=13, height=2,
+                      command=lambda: self.post('-SETTINGS-'))
+        b.pack(side='left'); self._reg('-SETTINGS-', b)
+        b = tk.Button(toggle_frame, text='Restart (PIN)', width=13, height=2,
+                      command=lambda: self.post('-RESTART-'))
+        b.pack(side='left'); self._reg('-RESTART-', b)
+
+        # Untere Zeilen mit side='bottom' gepackt (in umgekehrter visueller
+        # Reihenfolge, damit die zuerst gepackte Version/FPS-Zeile ganz unten
+        # landet) - das entspricht der VPush()-Wirkung aus dem PySimpleGUI-
+        # Original, ohne einen expliziten Spacer zu brauchen.
+        version_row = tk.Frame(left, bg=BG)
+        version_row.pack(side='bottom', fill='x')
+        tk.Label(version_row, text='V: ' + version, font=('Helvetica', 8), bg=BG).pack(side='left', padx=5, pady=(0, 10))
+        fps_label = tk.Label(version_row, text='', font=('Helvetica', 8), bg=BG, anchor='w')
+        fps_label.pack(side='left', padx=5, pady=(0, 10))
+        self._reg('-FPS-', fps_label)
+
+        bottom_row = tk.Frame(left, bg=BG)
+        bottom_row.pack(side='bottom', fill='x')
+        logo_label = tk.Label(bottom_row, bg=BG, bd=0)
+        logo_label.pack(side='left')
+        self._reg('-LOGO-', logo_label)
+        dt_frame = tk.LabelFrame(bottom_row, text='Datum / Uhrzeit', bg=BG)
+        dt_frame.pack(side='right', padx=(0, 5))
+        date_label = tk.Label(dt_frame, font=('Courier', 14), bg=BG, anchor='e')
+        date_label.pack(anchor='e', padx=15, pady=(5, 0))
+        self._reg('-DATE-', date_label)
+        time_label = tk.Label(dt_frame, font=('Courier', 34, 'bold'), bg=BG, anchor='e')
+        time_label.pack(anchor='e', padx=15, pady=(0, 5))
+        self._reg('-TIME-', time_label)
+
+    def _on_video_click(self, event):
+        px = event.x / self.video_size[0] * 100
+        py = event.y / self.video_size[1] * 100
+        self.post('-VIDEO-', {'-VIDEO-': (px, py)})
+
+    def _build_pin_view(self):
+        page = self._new_page('-PINVIEW-')
+        content = tk.Frame(page, bg=BG, bd=2, relief='groove')
+        content.place(relx=0.5, rely=0.5, anchor='center')
+
+        title = tk.Label(content, text='PIN eingeben', font=('Helvetica', 30), bg=BG)
+        title.grid(row=0, column=0, columnspan=3, padx=30, pady=(20, 10))
+        self._reg('-PIN_TITLE-', title)
+
+        display = tk.Label(content, text='', font=('Courier', 40), bg=BG, width=10, justify='center')
+        display.grid(row=1, column=0, columnspan=3, pady=10)
+        self._reg('-PINDISPLAY-', display)
+
+        keypad_rows = [('1', '2', '3'), ('4', '5', '6'), ('7', '8', '9')]
+        for r, row in enumerate(keypad_rows, start=2):
+            for c, d in enumerate(row):
+                tk.Button(content, text=d, width=8, height=4,
+                          command=lambda d=d: self.post(d)).grid(row=r, column=c, padx=3, pady=3)
+        tk.Button(content, text='Löschen', width=8, height=4,
+                  command=lambda: self.post('-PIN_CLEAR-')).grid(row=5, column=0, padx=3, pady=3)
+        tk.Button(content, text='0', width=8, height=4,
+                  command=lambda: self.post('0')).grid(row=5, column=1, padx=3, pady=3)
+        tk.Button(content, text='OK', width=8, height=4,
+                  command=lambda: self.post('-PIN_OK-')).grid(row=5, column=2, padx=3, pady=3)
+
+        cancel_btn = tk.Button(content, text='Abbrechen', width=26, height=2,
+                                command=lambda: self.post('-PIN_CANCEL-'))
+        cancel_btn.grid(row=6, column=0, columnspan=3, pady=(5, 20))
+        self._reg('-PIN_CANCEL-', cancel_btn, geo='grid')
+
+    def _build_confirm_view(self):
+        page = self._new_page('-CONFIRMVIEW-')
+        content = tk.Frame(page, bg=BG, bd=2, relief='groove')
+        content.place(relx=0.5, rely=0.5, anchor='center')
+        tk.Label(content, text='Gerät jetzt neu starten?', font=('Helvetica', 28), bg=BG).grid(
+            row=0, column=0, columnspan=2, padx=30, pady=(30, 15))
+        tk.Button(content, text='Ja, neu starten', width=20, height=3,
+                  command=lambda: self.post('-CONFIRM_YES-')).grid(row=1, column=0, padx=15, pady=(0, 30))
+        tk.Button(content, text='Abbrechen', width=20, height=3,
+                  command=lambda: self.post('-CONFIRM_NO-')).grid(row=1, column=1, padx=15, pady=(0, 30))
+
+    def _build_menu_view(self):
+        page = self._new_page('-MENUVIEW-')
+        content = tk.Frame(page, bg=BG, bd=2, relief='groove')
+        content.place(relx=0.5, rely=0.5, anchor='center')
+        tk.Label(content, text='Einstellungen', font=('Helvetica', 24), bg=BG).pack(padx=30, pady=(30, 15))
+        tk.Button(content, text='Ganze Scheibe', width=24, height=3,
+                  command=lambda: self.post('-MENU_FULL-')).pack(pady=5)
+        tk.Button(content, text='Innen Scheibe', width=24, height=3,
+                  command=lambda: self.post('-MENU_DETAIL-')).pack(pady=5)
+        tk.Button(content, text='Stand wechseln', width=24, height=3,
+                  command=lambda: self.post('-MENU_STAND-')).pack(pady=5)
+        tk.Button(content, text='PIN ändern', width=24, height=3,
+                  command=lambda: self.post('-MENU_PIN-')).pack(pady=5)
+        tk.Button(content, text='Zurück', width=24, height=2,
+                  command=lambda: self.post('-MENU_BACK-')).pack(pady=(5, 30))
+
+    def _build_editor_view(self):
+        page = self._new_page('-EDITORVIEW-')
+        content = tk.Frame(page, bg=BG, bd=2, relief='groove')
+        content.place(relx=0.5, rely=0.5, anchor='center')
+
+        title = tk.Label(content, text='', font=('Helvetica', 18), bg=BG)
+        title.pack(pady=(15, 5))
+        self._reg('-EDITOR_TITLE-', title)
+
+        canvas = tk.Canvas(content, width=EDITOR_MAX_W, height=EDITOR_MAX_H, bg='black', highlightthickness=0)
+        canvas.pack(padx=15)
+        canvas.image_refs = []
+        canvas.bind('<Button-1>', self._on_editgraph_event)
+        canvas.bind('<B1-Motion>', self._on_editgraph_event)
+        canvas.bind('<ButtonRelease-1>', lambda e: self.post('-EDITGRAPH-+UP'))
+        self.editor_canvas = canvas
+
+        btnrow = tk.Frame(content, bg=BG)
+        btnrow.pack(pady=15)
+        tk.Button(btnrow, text='Neues Bild', width=13, height=2,
+                  command=lambda: self.post('-EDIT_REFRESH-')).pack(side='left', padx=5)
+        tk.Button(btnrow, text='Speichern', width=13, height=2,
+                  command=lambda: self.post('-EDIT_SAVE-')).pack(side='left', padx=5)
+        cancel_btn = tk.Button(btnrow, text='Abbrechen', width=13, height=2,
+                                command=lambda: self.post('-EDIT_CANCEL-'))
+        cancel_btn.pack(side='left', padx=5)
+        self._reg('-EDIT_CANCEL-', cancel_btn, geo='pack')
+
+    def _on_editgraph_event(self, event):
+        self.post('-EDITGRAPH-', {'-EDITGRAPH-': (event.x, event.y)})
+
+    def _build_stand_view(self):
+        page = self._new_page('-STANDVIEW-')
+        content = tk.Frame(page, bg=BG, bd=2, relief='groove')
+        content.place(relx=0.5, rely=0.5, anchor='center')
+        tk.Label(content, text='Stand auswählen', font=('Helvetica', 28), bg=BG).pack(pady=(30, 15))
+        listbox = tk.Listbox(content, height=8, width=38, font=('Helvetica', 20))
+        listbox.pack(padx=30)
+        self._reg('-STAND_LIST-', listbox)
+        btnrow = tk.Frame(content, bg=BG)
+        btnrow.pack(pady=(15, 30))
+        select_btn = tk.Button(btnrow, text='Auswählen', width=20, height=2,
+                                command=lambda: self.post('-STAND_SELECT-'))
+        select_btn.pack(side='left', padx=10)
+        self._reg('-STAND_SELECT-', select_btn)
+        back_btn = tk.Button(btnrow, text='Zurück', width=20, height=2,
+                              command=lambda: self.post('-STAND_BACK-'))
+        back_btn.pack(side='left', padx=10)
+        self._reg('-STAND_BACK-', back_btn, geo='pack')
+
+    def _build_camwait_view(self):
+        page = self._new_page('-CAMWAITVIEW-')
+        content = tk.Frame(page, bg=BG, bd=2, relief='groove')
+        content.place(relx=0.5, rely=0.5, anchor='center')
+        text_label = tk.Label(content, text='', font=('Helvetica', 22), bg=BG, wraplength=460, justify='center')
+        text_label.pack(padx=30, pady=(30, 15))
+        self._reg('-CAMWAIT_TEXT-', text_label)
+        btnrow = tk.Frame(content, bg=BG)
+        btnrow.pack(pady=(0, 30))
+        tk.Button(btnrow, text='Erneut versuchen', width=20, height=2,
+                  command=lambda: self.post('-CAMWAIT_RETRY-')).pack(side='left', padx=10)
+        tk.Button(btnrow, text='Zurück zur Stand-Auswahl', width=24, height=2,
+                  command=lambda: self.post('-CAMWAIT_BACK-')).pack(side='left', padx=10)
+
+
+def _show_page(key):
+    window.show_page(key)
+
+
+def popup(message):
+    window.popup(message)
 
 
 def _set_stand_name(name):
@@ -230,26 +636,6 @@ def _set_stand_name(name):
     if len(name) > STANDNAME_MAX_CHARS:
         name = name[:STANDNAME_MAX_CHARS - 1] + '…'
     window['-STANDNAME-'].update(name)
-
-
-def _show_page(key):
-    # EIN Fenster mit mehreren Seiten statt separater sg.Window()-Dialoge:
-    # matchbox-window-manager hat sich bei mehreren gleichzeitig existierenden
-    # Toplevel-Fenstern live am Test-Pi als nicht robust erwiesen (fixe/nicht
-    # verhandelbare Platzierung fuer no_titlebar-Fenster ueber den X11-
-    # Fenstertyp "dock", dazu wiederholte BadWindow/BadDrawable-X-Fehler im
-    # eigenen matchbox-Log) - ein zweites Toplevel-Fenster war schlicht nicht
-    # zuverlaessig zu positionieren. Eine eigene "Seite" im selben, bereits
-    # korrekt (0,0, volle Screengroesse) platzierten Hauptfenster umgeht das
-    # Problem komplett.
-    for k in _PAGE_KEYS:
-        window[k].update(visible=(k == key))
-    # Ohne refresh() wird die neu sichtbare Seite oft erst beim naechsten
-    # Tk-Redraw-Zyklus tatsaechlich gezeichnet - das nachfolgende
-    # blockierende window.read() liefert aber keinen Anlass dafuer von
-    # selbst (live am Test-Pi beobachtet: Bildschirm blieb bis zum ersten
-    # Klick/Timeout komplett leer).
-    window.refresh()
 
 
 def check_pin(correct_pin):
@@ -268,7 +654,7 @@ def check_pin(correct_pin):
     result = False
     while True:
         event, _ = window.read()
-        if event in (sg.WIN_CLOSED, '-PIN_CANCEL-'):
+        if event in (WIN_CLOSED, '-PIN_CANCEL-'):
             break
         elif event == '-PIN_CLEAR-':
             entered = ''
@@ -310,7 +696,7 @@ def _enter_new_pin(title, show_cancel):
     result = None
     while True:
         event, _ = window.read()
-        if event in (sg.WIN_CLOSED, '-PIN_CANCEL-'):
+        if event in (WIN_CLOSED, '-PIN_CANCEL-'):
             break
         elif event == '-PIN_CLEAR-':
             entered = ''
@@ -358,7 +744,7 @@ def change_pin_flow(current_pin, forced):
         time.sleep(1.0)
     if save_pin(new1):
         return new1
-    sg.popup('PIN konnte nicht gespeichert werden.', keep_on_top=True)
+    popup('PIN konnte nicht gespeichert werden.')
     return None
 
 
@@ -381,14 +767,14 @@ def run_stand_select(stands, forced):
     window.refresh()
     while True:
         event, values = window.read()
-        if event == sg.WIN_CLOSED:
+        if event == WIN_CLOSED:
             return None
         elif event == '-STAND_BACK-' and not forced:
             return None
         elif event == '-STAND_SELECT-' and stands:
             # curselection() statt Werteabgleich per Name - robust auch
             # falls zwei Staende zufaellig denselben Anzeigenamen haben.
-            sel = window['-STAND_LIST-'].Widget.curselection()
+            sel = window['-STAND_LIST-'].widget.curselection()
             if sel:
                 return stands[sel[0]]
 
@@ -421,7 +807,7 @@ def _wait_for_camera_frame(cap, max_wait_sec=STREAM_STARTUP_TIMEOUT_SEC):
             window['-CAMWAIT_TEXT-'].update('Kamera nicht erreichbar.\nBitte URL/Verkabelung prüfen.')
             window.refresh()
         event, _ = window.read(timeout=300)
-        if event in (sg.WIN_CLOSED, '-CAMWAIT_BACK-'):
+        if event in (WIN_CLOSED, '-CAMWAIT_BACK-'):
             return 'back'
 
 
@@ -438,7 +824,7 @@ def edit_section_points(region_label, cap, points, other_points=None, allow_canc
     # (gleicher, originaler Koordinatenraum) beim Speichern zurueck, sonst None.
     frame = cap.getFrame(full=True)
     if frame is None:
-        sg.popup('Kein Kamerabild verfügbar - bitte später erneut versuchen.', keep_on_top=True)
+        popup('Kein Kamerabild verfügbar - bitte später erneut versuchen.')
         return None
 
     img_h, img_w = frame.shape[:2]
@@ -448,12 +834,12 @@ def edit_section_points(region_label, cap, points, other_points=None, allow_canc
     max_disp_w, max_disp_h = EDITOR_MAX_W, EDITOR_MAX_H
     scale = min(max_disp_w / img_w, max_disp_h / img_h, 1.0)
     disp_w, disp_h = max(1, int(img_w * scale)), max(1, int(img_h * scale))
-    # Der Graph-Canvas hat eine feste Groesse (EDITOR_MAX_W x EDITOR_MAX_H -
-    # das Layout wird nur einmal beim Programmstart gebaut, siehe
-    # _show_page-Kommentar), das tatsaechliche Kamerabild passt je nach
-    # Seitenverhaeltnis meist nicht exakt hinein. off_x/off_y zentrieren das
-    # skalierte Bild in diesem Canvas, statt es oben links kleben zu lassen
-    # (das erzeugte vorher einen einseitigen schwarzen Rand rechts).
+    # Der Editor-Canvas hat eine feste Groesse (EDITOR_MAX_W x EDITOR_MAX_H -
+    # das Layout wird nur einmal beim Programmstart gebaut), das
+    # tatsaechliche Kamerabild passt je nach Seitenverhaeltnis meist nicht
+    # exakt hinein. off_x/off_y zentrieren das skalierte Bild in diesem
+    # Canvas, statt es oben links kleben zu lassen (das erzeugte vorher
+    # einen einseitigen schwarzen Rand rechts).
     off_x, off_y = (EDITOR_MAX_W - disp_w) // 2, (EDITOR_MAX_H - disp_h) // 2
 
     HIT_RADIUS = 35   # grosszuegiger Trefferbereich fuer Finger, in Display-Pixeln
@@ -464,10 +850,11 @@ def edit_section_points(region_label, cap, points, other_points=None, allow_canc
         return cv2.resize(f, (disp_w, disp_h)) if scale != 1.0 else f.copy()
 
     disp_frame = to_display_frame(frame)
-    # pts leben ab hier durchgehend in Canvas-Koordinaten (Bild-Skalierung
-    # UND Zentrierungs-Offset bereits eingerechnet) - das entspricht direkt
-    # dem Koordinatenraum, den PySimpleGUI fuer Graph-Klicks liefert, dadurch
-    # ist beim Dragging keine weitere Umrechnung noetig.
+    # pts leben ab hier durchgehend in Canvas-Pixelkoordinaten (Bild-
+    # Skalierung UND Zentrierungs-Offset bereits eingerechnet) - das
+    # entspricht direkt dem Koordinatenraum, den das Canvas-Widget fuer
+    # Klicks liefert (event.x/event.y), dadurch ist beim Dragging keine
+    # weitere Umrechnung noetig.
     pts = [[p[0] * scale + off_x, p[1] * scale + off_y] for p in points]
     # Der jeweils ANDERE Ausschnitt (z.B. section_detail waehrend
     # section_full bearbeitet wird) wird nur informativ in hellgrau
@@ -480,7 +867,7 @@ def edit_section_points(region_label, cap, points, other_points=None, allow_canc
     _show_page('-EDITORVIEW-')
     window['-EDITOR_TITLE-'].update(f'{region_label}: Eckpunkte anpassen')
     window['-EDIT_CANCEL-'].update(visible=allow_cancel)
-    graph = window['-EDITGRAPH-']
+    graph = window.editor_canvas
 
     def draw_magnifier(center_disp):
         # Punkt kann bis an den Bildrand/in die Ecke gezogen werden - ein
@@ -511,8 +898,10 @@ def edit_section_points(region_label, cap, points, other_points=None, allow_canc
         # Lupe unabhaengig von Bildgroesse/Zentrierung immer an derselben,
         # vorhersehbaren Stelle erscheint.
         mag_x, mag_y = EDITOR_MAX_W - MAG_SIZE - 10, 10
-        graph.draw_image(data=magbytes, location=(mag_x, mag_y))
-        graph.draw_rectangle((mag_x, mag_y), (mag_x + MAG_SIZE, mag_y + MAG_SIZE), line_color='yellow', line_width=2)
+        photo = tk.PhotoImage(data=magbytes)
+        graph.image_refs.append(photo)
+        graph.create_image(mag_x, mag_y, anchor='nw', image=photo)
+        graph.create_rectangle(mag_x, mag_y, mag_x + MAG_SIZE, mag_y + MAG_SIZE, outline='yellow', width=2)
 
     def draw_outline(poly_pts, color):
         # Die Reihenfolge der Punkte in section_full/section_detail folgt
@@ -527,18 +916,23 @@ def edit_section_points(region_label, cap, points, other_points=None, allow_canc
         cy = sum(p[1] for p in poly_pts) / 4
         perimeter = sorted(range(4), key=lambda i: math.atan2(poly_pts[i][1] - cy, poly_pts[i][0] - cx))
         for j in range(4):
-            graph.draw_line(poly_pts[perimeter[j]], poly_pts[perimeter[(j + 1) % 4]], color=color, width=2)
+            a, b = poly_pts[perimeter[j]], poly_pts[perimeter[(j + 1) % 4]]
+            graph.create_line(a[0], a[1], b[0], b[1], fill=color, width=2)
 
     def redraw(mag_center=None):
-        graph.erase()
-        imgbytes = cv2.imencode('.png', disp_frame)[1].tobytes()
-        graph.draw_image(data=imgbytes, location=(off_x, off_y))
+        graph.delete('all')
+        graph.image_refs = []
+        photo = tk.PhotoImage(data=cv2.imencode('.png', disp_frame)[1].tobytes())
+        graph.image_refs.append(photo)
+        graph.create_image(off_x, off_y, anchor='nw', image=photo)
         if other_pts is not None:
             draw_outline(other_pts, '#c0c0c0')
         draw_outline(pts, 'yellow')
         for i, p in enumerate(pts):
-            graph.draw_circle(p, 10, fill_color='red', line_color='yellow', line_width=2)
-            graph.draw_text(str(i + 1), (p[0], p[1] - 20), color='yellow', font=('Helvetica', 12, 'bold'))
+            graph.create_oval(p[0] - 10, p[1] - 10, p[0] + 10, p[1] + 10,
+                               fill='red', outline='yellow', width=2)
+            graph.create_text(p[0], p[1] - 20, text=str(i + 1), fill='yellow',
+                               font=('Helvetica', 12, 'bold'))
         if mag_center is not None:
             draw_magnifier(mag_center)
 
@@ -547,7 +941,7 @@ def edit_section_points(region_label, cap, points, other_points=None, allow_canc
 
     while True:
         event, values = window.read()
-        if event in (sg.WIN_CLOSED, '-EDIT_CANCEL-'):
+        if event in (WIN_CLOSED, '-EDIT_CANCEL-'):
             return None
         elif event == '-EDIT_REFRESH-':
             new_frame = cap.getFrame(full=True)
@@ -601,7 +995,7 @@ def run_settings_flow(cap, section_full, section_detail, stands, current_pin):
     which = None
     while True:
         event, _ = window.read()
-        if event in (sg.WIN_CLOSED, '-MENU_BACK-'):
+        if event in (WIN_CLOSED, '-MENU_BACK-'):
             _show_page('-MAINVIEW-')
             return False
         elif event in ('-MENU_FULL-', '-MENU_DETAIL-'):
@@ -614,7 +1008,7 @@ def run_settings_flow(cap, section_full, section_detail, stands, current_pin):
                 return False
             if save_active_stand(chosen['id']):
                 return True
-            sg.popup('Stand konnte nicht gespeichert werden.', keep_on_top=True)
+            popup('Stand konnte nicht gespeichert werden.')
             return False
         elif event == '-MENU_PIN-':
             new_pin = change_pin_flow(current_pin, forced=False)
@@ -633,7 +1027,7 @@ def run_settings_flow(cap, section_full, section_detail, stands, current_pin):
     new_section_detail = result if which == 'detail' else section_detail
 
     if not save_sections_override(new_section_full, new_section_detail):
-        sg.popup('Speichern fehlgeschlagen - Änderung wurde NICHT übernommen.', keep_on_top=True)
+        popup('Speichern fehlgeschlagen - Änderung wurde NICHT übernommen.')
         return False
     return True
 
@@ -693,21 +1087,6 @@ def draw_timer_countdown(frame, seconds_left):
     y = (frame.shape[0] + th) // 2
     cv2.putText(frame, text, (x, y), font, font_scale, (0, 0, 0), thickness, cv2.LINE_AA)
 
-def draw_image(window_video, frame):
-    global last_image_id
-    # PPM statt PNG: DrawImage() reicht die Bytes nur an tk.PhotoImage(data=...)
-    # durch (siehe PySimpleGUI-Quelltext), das kann PPM nativ genauso wie PNG.
-    # PNG ist verlustfrei KOMPRIMIERT (DEFLATE) - bei jedem einzelnen Frame neu
-    # zu komprimieren kostet spuerbar CPU, ohne dass die Kompression hier
-    # irgendeinen Nutzen haette (das Ergebnis wird sofort wieder dekodiert,
-    # nie gespeichert/uebertragen). PPM ist unkomprimiert (groesserer
-    # Byte-Blob, aber rein lokale In-Prozess-Uebergabe an Tcl/Tk, keine
-    # Netzwerkuebertragung) und dadurch beim Kodieren deutlich billiger.
-    imgbytes = cv2.imencode('.ppm', frame)[1].tobytes()
-    actual_image_id = window_video.DrawImage(data=imgbytes,location=(0,0))
-    if last_image_id: window_video.delete_figure(last_image_id)
-    last_image_id = actual_image_id
-
 
 def main():
     VideoSize = (cfg.getProperty('video.size.x'), cfg.getProperty('video.size.y'))
@@ -729,175 +1108,14 @@ def main():
     last_frame_id = -1
     global window
 
-    sg.theme('LightGreen')
-
-    left_col = [
-      # sg.Text(size=...) allein reicht NICHT: das ist bei Tk nur eine
-      # Mindestbreite in Zeichen, kein Maximum - bei fetter/grosser Schrift
-      # (25pt bold) wird das Element trotzdem breiter als size= wenn der
-      # Inhalt es verlangt. Der Standname kommt seit der Mehr-Stand-
-      # Faehigkeit aus der frei editierbaren targetdisplay-stands.json,
-      # nicht mehr aus einer kurzen, kontrollierten Ansible-Variable - ein
-      # zu langer Name hat live am Test-Pi das ganze Layout auseinander-
-      # gedrueckt und dadurch das Videobild verschoben/verkleinert. Ein
-      # sg.Frame mit size=(Pixel, Pixel) erzwingt dagegen ueber
-      # pack_propagate(0) eine wirklich harte Breite - ueberstehender
-      # Inhalt wird abgeschnitten statt den Frame zu vergroessern.
-      [sg.Frame('', [[sg.Text('', key='-STANDNAME-', font=('Helvetica', 25, 'underline bold'))]],
-                size=(440, 45), border_width=0, pad=(0, 0))],
-
-      [sg.Frame('Zoom',[[sg.Button('Ganze Scheibe',key='-FULL_VIDEO-', size=(13, 2)),sg.Button('Innen Scheibe', key='-DETAIL_VIDEO-', size=(13, 2)),sg.Button('Reset', key='-RESETZOOM-', disabled=True, size=(13,2))]],)],
-      [sg.Frame('Blinken',[[sg.Button('Start',key='-BLINK_START-', size=(13, 2)),sg.Button('Referenz', key='-BLINK_REF-', size=(13, 2), disabled=True),sg.Button('Stop', key='-BLINK_STOP-', size=(13,2), disabled=True)]],)],
-      [sg.Frame('Timer',[
-        [sg.Button('5 x 3/7 Sek.',key='-TIMER_5_3_7-', size=(13, 2)),sg.Button('20 Sek.', key='-TIMER_20-', size=(13, 2)),sg.Button('10 Sek.', key='-TIMER_10-', size=(13, 2))],
-        [sg.Button('Stop', key='-TIMER_STOP-', size=(13,2), disabled=True, expand_x=True)]
-      ])],
-      [sg.HorizontalSeparator(pad=(0, (10, 10)))],
-      [sg.Frame('', [[
-        sg.Button('Video aus', key='-TOGGLEVIDEO-', size=(13, 2)),
-        sg.Button('Settings (PIN)', key='-SETTINGS-', size=(13, 2)),
-        sg.Button('Restart (PIN)', key='-RESTART-', size=(13, 2)),
-      ]], border_width=0)],
-      [sg.VPush()],
-      [sg.Image(filename='', key='-LOGO-'), sg.Push(), sg.Frame('Datum / Uhrzeit',[
-        [sg.Column([
-          [sg.Text(key="-DATE-", font=('Courier', 14))],
-          [sg.Text(key="-TIME-", font=('Courier', 34, 'bold'))]
-        ], element_justification='right', pad=(15,5))]
-      ])],
-      [sg.Text("V: " + version, font=('Helvetica',8), pad=((5,5),(0,15))), sg.Text(key = '-FPS-',size=(20, 1),font=('Helvetica',8), pad=((5,5),(0,15)))]
-    ]
-
-    # PIN-Eingabe, Restart-Bestaetigung, Settings-Regionauswahl und der
-    # Punkte-Editor sind eigene "Seiten" im selben Fenster (siehe
-    # _show_page) statt separater sg.Window()-Dialoge - matchbox-window-
-    # manager hat sich fuer ein zweites Toplevel-Fenster live am Test-Pi als
-    # nicht robust erwiesen (siehe _show_page-Kommentar).
-    main_view = sg.Column([
-      [sg.Column(left_col, expand_y=True),sg.Graph(canvas_size=VideoSize, graph_bottom_left=(0,100), graph_top_right=(100,0), key='-VIDEO-', background_color='black', enable_events=True)]
-    ], key='-MAINVIEW-', visible=True)
-
-    # WICHTIG: alle vier Seiten hier bewusst OHNE visible=False anlegen -
-    # PySimpleGUI/Tk hat sich live am Test-Pi als nicht zuverlaessig
-    # erwiesen, wenn eine Column gleich bei der Erstellung visible=False
-    # bekommt und erst SPAETER per .update(visible=True) eingeblendet wird
-    # (blieb dauerhaft leer, obwohl kein Fehler geworfen wurde). Stattdessen
-    # werden alle Seiten sichtbar erzeugt und direkt nach window.finalize()
-    # bis auf -MAINVIEW- wieder ausgeblendet (siehe main() weiter unten) -
-    # das entspricht dem "erst sichtbar machen, dann verstecken"-Vorgehen,
-    # das bei PySimpleGUI zuverlaessig funktioniert.
-    pin_frame = sg.Frame('', [
-      [sg.Text('PIN eingeben', key='-PIN_TITLE-', font=('Helvetica', 30))],
-      [sg.Text('', key='-PINDISPLAY-', font=('Courier', 40), size=(10, 1), justification='center')],
-      [sg.Button('1', size=(8, 4)), sg.Button('2', size=(8, 4)), sg.Button('3', size=(8, 4))],
-      [sg.Button('4', size=(8, 4)), sg.Button('5', size=(8, 4)), sg.Button('6', size=(8, 4))],
-      [sg.Button('7', size=(8, 4)), sg.Button('8', size=(8, 4)), sg.Button('9', size=(8, 4))],
-      [sg.Button('Löschen', key='-PIN_CLEAR-', size=(8, 4)), sg.Button('0', size=(8, 4)), sg.Button('OK', key='-PIN_OK-', size=(8, 4))],
-      [sg.Button('Abbrechen', key='-PIN_CANCEL-', size=(26, 2))],
-    ], element_justification='center', border_width=2, pad=(30, 30))
-
-    # VPush/Push zum Zentrieren: funktioniert hier zuverlaessig, weil diese
-    # Column ein Geschwister-Element in derselben Fensterzeile wie
-    # -MAINVIEW- ist (siehe layout weiter unten) und dadurch ihren vollen
-    # Anteil an Fensterbreite/-hoehe bekommt - als eigene, gestapelte Zeile
-    # unter -MAINVIEW- (fruehere Variante) blieb dafuer schlicht kein Platz
-    # und VPush/Push griffen ins Leere.
-    pin_view = sg.Column([
-      [sg.VPush()],
-      [sg.Push(), pin_frame, sg.Push()],
-      [sg.VPush()],
-    ], key='-PINVIEW-', expand_x=True, expand_y=True)
-
-    confirm_frame = sg.Frame('', [
-      [sg.Text('Gerät jetzt neu starten?', font=('Helvetica', 28))],
-      [sg.Button('Ja, neu starten', key='-CONFIRM_YES-', size=(20, 3)), sg.Button('Abbrechen', key='-CONFIRM_NO-', size=(20, 3))],
-    ], element_justification='center', border_width=2, pad=(30, 30))
-
-    confirm_view = sg.Column([
-      [sg.VPush()],
-      [sg.Push(), confirm_frame, sg.Push()],
-      [sg.VPush()],
-    ], key='-CONFIRMVIEW-', expand_x=True, expand_y=True)
-
-    menu_frame = sg.Frame('', [
-      [sg.Text('Einstellungen', font=('Helvetica', 24))],
-      [sg.Button('Ganze Scheibe', key='-MENU_FULL-', size=(24, 3))],
-      [sg.Button('Innen Scheibe', key='-MENU_DETAIL-', size=(24, 3))],
-      [sg.Button('Stand wechseln', key='-MENU_STAND-', size=(24, 3))],
-      [sg.Button('PIN ändern', key='-MENU_PIN-', size=(24, 3))],
-      [sg.Button('Zurück', key='-MENU_BACK-', size=(24, 2))],
-    ], element_justification='center', border_width=2, pad=(30, 30))
-
-    # Weitere Settings-Punkte kommen vermutlich noch dazu - menu_view bleibt
-    # deshalb bewusst eine eigene, generische Auswahlseite statt fest mit
-    # nur zwei Optionen verdrahtet zu sein.
-    menu_view = sg.Column([
-      [sg.VPush()],
-      [sg.Push(), menu_frame, sg.Push()],
-      [sg.VPush()],
-    ], key='-MENUVIEW-', expand_x=True, expand_y=True)
-
-    editor_frame = sg.Frame('', [
-      [sg.Text('', key='-EDITOR_TITLE-', font=('Helvetica', 18))],
-      [sg.Graph(canvas_size=(EDITOR_MAX_W, EDITOR_MAX_H), graph_bottom_left=(0, EDITOR_MAX_H), graph_top_right=(EDITOR_MAX_W, 0),
-                key='-EDITGRAPH-', enable_events=True, drag_submits=True, background_color='black')],
-      [sg.Button('Neues Bild', key='-EDIT_REFRESH-', size=(13, 2)),
-       sg.Button('Speichern', key='-EDIT_SAVE-', size=(13, 2)),
-       sg.Button('Abbrechen', key='-EDIT_CANCEL-', size=(13, 2))],
-    ], element_justification='center', border_width=2, pad=(15, 15))
-
-    editor_view = sg.Column([
-      [sg.VPush()],
-      [sg.Push(), editor_frame, sg.Push()],
-      [sg.VPush()],
-    ], key='-EDITORVIEW-', expand_x=True, expand_y=True)
-
-    stand_frame = sg.Frame('', [
-      [sg.Text('Stand auswählen', font=('Helvetica', 28))],
-      [sg.Listbox(values=[], size=(38, 8), font=('Helvetica', 20), key='-STAND_LIST-')],
-      [sg.Button('Auswählen', key='-STAND_SELECT-', size=(20, 2)),
-       sg.Button('Zurück', key='-STAND_BACK-', size=(20, 2))],
-    ], element_justification='center', border_width=2, pad=(30, 30))
-
-    stand_view = sg.Column([
-      [sg.VPush()],
-      [sg.Push(), stand_frame, sg.Push()],
-      [sg.VPush()],
-    ], key='-STANDVIEW-', expand_x=True, expand_y=True)
-
-    camwait_frame = sg.Frame('', [
-      [sg.Text('', key='-CAMWAIT_TEXT-', font=('Helvetica', 22), size=(40, 3), justification='center')],
-      [sg.Button('Erneut versuchen', key='-CAMWAIT_RETRY-', size=(20, 2)),
-       sg.Button('Zurück zur Stand-Auswahl', key='-CAMWAIT_BACK-', size=(24, 2))],
-    ], element_justification='center', border_width=2, pad=(30, 30))
-
-    camwait_view = sg.Column([
-      [sg.VPush()],
-      [sg.Push(), camwait_frame, sg.Push()],
-      [sg.VPush()],
-    ], key='-CAMWAITVIEW-', expand_x=True, expand_y=True)
-
-    # Alle Seiten MUESSEN in derselben Zeile stehen (Geschwister-Elemente),
-    # nicht als eigene Zeilen untereinander: main_view fuellt bei diesem
-    # fixed-size-Fenster bereits die komplette Hoehe, darunter gestapelte
-    # Zeilen haetten schlicht keinen Platz mehr und wuerden unsichtbar
-    # bleiben, egal ob sie visible=True/False sind (live am Test-Pi
-    # verifiziert). In einer gemeinsamen Zeile "faltet" PySimpleGUI
-    # unsichtbare Columns dagegen zuverlaessig weg (grid_forget).
-    layout = [
-      [main_view, pin_view, confirm_view, menu_view, editor_view, stand_view, camwait_view],
-    ]
-
-    window = sg.Window('Scheiben Video', layout, location=(0, 0), no_titlebar=True, keep_on_top=True, size=cfg.getProperty('screenSize'))
+    window = Window(cfg, VideoSize)
 
     #some speed optimisation - avoid searching every frame
     window_date = window['-DATE-']
     window_time = window['-TIME-']
-    window_video = window['-VIDEO-']
     window_fps = window['-FPS-']
 
     logo_width = 110
-    window.finalize()
     _show_page('-MAINVIEW-')
     # ressources/logo.png ist bewusst NICHT Teil des Repos (siehe README) -
     # jede Installation legt dort ihr eigenes Logo ab. Fehlt die Datei,
@@ -1023,7 +1241,7 @@ def main():
 
         event, values = window.read(timeout=10)
         ### Button handling
-        if event in (sg.WIN_CLOSED, 'Exit'):
+        if event in (WIN_CLOSED, 'Exit'):
             break
         elif event == '-TOGGLEVIDEO-':
             displayVideo = not displayVideo
@@ -1040,7 +1258,7 @@ def main():
               frame = np.zeros((VideoSize[1], VideoSize[0], 3), np.uint8)
               if blank_logo is not None:
                 frame = blend_logo_centered(frame, blank_logo)
-              draw_image(window_video, frame)
+              window.draw_image(frame)
               zoom_disabled(True)
               blink_disabled(True)
               timer_disabled(True)
@@ -1066,7 +1284,7 @@ def main():
         elif event == '-VIDEO-':
           if zoom_center == []:
             # init zoom
-            zoom_center = values["-VIDEO-"] 
+            zoom_center = values["-VIDEO-"]
           else:
             move_speed = 5
             # move zoomed window
@@ -1096,8 +1314,8 @@ def main():
         elif event == '-BLINK_STOP-':
           zoom_disabled(False)
           timer_disabled(False)
-          blink_disabled(False)  
-          video_filter_disabled(False)  
+          blink_disabled(False)
+          video_filter_disabled(False)
           blink_ref = []
           blink = False
         elif event == '-TIMER_5_3_7-':
@@ -1147,7 +1365,7 @@ def main():
           window['-TIMER_10-'].update(disabled=False)
           window['-TIMER_20-'].update(disabled=False)
           window['-TIMER_STOP-'].update(disabled=True)
-          
+
 
         ### Image handling
         if displayVideo:
@@ -1167,7 +1385,7 @@ def main():
             # zoom
             if zoom_center != []: frame = tl.crop(frame,3, zoom_center)
 
-            draw_image(window_video, frame)
+            window.draw_image(frame)
             frame_count += 1
             now = datetime.now()
             frame_timestamps.append(now)
@@ -1216,7 +1434,7 @@ def main():
               if (timerCurrentLoop < loopCounter -1):
                 timerCurrentLoop += 1
               else:
-                window['-TIMER_STOP-'].Click()
+                window.post('-TIMER_STOP-')
               frame[:] = (0, 0, 255)
           if timerType == "-TIMER_20-":
             showTime = 20
@@ -1232,7 +1450,7 @@ def main():
               #red
               frame[:] = (0, 0, 255)
             else:
-              window['-TIMER_STOP-'].Click()
+              window.post('-TIMER_STOP-')
           if timerType == "-TIMER_10-":
             showTime = 10
             if(tmpTimerSecs < prepTime):
@@ -1247,8 +1465,8 @@ def main():
               #red
               frame[:] = (0, 0, 255)
             else:
-              window['-TIMER_STOP-'].Click()
-          draw_image(window_video, frame)
+              window.post('-TIMER_STOP-')
+          window.draw_image(frame)
           window_fps.update('')
 
         now = datetime.now()
@@ -1257,4 +1475,5 @@ def main():
     window.close()
 
 
-main()
+if __name__ == '__main__':
+    main()

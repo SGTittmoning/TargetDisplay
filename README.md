@@ -19,7 +19,7 @@ Fullscreen kiosk display for a shooting-range target camera. Straightens out the
 ## Requirements
 
 - Raspberry Pi (or similar Linux SBC) with an attached display (touchscreen recommended)
-- Python 3 with `opencv-python`, `numpy`, `PySimpleGUI` (**pinned to 4.60.5.1 or older** — later releases require a paid license), `config_with_yaml`
+- Python 3 with `opencv-python`, `numpy`, `config_with_yaml`, `av`, and `python3-tk` (the GUI is plain Tkinter — ships with CPython, no separate GUI package to install/pin)
 - An RTSP/RTMP camera feed
 
 In production this runs on a Raspberry Pi 4, Raspberry Pi OS Lite (64-bit), with a Joy-IT RB-LCD10-2 10.1" HDMI touchscreen.
