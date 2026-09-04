@@ -679,6 +679,20 @@ def blend_logo_centered(canvas, logo_rgba, margin_ratio=0.05):
         canvas[y0:y0+new_h, x0:x0+new_w] = logo_rgba[:, :, :3]
     return canvas
 
+def draw_timer_countdown(frame, seconds_left):
+    # Zentriert statt am unteren Rand, etwas groesser als die vorherige
+    # Bottom-Left-Platzierung (Nutzer-Wunsch). getTextSize() liefert die
+    # tatsaechliche Breite/Hoehe des gerenderten Textes, dadurch klappt die
+    # Zentrierung unabhaengig von Ziffernanzahl (1 vs. 2-stellig).
+    text = str(seconds_left)
+    font = cv2.FONT_HERSHEY_SIMPLEX
+    font_scale = 6.5
+    thickness = 11
+    (tw, th), _ = cv2.getTextSize(text, font, font_scale, thickness)
+    x = (frame.shape[1] - tw) // 2
+    y = (frame.shape[0] + th) // 2
+    cv2.putText(frame, text, (x, y), font, font_scale, (0, 0, 0), thickness, cv2.LINE_AA)
+
 def draw_image(window_video, frame):
     global last_image_id
     # PPM statt PNG: DrawImage() reicht die Bytes nur an tk.PhotoImage(data=...)
@@ -1166,7 +1180,13 @@ def main():
             except ZeroDivisionError:
               pass
         elif displayTimer:
-          frame = np.zeros((VideoSize[0],VideoSize[1],3), np.uint8)
+          # Bugfix: (Breite, Hoehe) statt der von numpy erwarteten
+          # (Hoehe, Breite) Reihenfolge - fiel bisher nicht auf, weil
+          # video.size in der Praxis immer quadratisch war (600x600/780x780).
+          # Der Blank-Screen-Handler oben (-TOGGLEVIDEO-) macht es bereits
+          # richtig herum, hier war es offenbar abgeschrieben und dabei
+          # vertauscht worden.
+          frame = np.zeros((VideoSize[1],VideoSize[0],3), np.uint8)
           tmpTimerSecs = (datetime.now()-timerStart).seconds
 
           prepTime = 7
@@ -1180,20 +1200,20 @@ def main():
             if (tmpTimerSecs < prepTime):
               #red
               frame[:] = (0, 0, 255)
-              cv2.putText(frame, str(prepTime - tmpTimerSecs), (20,VideoSize[1]-20), cv2.FONT_HERSHEY_SIMPLEX, 5, (0, 0, 0), 10, cv2.LINE_AA)
+              draw_timer_countdown(frame, prepTime - tmpTimerSecs)
             elif ((tmpTimerSecs - baseTime) < showTime):
               #green
               frame[:] = (0, 255, 0)
               cv2.putText(frame, str(timerCurrentLoop + 1), (20,130), cv2.FONT_HERSHEY_SIMPLEX, 5, (0, 0, 0), 10, cv2.LINE_AA)
-              cv2.putText(frame, str(baseTime + showTime - tmpTimerSecs), (20,VideoSize[1]-20), cv2.FONT_HERSHEY_SIMPLEX, 5, (0, 0, 0), 10, cv2.LINE_AA)
+              draw_timer_countdown(frame, baseTime + showTime - tmpTimerSecs)
             elif((tmpTimerSecs - baseTime - showTime) < hideTime):
-              #red 
+              #red
               frame[:] = (0, 0, 255)
               cv2.putText(frame, str(timerCurrentLoop +1), (20,130), cv2.FONT_HERSHEY_SIMPLEX, 5, (0, 0, 0), 10, cv2.LINE_AA)
-              cv2.putText(frame, str(baseTime + showTime + hideTime - tmpTimerSecs), (20,VideoSize[1]-20), cv2.FONT_HERSHEY_SIMPLEX, 5, (0, 0, 0), 10, cv2.LINE_AA)
+              draw_timer_countdown(frame, baseTime + showTime + hideTime - tmpTimerSecs)
             else:
               #red
-              if (timerCurrentLoop < loopCounter -1): 
+              if (timerCurrentLoop < loopCounter -1):
                 timerCurrentLoop += 1
               else:
                 window['-TIMER_STOP-'].Click()
@@ -1203,11 +1223,11 @@ def main():
             if(tmpTimerSecs < prepTime):
               #red
               frame[:] = (0, 0, 255)
-              cv2.putText(frame, str(prepTime - tmpTimerSecs), (20,VideoSize[1]-20), cv2.FONT_HERSHEY_SIMPLEX, 5, (0, 0, 0), 10, cv2.LINE_AA)
+              draw_timer_countdown(frame, prepTime - tmpTimerSecs)
             elif tmpTimerSecs < (prepTime + showTime):
               #green
               frame[:] = (0, 255, 0)
-              cv2.putText(frame, str(prepTime + showTime - tmpTimerSecs), (20,VideoSize[1]-20), cv2.FONT_HERSHEY_SIMPLEX, 5, (0, 0, 0), 10, cv2.LINE_AA)
+              draw_timer_countdown(frame, prepTime + showTime - tmpTimerSecs)
             elif tmpTimerSecs < (prepTime + showTime + stopTime):
               #red
               frame[:] = (0, 0, 255)
@@ -1218,11 +1238,11 @@ def main():
             if(tmpTimerSecs < prepTime):
               #red
               frame[:] = (0, 0, 255)
-              cv2.putText(frame, str(prepTime - tmpTimerSecs), (20,VideoSize[1]-20), cv2.FONT_HERSHEY_SIMPLEX, 5, (0, 0, 0), 10, cv2.LINE_AA)
+              draw_timer_countdown(frame, prepTime - tmpTimerSecs)
             elif tmpTimerSecs < (prepTime + showTime):
               #green
               frame[:] = (0, 255, 0)
-              cv2.putText(frame, str(prepTime + showTime - tmpTimerSecs), (20,VideoSize[1]-20), cv2.FONT_HERSHEY_SIMPLEX, 5, (0, 0, 0), 10, cv2.LINE_AA)
+              draw_timer_countdown(frame, prepTime + showTime - tmpTimerSecs)
             elif tmpTimerSecs < (prepTime + showTime + stopTime):
               #red
               frame[:] = (0, 0, 255)
