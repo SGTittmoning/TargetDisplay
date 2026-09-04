@@ -219,7 +219,13 @@ EDITOR_MAX_W, EDITOR_MAX_H = 1000, 620
 # uebergeben werden.
 STANDNAME_MAX_CHARS = 30
 
-BG = '#dff0d8'  # Naeherung an das fruehere PySimpleGUI-Theme "LightGreen"
+# Exakte Farben aus dem frueheren PySimpleGUI-Theme "LightGreen" - per
+# Pixel-Sample aus einem Live-Screenshot der noch laufenden PySimpleGUI-
+# Version auf dem Test-Pi ermittelt (2026-09-04), nicht geschaetzt.
+BG = '#b7cece'
+BTN_BG = '#658268'
+BTN_FG = 'white'
+BTN_DISABLED_FG = '#a3a3a3'
 
 WIN_CLOSED = '__WIN_CLOSED__'
 TIMEOUT_EVENT = '__TIMEOUT__'
@@ -294,6 +300,15 @@ class Window:
         screen = cfg.getProperty('screenSize')
         self.root.geometry(f'{screen[0]}x{screen[1]}+0+0')
         self.root.configure(bg=BG)
+        # Globale Button-Optik ueber die Tk-Optionsdatenbank statt an jedem
+        # der ~30 einzelnen tk.Button(...)-Aufrufe - gilt automatisch fuer
+        # jeden danach erzeugten Button in diesem Root, entspricht optisch
+        # dem alten PySimpleGUI-Theme "LightGreen" (siehe BTN_BG/BTN_FG oben).
+        self.root.option_add('*Button.background', BTN_BG)
+        self.root.option_add('*Button.foreground', BTN_FG)
+        self.root.option_add('*Button.disabledForeground', BTN_DISABLED_FG)
+        self.root.option_add('*Button.activeBackground', BTN_BG)
+        self.root.option_add('*Button.activeForeground', BTN_FG)
         self.root.protocol('WM_DELETE_WINDOW', lambda: self.post(WIN_CLOSED))
 
         self.container = tk.Frame(self.root, bg=BG)
