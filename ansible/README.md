@@ -25,7 +25,7 @@ ansible-playbook -i inventory.yml install.yml --limit <host> -e targetdisplay_en
 - Creates a dedicated, unprivileged system user (`targetdisplay_service_user`, default `targetdisplay`) and launches the X11 session via a systemd service (`targetdisplay.service`, `startx` + `.xinitrc`) running as that user — no `nodm`/autologin under the general-purpose admin account. Deliberately **no** `PAMName=login`: it moves the session into its own logind cgroup, which stops `systemctl stop/restart` from ever reaching the real process tree — device access instead relies solely on group membership (`video`/`render`/`input`)
 - Configures persistent journald logging (own drop-in overriding Raspberry Pi OS's default volatile-storage drop-in) so logs survive a reboot — needed to debug anything in the failure-escalation path below
 - Forces the display resolution to match the production stands (1280×800, `hdmi_mode=27` + `hdmi_ignore_edid`) regardless of which physical monitor is attached, via `targetdisplay_screen_width`/`_height`
-- Deploys the TargetDisplay app itself (`git pull` + a `--system-site-packages` venv owned by the service user, dependencies from the app's `requirements.txt`)
+- Deploys the TargetDisplay app itself (`git pull` + a `--system-site-packages` venv owned by the service user, dependencies from the app's `requirements.txt`), then overlays a custom logo if one is present (see "Custom logo" below)
 - Renders `config.yml` from a template using the per-host inventory variables (`targetdisplay_screen_width`/`_height`, `my_settings_pin` — camera URL, regions and stand name are deliberately **not** templated here, see "First-run setup wizard" below)
 - Renders `targetdisplay-stands.json` (the fleet-wide stand list) to the boot partition — see `tasks/stands.yml`
 - Installs a narrowly-scoped sudoers rule for the app's own PIN-gated in-app Settings/Restart buttons: the unprivileged service user may run exactly three scripts, one per action (`targetdisplay-save-sections.sh`, `targetdisplay-save-active-stand.sh`, `targetdisplay-save-pin.sh` — each writes just its own override file to the boot partition) plus `/usr/sbin/reboot`, nothing else — see `tasks/settings_sudo.yml`
@@ -39,6 +39,10 @@ A device that hasn't got a stand selected yet, a calibrated region, or has never
 ## Touch calibration
 
 `files/99-calibration.conf` ships with placeholder values for a generic eGalax touch controller — every physical touchscreen has slightly different calibration numbers. After a fresh install (before enabling the read-only filesystem!), calibrate the actual screen with `xinput_calibrator` and update the values in `files/99-calibration.conf` for that stand, or drop a per-host override next to it. The `copy` task uses `force: no`, so it won't overwrite a file that's already been hand-calibrated on the device.
+
+## Custom logo
+
+The repo ships a generic placeholder logo (`ressources/logo.png`) that comes along automatically with the git checkout — think of it as the "dist" logo. To show your own club/range logo on every stand instead, drop a `logo.png` (RGBA supported) at `ansible/files/logo.png` **on the Ansible control machine** — deliberately not committed (already gitignored) since it's specific to your club. `install.yml` picks it up automatically on every run from then on and overlays it onto each host, no per-device copying needed. Remove that file again to fall back to the shipped placeholder on the next run.
 
 ## Storage hardening (optional)
 
