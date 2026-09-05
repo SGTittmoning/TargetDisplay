@@ -460,13 +460,13 @@ class Window:
         zoom_frame.pack(side='top', anchor='w', pady=4)
         zoom_row = tk.Frame(zoom_frame, bg=BG)
         zoom_row.pack(padx=FRAME_PAD, pady=FRAME_PAD)
-        b = tk.Button(zoom_row, text='Ganze Scheibe', width=13, height=2,
+        b = tk.Button(zoom_row, text='Ganze Scheibe', width=14, height=2,
                       command=lambda: self.post('-FULL_VIDEO-'))
         b.pack(side='left', padx=(0, BTN_GAP)); self._reg('-FULL_VIDEO-', b)
-        b = tk.Button(zoom_row, text='Innen Scheibe', width=13, height=2,
+        b = tk.Button(zoom_row, text='Innen Scheibe', width=14, height=2,
                       command=lambda: self.post('-DETAIL_VIDEO-'))
         b.pack(side='left', padx=(0, BTN_GAP)); self._reg('-DETAIL_VIDEO-', b)
-        b = tk.Button(zoom_row, text='Reset', width=13, height=2, state=tk.DISABLED,
+        b = tk.Button(zoom_row, text='Reset', width=14, height=2, state=tk.DISABLED,
                       command=lambda: self.post('-RESETZOOM-'))
         b.pack(side='left'); self._reg('-RESETZOOM-', b)
 
@@ -474,13 +474,13 @@ class Window:
         blink_frame.pack(side='top', anchor='w', pady=4)
         blink_row = tk.Frame(blink_frame, bg=BG)
         blink_row.pack(padx=FRAME_PAD, pady=FRAME_PAD)
-        b = tk.Button(blink_row, text='Start', width=13, height=2,
+        b = tk.Button(blink_row, text='Start', width=14, height=2,
                       command=lambda: self.post('-BLINK_START-'))
         b.pack(side='left', padx=(0, BTN_GAP)); self._reg('-BLINK_START-', b)
-        b = tk.Button(blink_row, text='Referenz', width=13, height=2, state=tk.DISABLED,
+        b = tk.Button(blink_row, text='Referenz', width=14, height=2, state=tk.DISABLED,
                       command=lambda: self.post('-BLINK_REF-'))
         b.pack(side='left', padx=(0, BTN_GAP)); self._reg('-BLINK_REF-', b)
-        b = tk.Button(blink_row, text='Stop', width=13, height=2, state=tk.DISABLED,
+        b = tk.Button(blink_row, text='Stop', width=14, height=2, state=tk.DISABLED,
                       command=lambda: self.post('-BLINK_STOP-'))
         b.pack(side='left'); self._reg('-BLINK_STOP-', b)
 
@@ -488,18 +488,18 @@ class Window:
         timer_frame.pack(side='top', anchor='w', pady=4)
         row1 = tk.Frame(timer_frame, bg=BG)
         row1.pack(side='top', fill='x', padx=FRAME_PAD, pady=(FRAME_PAD, 0))
-        b = tk.Button(row1, text='5 x 3/7 Sek.', width=13, height=2,
+        b = tk.Button(row1, text='5 x 3/7 Sek.', width=14, height=2,
                       command=lambda: self.post('-TIMER_5_3_7-'))
         b.pack(side='left', padx=(0, BTN_GAP)); self._reg('-TIMER_5_3_7-', b)
-        b = tk.Button(row1, text='20 Sek.', width=13, height=2,
+        b = tk.Button(row1, text='20 Sek.', width=14, height=2,
                       command=lambda: self.post('-TIMER_20-'))
         b.pack(side='left', padx=(0, BTN_GAP)); self._reg('-TIMER_20-', b)
-        b = tk.Button(row1, text='10 Sek.', width=13, height=2,
+        b = tk.Button(row1, text='10 Sek.', width=14, height=2,
                       command=lambda: self.post('-TIMER_10-'))
         b.pack(side='left'); self._reg('-TIMER_10-', b)
         row2 = tk.Frame(timer_frame, bg=BG)
         row2.pack(side='top', fill='x', padx=FRAME_PAD, pady=(BTN_GAP, FRAME_PAD))
-        b = tk.Button(row2, text='Stop', width=13, height=2, state=tk.DISABLED,
+        b = tk.Button(row2, text='Stop', width=14, height=2, state=tk.DISABLED,
                       command=lambda: self.post('-TIMER_STOP-'))
         b.pack(side='left', fill='x', expand=True); self._reg('-TIMER_STOP-', b)
 
@@ -508,13 +508,13 @@ class Window:
 
         toggle_frame = tk.Frame(left, bg=BG)
         toggle_frame.pack(side='top', anchor='w')
-        b = tk.Button(toggle_frame, text='Video aus', width=13, height=2,
+        b = tk.Button(toggle_frame, text='Video aus', width=14, height=2,
                       command=lambda: self.post('-TOGGLEVIDEO-'))
         b.pack(side='left', padx=(0, BTN_GAP)); self._reg('-TOGGLEVIDEO-', b)
-        b = tk.Button(toggle_frame, text='Settings (PIN)', width=13, height=2,
+        b = tk.Button(toggle_frame, text='Settings (PIN)', width=14, height=2,
                       command=lambda: self.post('-SETTINGS-'))
         b.pack(side='left', padx=(0, BTN_GAP)); self._reg('-SETTINGS-', b)
-        b = tk.Button(toggle_frame, text='Restart (PIN)', width=13, height=2,
+        b = tk.Button(toggle_frame, text='Restart (PIN)', width=14, height=2,
                       command=lambda: self.post('-RESTART-'))
         b.pack(side='left'); self._reg('-RESTART-', b)
 
