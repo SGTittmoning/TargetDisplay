@@ -288,6 +288,7 @@ class Window:
     # ohne die Abstraktionsschicht dazwischen.
     def __init__(self, cfg, video_size):
         self.video_size = video_size
+        self.screen_size = cfg.getProperty('screenSize')
         self._queue = queue.Queue()
         self.widgets = {}
         self.pages = {}
@@ -297,7 +298,7 @@ class Window:
         self.root = tk.Tk()
         self.root.overrideredirect(True)
         self.root.attributes('-topmost', True)
-        screen = cfg.getProperty('screenSize')
+        screen = self.screen_size
         self.root.geometry(f'{screen[0]}x{screen[1]}+0+0')
         self.root.configure(bg=BG)
         # Globale Button-Optik ueber die Tk-Optionsdatenbank statt an jedem
@@ -400,12 +401,28 @@ class Window:
     def _build_main_view(self):
         page = self._new_page('-MAINVIEW-')
 
+        # Einheitlicher Aussenabstand auf allen 4 Seiten, aus config.yml
+        # berechnet statt hartkodiert: die Bildhoehe (video.size.y) ist
+        # praktisch immer der engste Faktor (bei 800px Bildschirmhoehe und
+        # 780px Bildhoehe bleiben nur 20px insgesamt, also 10px oben+unten -
+        # live am Test-Pi gemessen, urspruenglich 0px links vs. 60px rechts
+        # uebrig, deutlich asymmetrisch). Der ueberschuessige horizontale
+        # Platz (hier meist deutlich mehr als vertikal frei ist) landet nicht
+        # als reiner rechter Rand, sondern sichtbar als Luecke zwischen
+        # Button-Spalte und Video (siehe spacer unten) - dadurch bleibt der
+        # Aussenrand auf allen 4 Seiten exakt gleich, unabhaengig von der
+        # tatsaechlichen Breite der Button-Spalte oder des Bildschirms.
+        margin = max(0, (self.screen_size[1] - self.video_size[1]) // 2)
+
         left = tk.Frame(page, bg=BG)
-        left.pack(side='left', fill='y')
+        left.pack(side='left', fill='y', padx=(margin, 0), pady=margin)
+
+        spacer = tk.Frame(page, bg=BG)
+        spacer.pack(side='left', fill='both', expand=True)
 
         video_canvas = tk.Canvas(page, width=self.video_size[0], height=self.video_size[1],
                                   bg='black', highlightthickness=0)
-        video_canvas.pack(side='left')
+        video_canvas.pack(side='left', padx=(0, margin))
         video_canvas.bind('<Button-1>', self._on_video_click)
         self.video_canvas = video_canvas
 
