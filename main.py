@@ -238,9 +238,22 @@ class Elem:
     # unveraendert weiterzuverwenden und dadurch den Rest der Datei (State-
     # Machine, Event-Handling) fast unveraendert vom PySimpleGUI-Original
     # uebernehmen zu koennen.
-    def __init__(self, widget):
+    def __init__(self, widget, show=None):
         self.widget = widget
-        self._pack_info = None  # nur fuer Widgets mit visible=-Toggle noetig, alle davon sind pack()-verwaltet
+        # show: die exakten pack()-Kwargs, mit denen das Widget urspruenglich
+        # sichtbar gemacht wurde - fuer die drei Widgets mit visible=-Toggle
+        # (-PIN_CANCEL-, -EDIT_CANCEL-, -STAND_BACK-) explizit beim
+        # Registrieren mitgegeben, statt sie erst beim ersten Verstecken per
+        # w.pack_info() aus Tk zurueckzufragen. Live auf dem Test-Pi
+        # (Debian Trixie, Python 3.13) ist genau diese pack_info()-Abfrage
+        # beim ALLERERSTEN Verstecken mit "_tkinter.TclError: window ...
+        # isn't packed" gescheitert, obwohl das Widget nachweislich schon
+        # bei der Konstruktion gepackt wurde (auf Python 3.12 lokal nicht
+        # reproduzierbar - vermutlich eine Tcl/Tk-Versions-Eigenheit). Die
+        # pack()-Optionen sind zur Erstellungszeit ohnehin exakt bekannt,
+        # eine spaetere Tk-Rueckfrage ist unnoetig und genau die fragile
+        # Stelle.
+        self._show_kwargs = show
         self._image_ref = None
 
     def update(self, value=None, disabled=None, visible=None, values=None, text_color=None, data=None):
@@ -261,10 +274,8 @@ class Elem:
             w.config(image=img)
         if visible is not None:
             if visible:
-                if self._pack_info is not None:
-                    w.pack(**self._pack_info)
+                w.pack(**(self._show_kwargs or {}))
             else:
-                self._pack_info = w.pack_info()
                 w.pack_forget()
 
 
@@ -325,8 +336,8 @@ class Window:
         self.pages[key] = f
         return f
 
-    def _reg(self, key, widget):
-        self.widgets[key] = Elem(widget)
+    def _reg(self, key, widget, show=None):
+        self.widgets[key] = Elem(widget, show=show)
         return widget
 
     def __getitem__(self, key):
@@ -590,7 +601,7 @@ class Window:
         cancel_btn = tk.Button(content, text='Abbrechen', width=26, height=2,
                                 command=lambda: self.post('-PIN_CANCEL-'))
         cancel_btn.pack(pady=(5, 20))
-        self._reg('-PIN_CANCEL-', cancel_btn)
+        self._reg('-PIN_CANCEL-', cancel_btn, show={'pady': (5, 20)})
 
     def _build_confirm_view(self):
         page = self._new_page('-CONFIRMVIEW-')
@@ -645,7 +656,7 @@ class Window:
         cancel_btn = tk.Button(btnrow, text='Abbrechen', width=13, height=2,
                                 command=lambda: self.post('-EDIT_CANCEL-'))
         cancel_btn.pack(side='left', padx=5)
-        self._reg('-EDIT_CANCEL-', cancel_btn)
+        self._reg('-EDIT_CANCEL-', cancel_btn, show={'side': 'left', 'padx': 5})
 
     def _on_editgraph_event(self, event):
         self.post('-EDITGRAPH-', {'-EDITGRAPH-': (event.x, event.y)})
@@ -667,7 +678,7 @@ class Window:
         back_btn = tk.Button(btnrow, text='Zurück', width=20, height=2,
                               command=lambda: self.post('-STAND_BACK-'))
         back_btn.pack(side='left', padx=10)
-        self._reg('-STAND_BACK-', back_btn)
+        self._reg('-STAND_BACK-', back_btn, show={'side': 'left', 'padx': 10})
 
     def _build_camwait_view(self):
         page = self._new_page('-CAMWAITVIEW-')
