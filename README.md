@@ -2,6 +2,8 @@
 
 Fullscreen kiosk display for a shooting-range target camera. Straightens out the camera's oblique viewing angle into a top-down view of the target, and gives range officers a set of on-screen tools during training and competition.
 
+> **In progress:** the UI layer is being ported from PySimpleGUI to plain Tkinter (no third-party GUI dependency) on the [`tkinter-rewrite`](https://github.com/SGTittmoning/TargetDisplay/tree/tkinter-rewrite) branch. It's already verified end-to-end on test hardware, but still needs a bit more time before it's merged. Feel free to check it out and try it — feedback welcome.
+
 ![TargetDisplay main screen](docs/screenshot.png)
 
 ## Features
