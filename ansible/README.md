@@ -17,6 +17,14 @@ ansible-playbook -i inventory.yml install.yml --limit <host> -e targetdisplay_en
 
 `inventory.yml` holds real credentials (camera URLs with passwords) — keep it out of version control (already gitignored).
 
+To test a feature branch (or a specific tag/commit) before it's merged, without changing the default for anyone else, pass `targetdisplay_git_version` — it only affects which ref `git` checks out, nothing else in the playbook:
+
+```bash
+ansible-playbook -i inventory.yml install.yml --limit <host> -e targetdisplay_git_version=tkinter-rewrite
+```
+
+Omit it (or re-run without the flag) to go back to the default (`main`) on the next deploy.
+
 `targetdisplay_stands` is a **fleet-wide** list (name + camera URL per stand) deployed identically to every host in the group — it doesn't say which stand a *given* device shows. That's chosen once, on the device itself, the first time it boots (see "First-run setup wizard" below); there's no per-host camera/region/PIN variable to fill in here anymore. This makes the same install work for any number of stands, at this club or another, without touching the playbook.
 
 ## What `install.yml` does
@@ -25,7 +33,7 @@ ansible-playbook -i inventory.yml install.yml --limit <host> -e targetdisplay_en
 - Creates a dedicated, unprivileged system user (`targetdisplay_service_user`, default `targetdisplay`) and launches the X11 session via a systemd service (`targetdisplay.service`, `startx` + `.xinitrc`) running as that user — no `nodm`/autologin under the general-purpose admin account. Deliberately **no** `PAMName=login`: it moves the session into its own logind cgroup, which stops `systemctl stop/restart` from ever reaching the real process tree — device access instead relies solely on group membership (`video`/`render`/`input`)
 - Configures persistent journald logging (own drop-in overriding Raspberry Pi OS's default volatile-storage drop-in) so logs survive a reboot — needed to debug anything in the failure-escalation path below
 - Forces the display resolution to match the production stands (1280×800, `hdmi_mode=27` + `hdmi_ignore_edid`) regardless of which physical monitor is attached, via `targetdisplay_screen_width`/`_height`
-- Deploys the TargetDisplay app itself (`git pull` + a `--system-site-packages` venv owned by the service user, dependencies from the app's `requirements.txt`), then overlays a custom logo if one is present (see "Custom logo" below)
+- Deploys the TargetDisplay app itself (`git pull` of the default branch, or `targetdisplay_git_version` if set — see above — + a `--system-site-packages` venv owned by the service user, dependencies from the app's `requirements.txt`), then overlays a custom logo if one is present (see "Custom logo" below)
 - Renders `config.yml` from a template using the per-host inventory variables (`targetdisplay_screen_width`/`_height`, `my_settings_pin` — camera URL, regions and stand name are deliberately **not** templated here, see "First-run setup wizard" below)
 - Renders `targetdisplay-stands.json` (the fleet-wide stand list) to the boot partition — see `tasks/stands.yml`
 - Installs a narrowly-scoped sudoers rule for the app's own PIN-gated in-app Settings/Restart buttons: the unprivileged service user may run exactly three scripts, one per action (`targetdisplay-save-sections.sh`, `targetdisplay-save-active-stand.sh`, `targetdisplay-save-pin.sh` — each writes just its own override file to the boot partition) plus `/usr/sbin/reboot`, nothing else — see `tasks/settings_sudo.yml`
