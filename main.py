@@ -44,7 +44,7 @@ STREAM_STALE_TIMEOUT_SEC = 10
 # einen Ausfall WAEHREND eines bereits laufenden Streams.
 STREAM_STARTUP_TIMEOUT_SEC = 30
 
-version = '0.11.0'
+version = '0.11.1'
 
 cfg = config.load("config.yml")
 
@@ -75,6 +75,30 @@ ACTIVE_STAND_FILE = '/boot/firmware/targetdisplay-active-stand.json'
 # Idee hinter der Stand-Liste oben.
 DEFAULT_PIN = '1234'
 PIN_FILE = '/boot/firmware/targetdisplay-pin.json'
+
+# Zoomfaktor fuer den manuellen Pan-per-Klick im Videobild (tl.crop() weiter
+# unten) - als Konstante herausgezogen, damit dieselbe Zahl auch fuer die
+# Grenzen von zoom_center (Prozent-Koordinaten) verwendet werden kann, siehe
+# _clamp_zoom_center().
+VIDEO_ZOOM_FACTOR = 3
+
+
+def _clamp_zoom_center(center, zoom_factor=VIDEO_ZOOM_FACTOR):
+    # zoom_center lebt in main() als (x%, y%) und wurde bisher bei jedem
+    # Rand-Klick unbegrenzt weiter ueber 100/unter 0 hinaus verschoben -
+    # tl.crop() clampt seine EIGENE, rein lokale Kopie in Pixelkoordinaten
+    # fuers Anzeigen korrekt, gibt den geclampten Wert aber nie an
+    # zoom_center in main() zurueck. Nutzer-Feedback: nach mehreren Klicks
+    # am Rand "haengt" die jeweilige Achse fest - tatsaechlich war sie nur
+    # weit ausserhalb des gueltigen Bereichs abgedriftet und brauchte erst
+    # ebenso viele Klicks in die Gegenrichtung, um ueberhaupt wieder in den
+    # sichtbar wirksamen Bereich zurueckzukommen. tl.crop()s eigene Grenze
+    # haengt nur von zoom_factor ab (nicht von der tatsaechlichen Bild-
+    # groesse: offset/width ist immer 1/(2*zoom_factor)), kann hier also
+    # unabhaengig reproduziert werden.
+    lo = 100 / (2 * zoom_factor)
+    hi = 100 - lo
+    return (min(max(center[0], lo), hi), min(max(center[1], lo), hi))
 
 
 def load_sections(cfg):
@@ -659,13 +683,13 @@ class Window:
         b2 = self._make_accent_button(zoom_row, '-DETAIL_VIDEO-', 'Innen Scheibe',
                                        ACCENT_ZOOM, 'white', ACCENT_ZOOM_MUTED_BG, ACCENT_ZOOM_MUTED_FG,
                                        icon_on=icon('zoomin_white'), icon_off=icon('zoomin_zoom_muted'))
-        # Reset ist eine dauerhaft deaktivierte Funktion (siehe zoom_disabled()
-        # unten - der Aufrufer setzt es IMMER auf disabled=True, unabhaengig
-        # vom Parameter) - braucht deshalb keine "weiss"-Variante, es zeigt
-        # nie etwas anderes als seinen Muted-Zustand.
+        # Reset ist beim Start deaktiviert (Ganze Scheibe, kein manueller Pan -
+        # der "Standard"-Zustand) und wird ueber _sync_reset_button() unten
+        # aktiv/inaktiv geschaltet, sobald sich Zoom-Modus oder Pan-Position
+        # davon entfernen bzw. dahin zurueckkehren.
         b3 = self._make_accent_button(zoom_row, '-RESETZOOM-', 'Reset',
                                        ACCENT_ZOOM, 'white', ACCENT_ZOOM_MUTED_BG, ACCENT_ZOOM_MUTED_FG,
-                                       icon_on=icon('undo_zoom_muted'), icon_off=icon('undo_zoom_muted'),
+                                       icon_on=icon('undo_white'), icon_off=icon('undo_zoom_muted'),
                                        start_enabled=False)
         for b in (b1, b2, b3):
             b.config(height=BTN_HEIGHT)
@@ -861,9 +885,11 @@ class Window:
         btnrow.pack(pady=15)
         tk.Button(btnrow, text='Neues Bild', width=13, height=2,
                   command=lambda: self.post('-EDIT_REFRESH-')).pack(side='left', padx=5)
-        tk.Button(btnrow, text='Speichern', width=13, height=2, bg=ACCENT_ZOOM, fg='white',
-                  activebackground=ACCENT_ZOOM, activeforeground='white',
-                  command=lambda: self.post('-EDIT_SAVE-')).pack(side='left', padx=5)
+        save_btn = tk.Button(btnrow, text='Speichern', width=13, height=2, bg=ACCENT_ZOOM, fg='white',
+                              activebackground=ACCENT_ZOOM, activeforeground='white',
+                              command=lambda: self.post('-EDIT_SAVE-'))
+        save_btn.pack(side='left', padx=5)
+        self._reg('-EDIT_SAVE-', save_btn)
         cancel_btn = tk.Button(btnrow, text='Abbrechen', width=13, height=2,
                                 command=lambda: self.post('-EDIT_CANCEL-'))
         cancel_btn.pack(side='left', padx=5)
@@ -889,7 +915,13 @@ class Window:
                                 command=lambda: self.post('-STAND_SELECT-'))
         select_btn.pack(side='left', padx=10)
         self._reg('-STAND_SELECT-', select_btn)
-        back_btn = tk.Button(btnrow, text='Zurück', width=20, height=2,
+        # Heisst bewusst "Abbrechen": dieser Button ist nur sichtbar, wenn
+        # forced=False ist (freiwilliger Stand-Wechsel ueber das Settings-
+        # Menue - im erzwungenen Ersteinrichtungs-Assistenten bleibt er
+        # per visible=not forced versteckt) - "Zurück" war hier
+        # irrefuehrend, siehe Nutzer-Feedback: sollte wie die anderen
+        # Settings-Unteraktionen "Abbrechen" heissen.
+        back_btn = tk.Button(btnrow, text='Abbrechen', width=20, height=2,
                               command=lambda: self.post('-STAND_BACK-'))
         back_btn.pack(side='left', padx=10)
         self._reg('-STAND_BACK-', back_btn, show={'side': 'left', 'padx': 10})
@@ -980,9 +1012,13 @@ def check_pin(correct_pin):
 
 
 def confirm_reboot():
+    # Navigiert bewusst NICHT selbst weiter (frueher immer zu '-MAINVIEW-',
+    # unabhaengig von Bestaetigen/Abbrechen) - das entscheidet der Aufrufer,
+    # der je nach Kontext nach einem Abbruch zurueck zum Settings-Menue statt
+    # zur Hauptseite will (siehe run_settings_flow(), Nutzer-Feedback: "Zurück
+    # geht nur einen Schritt zurück").
     _show_page('-CONFIRMVIEW-')
     event, _ = window.read()
-    _show_page('-MAINVIEW-')
     return event == '-CONFIRM_YES-'
 
 
@@ -1095,7 +1131,7 @@ def _wait_for_camera_frame(cap, max_wait_sec=STREAM_STARTUP_TIMEOUT_SEC):
             return 'back'
 
 
-def edit_section_points(region_label, cap, points, other_points=None, allow_cancel=True):
+def edit_section_points(region_label, cap, points, other_points=None, allow_cancel=True, will_restart=True):
     # points: Liste von 4 [x,y] in ORIGINALEN Kamerakoordinaten (nicht
     # Crop-verschoben), oder None falls noch keine Kalibrierung existiert
     # (Ersteinrichtungs-Assistent) - dann wird unten ein zentriertes
@@ -1106,6 +1142,15 @@ def edit_section_points(region_label, cap, points, other_points=None, allow_canc
     # der Editor zum NEU-Setzen der Ausschnitte muss aber auch Bereiche
     # ausserhalb dieser Grenzen zeigen koennen. Gibt die neue Punkteliste
     # (gleicher, originaler Koordinatenraum) beim Speichern zurueck, sonst None.
+    #
+    # will_restart steuert nur die Beschriftung des Speichern-Buttons: der
+    # freiwillige Settings-Menue-Pfad (run_settings_flow) beendet main.py nach
+    # dem Speichern IMMER per sys.exit(0) (Restart=always startet mit den
+    # neuen Werten neu), der erzwungene Ersteinrichtungs-Assistent dagegen
+    # laeuft nach dem Speichern eines einzelnen Ausschnitts einfach im selben
+    # Prozess weiter (siehe main()) - ohne diese Unterscheidung war "Speichern"
+    # im Settings-Kontext irrefuehrend, weil das Geraet danach unvermittelt
+    # kurz schwarz wird und neu startet (Nutzer-Feedback: "verwirrt extrem").
     frame = cap.getFrame(full=True)
     if frame is None:
         popup('Kein Kamerabild verfügbar - bitte später erneut versuchen.')
@@ -1151,6 +1196,9 @@ def edit_section_points(region_label, cap, points, other_points=None, allow_canc
     _show_page('-EDITORVIEW-')
     window['-EDITOR_TITLE-'].update(f'{region_label}: Eckpunkte anpassen')
     window['-EDIT_CANCEL-'].update(visible=allow_cancel)
+    # Zweizeilig statt eine lange Zeile - "Speichern und neu starten" in
+    # einer Zeile hat den Button unschoen breit gemacht (Nutzer-Feedback).
+    window['-EDIT_SAVE-'].update('Speichern und\nneu starten' if will_restart else 'Speichern')
     graph = window.editor_canvas
 
     def draw_magnifier(center_disp):
@@ -1183,10 +1231,18 @@ def edit_section_points(region_label, cap, points, other_points=None, allow_canc
         # Lupen-Redraw feuert bei jedem Drag-Motion-Event, potenziell
         # mehrfach pro Sekunde.
         magbytes = cv2.imencode('.ppm', mag)[1].tobytes()
-        # Fest oben rechts im Canvas verankert (nicht am Bild), damit die
-        # Lupe unabhaengig von Bildgroesse/Zentrierung immer an derselben,
-        # vorhersehbaren Stelle erscheint.
-        mag_x, mag_y = EDITOR_MAX_W - MAG_SIZE - 10, 10
+        # In der Canvas-Ecke verankert, die vom gerade gezogenen Punkt am
+        # weitesten entfernt ist (nicht am Bild, damit die Position
+        # unabhaengig von Bildgroesse/Zentrierung vorhersehbar bleibt) -
+        # Bug gefunden durch den Nutzer: bei fest oben-rechts verankerter
+        # Lupe liess sich ein Punkt in dieser Ecke nicht mehr sinnvoll
+        # platzieren/verschieben, weil die Lupe selbst genau dort im Weg
+        # war. Springt jetzt in die jeweils gegenueberliegende Ecke, sobald
+        # der Punkt die Bildschirm-Mittellinie in X- oder Y-Richtung
+        # ueberquert.
+        mag_margin = 10
+        mag_x = mag_margin if center_disp[0] >= EDITOR_MAX_W / 2 else EDITOR_MAX_W - MAG_SIZE - mag_margin
+        mag_y = mag_margin if center_disp[1] >= EDITOR_MAX_H / 2 else EDITOR_MAX_H - MAG_SIZE - mag_margin
         photo = tk.PhotoImage(data=magbytes)
         graph.image_refs.append(photo)
         graph.create_image(mag_x, mag_y, anchor='nw', image=photo)
@@ -1280,55 +1336,56 @@ def run_settings_flow(cap, section_full, section_detail, stands, current_pin):
     # technisch keinen Neustart braeuchte, aber ein einheitlicher Ablauf
     # ist weniger fehleranfaellig als eine zweite, live-aktualisierte
     # Variable an mehreren Stellen mitzupflegen.
-    _show_page('-MENUVIEW-')
-    which = None
+    # Jede Unteraktion (Ausschnitte/Stand/PIN/Restart) kehrt bei Abbruch oder
+    # einem Fehlschlag per "continue" zurueck zum Settings-Menue (statt bis
+    # zur Hauptseite durchzureichen) - Nutzer-Feedback: "Zurück geht nur
+    # einen Schritt zurück, ich lande sonst auf der Hauptseite statt im
+    # Settings-Menue". Nur ein tatsaechlicher '-MENU_BACK-' auf dieser Seite
+    # selbst, oder eine ERFOLGREICH gespeicherte Aenderung (die ohnehin einen
+    # Neustart ausloest, siehe Aufrufer), verlaesst die Schleife.
     while True:
+        _show_page('-MENUVIEW-')
         event, _ = window.read()
         if event in (WIN_CLOSED, '-MENU_BACK-'):
             _show_page('-MAINVIEW-')
             return False
         elif event in ('-MENU_FULL-', '-MENU_DETAIL-'):
             which = 'full' if event == '-MENU_FULL-' else 'detail'
-            break
+            current = section_full if which == 'full' else section_detail
+            other = section_detail if which == 'full' else section_full
+            result = edit_section_points('Ganze Scheibe' if which == 'full' else 'Innen Scheibe', cap, current, other_points=other)
+            if result is None:
+                continue
+            new_section_full = result if which == 'full' else section_full
+            new_section_detail = result if which == 'detail' else section_detail
+            if not save_sections_override(new_section_full, new_section_detail):
+                popup('Speichern fehlgeschlagen - Änderung wurde NICHT übernommen.')
+                continue
+            _show_page('-MAINVIEW-')
+            return True
         elif event == '-MENU_STAND-':
             chosen = run_stand_select(stands, forced=False)
-            _show_page('-MAINVIEW-')
             if chosen is None:
-                return False
-            if save_active_stand(chosen['id']):
-                return True
-            popup('Stand konnte nicht gespeichert werden.')
-            return False
+                continue
+            if not save_active_stand(chosen['id']):
+                popup('Stand konnte nicht gespeichert werden.')
+                continue
+            _show_page('-MAINVIEW-')
+            return True
         elif event == '-MENU_PIN-':
             new_pin = change_pin_flow(current_pin, forced=False)
+            if new_pin is None:
+                continue
             _show_page('-MAINVIEW-')
-            return new_pin is not None
+            return True
         elif event == '-MENU_RESTART-':
             # Restart lebt seit dem Header-Redesign hier statt als eigener
             # Hauptbildschirm-Button (siehe _build_menu_view) - der Zugang
             # ist bereits durch den vorgelagerten check_pin() in main()s
             # '-SETTINGS-'-Handler geschuetzt, keine zweite PIN-Abfrage noetig.
-            # confirm_reboot() navigiert selbst schon zurueck zur Hauptseite,
-            # egal ob bestaetigt oder abgebrochen wurde.
             if confirm_reboot():
                 subprocess.run(['/usr/bin/sudo', '/usr/sbin/reboot'])
-            return False
-
-    current = section_full if which == 'full' else section_detail
-    other = section_detail if which == 'full' else section_full
-
-    result = edit_section_points('Ganze Scheibe' if which == 'full' else 'Innen Scheibe', cap, current, other_points=other)
-    _show_page('-MAINVIEW-')
-    if result is None:
-        return False
-
-    new_section_full = result if which == 'full' else section_full
-    new_section_detail = result if which == 'detail' else section_detail
-
-    if not save_sections_override(new_section_full, new_section_detail):
-        popup('Speichern fehlgeschlagen - Änderung wurde NICHT übernommen.')
-        return False
-    return True
+            continue
 
 def _set_icon_buttons(keys, enabled):
     # Fuer die farbcodierten Buttons aus Window._make_accent_button():
@@ -1350,8 +1407,22 @@ def _set_icon_buttons(keys, enabled):
 
 def zoom_disabled(disable):
   _set_icon_buttons(('-FULL_VIDEO-', '-DETAIL_VIDEO-'), not disable)
-  # Reset bleibt dauerhaft im Muted-Zustand (siehe Kommentar bei seiner
-  # Erzeugung in _build_main_view) - hier nichts mehr zu tun.
+  # Reset wird hier bewusst NICHT angefasst - waehrend Zoom global deaktiviert
+  # ist (Blinken/Timer/Video aus laeuft), muss der Aufrufer zusaetzlich
+  # explizit _sync_reset_button(..., globally_disabled=True) rufen; beim
+  # Zurueckschalten auf verfuegbar entscheidet _sync_reset_button() anhand
+  # des tatsaechlichen Zoom-Zustands (nicht einfach "wieder an"), siehe dort.
+
+def _sync_reset_button(zoom_level, zoom_center, globally_disabled=False):
+  # Reset ist nur dann sinnvoll klickbar, wenn der Zoom vom Standard
+  # abweicht (nicht "Ganze Scheibe" und/oder ein manueller Pan aktiv) - Bug
+  # gefunden durch den Nutzer: vorher blieb der Button dauerhaft deaktiviert,
+  # unabhaengig vom Zoom-Zustand, und "Reset" selbst hat nur den Pan
+  # zurueckgesetzt, nicht aber einen aktiven "Innen Scheibe"-Zoom. Beides ist
+  # jetzt behoben, siehe die vier Aufrufstellen unten (Full/Detail/Video-Pan/
+  # Reset selbst) sowie an jeder zoom_disabled()-Stelle im Hauptloop.
+  enabled = (not globally_disabled) and (zoom_level != 'full' or bool(zoom_center))
+  _set_icon_buttons(('-RESETZOOM-',), enabled)
 
 def blink_disabled(disable):
   _set_icon_buttons(('-BLINK_START-',), not disable)
@@ -1494,6 +1565,12 @@ def main():
                     active_stand = chosen
             StreamPath = active_stand['url']
             _set_stand_name(active_stand['displayName'])
+            # cap.stop() VOR dem Ersetzen: ohne das lief der Hintergrund-
+            # Thread des verworfenen (ggf. nicht erreichbaren) alten Standes
+            # als Daemon unbegrenzt weiter und versuchte alle 2s erfolglos,
+            # dessen URL erneut zu verbinden - gefunden beim Fresh-Install-
+            # Test, Fix uebernommen aus main (camera.py, Commit 0bbd28e).
+            cap.stop()
             cap = Camera(StreamPath)
             continue
         which = 'full' if section_full_orig is None else 'detail'
@@ -1503,7 +1580,7 @@ def main():
         # wird er als graue Referenz mitgezeichnet - gleiches Verhalten wie
         # im freiwilligen Settings-Menue.
         other = section_detail_orig if which == 'full' else section_full_orig
-        result = edit_section_points(label, cap, None, other_points=other, allow_cancel=False)
+        result = edit_section_points(label, cap, None, other_points=other, allow_cancel=False, will_restart=False)
         if result is not None:
             new_full = result if which == 'full' else section_full_orig
             new_detail = result if which == 'detail' else section_detail_orig
@@ -1564,9 +1641,13 @@ def main():
             displayVideo = not displayVideo
             if displayVideo:
               window['-TOGGLEVIDEO-'].widget.config(image=window._icon('eye_slash_neutral'))
-              frame_count = 1
-              frame_timestamps.clear()
+              # frame_count/frame_timestamps bewusst NICHT zurueckgesetzt - Video
+              # aus/ein soll die FPS/Frame-Anzeige nur pausieren (sie friert waehrend
+              # des Blank-Screens einfach ein, da weder der displayVideo- noch der
+              # displayTimer-Zweig unten dann laeuft) und beim Wiedereinschalten
+              # nahtlos weiterzaehlen, genau wie beim Timer - kein Reset auf 1/leer.
               zoom_disabled(False)
+              _sync_reset_button(zoom_level, zoom_center)
               blink_disabled(False)
               timer_disabled(False)
             else:
@@ -1575,7 +1656,12 @@ def main():
               if blank_logo is not None:
                 frame = blend_logo_centered(frame, blank_logo)
               window.draw_image(frame)
+              # Ausgeblendet, nicht zurueckgesetzt (frame_count/frame_timestamps
+              # bleiben unangetastet, siehe oben) - analog zum Timer, der die
+              # Anzeige waehrend seiner eigenen Blank-Phase ebenso leert.
+              window_fps.update('')
               zoom_disabled(True)
+              _sync_reset_button(zoom_level, zoom_center, globally_disabled=True)
               blink_disabled(True)
               timer_disabled(True)
         elif event == '-SETTINGS-':
@@ -1590,9 +1676,11 @@ def main():
         elif event == '-FULL_VIDEO-':
           zoom_level = 'full'
           zoom_center = []
+          _sync_reset_button(zoom_level, zoom_center)
         elif event == '-DETAIL_VIDEO-':
           zoom_level = 'detail'
           zoom_center = []
+          _sync_reset_button(zoom_level, zoom_center)
         elif event == '-VIDEO-':
           if zoom_center == []:
             # init zoom
@@ -1608,11 +1696,18 @@ def main():
               zoom_center = zoom_center[0],zoom_center[1]-move_speed
             elif values["-VIDEO-"][1] > 70:
               zoom_center = zoom_center[0],zoom_center[1]+move_speed
-
+          zoom_center = _clamp_zoom_center(zoom_center)
+          _sync_reset_button(zoom_level, zoom_center)
         elif event == '-RESETZOOM-':
+          # Setzt nicht nur den manuellen Pan zurueck, sondern auch den
+          # Zoom-Modus auf "Ganze Scheibe" - Bug gefunden durch den Nutzer:
+          # vorher blieb ein aktiver "Innen Scheibe"-Zoom nach Reset bestehen.
+          zoom_level = 'full'
           zoom_center = []
+          _sync_reset_button(zoom_level, zoom_center)
         elif event == '-BLINK_START-':
           zoom_disabled(True)
+          _sync_reset_button(zoom_level, zoom_center, globally_disabled=True)
           timer_disabled(True)
           video_filter_disabled(True)
           _set_icon_buttons(('-BLINK_START-',), False)
@@ -1624,6 +1719,7 @@ def main():
           blink = True
         elif event == '-BLINK_STOP-':
           zoom_disabled(False)
+          _sync_reset_button(zoom_level, zoom_center)
           timer_disabled(False)
           blink_disabled(False)
           video_filter_disabled(False)
@@ -1637,6 +1733,7 @@ def main():
           # liest - unschaedlich, vermeidet aber eine dritte fast
           # identische Kopie dieses Blocks.
           zoom_disabled(True)
+          _sync_reset_button(zoom_level, zoom_center, globally_disabled=True)
           blink_disabled(True)
           video_filter_disabled(True)
           displayTimer = True
@@ -1648,6 +1745,7 @@ def main():
           timerCurrentLoop = 0
         elif event == '-TIMER_STOP-':
           zoom_disabled(False)
+          _sync_reset_button(zoom_level, zoom_center)
           blink_disabled(False)
           video_filter_disabled(False)
           displayTimer = False
@@ -1672,7 +1770,7 @@ def main():
             if ((blink) & (datetime.now().second % 2)==1): frame = blink_ref
 
             # zoom
-            if zoom_center != []: frame = tl.crop(frame,3, zoom_center)
+            if zoom_center != []: frame = tl.crop(frame, VIDEO_ZOOM_FACTOR, zoom_center)
 
             window.draw_image(frame)
             frame_count += 1

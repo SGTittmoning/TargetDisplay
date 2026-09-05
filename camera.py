@@ -22,10 +22,30 @@ class Camera:
         self.last_frame_time = time.time()
         self.start_time = time.time()
         self.lock = Lock()
+        self._stop_event = threading.Event()
+        self._container = None
 
         thread = threading.Thread(target=self._buffer_loop, name="rtsp_read_thread")
         thread.daemon = True
         thread.start()
+
+    def stop(self):
+        # Beendet _buffer_loop und gibt die Verbindung frei - noetig, wenn ein
+        # Camera-Objekt durch ein neues ersetzt wird (z.B. Stand-Wechsel im
+        # Ersteinrichtungs-Assistenten), sonst liefe der alte Hintergrund-Thread
+        # als Daemon unbegrenzt weiter und versuchte endlos, die verworfene
+        # (ggf. nicht erreichbare) alte URL erneut zu verbinden.
+        self._stop_event.set()
+        with self.lock:
+            container = self._container
+        # container.close() ausserhalb des Locks: unterbricht ein gerade
+        # blockierendes next(frame_iter) im Hintergrund-Thread, damit stop()
+        # nicht bis zum naechsten Frame/Reconnect-Versuch warten muss.
+        if container is not None:
+            try:
+                container.close()
+            except Exception:
+                pass
 
     def _open_container(self):
         # options={"rtmp_live": "live"} bewusst weggelassen: fuehrt mit der auf
@@ -43,16 +63,23 @@ class Camera:
     def _buffer_loop(self):
         container = None
         frame_iter = None
-        while True:
+        while not self._stop_event.is_set():
             try:
                 if container is None:
                     connect_started = time.time()
                     container = self._open_container()
+                    with self.lock:
+                        self._container = container
                     frame_iter = container.decode(video=0)
                     print(f"camera.py: Container geoeffnet nach {time.time() - connect_started:.1f}s", file=sys.stderr)
                 av_frame = next(frame_iter)
                 frame = av_frame.to_ndarray(format="bgr24")
             except (av.error.FFmpegError, StopIteration, OSError) as e:
+                if self._stop_event.is_set():
+                    # stop() hat den Container absichtlich geschlossen, um
+                    # genau dieses next(frame_iter) zu unterbrechen - kein
+                    # echter Verbindungsfehler, kein Retry noetig.
+                    break
                 # Bisher wurde hier stillschweigend weiterversucht, ohne
                 # jemals zu protokollieren WAS eigentlich schiefging - bei der
                 # Fehlersuche zu Reboot-Guard-Fehlausloesungen (2026-08-28)
@@ -64,8 +91,10 @@ class Camera:
                 if container is not None:
                     container.close()
                 container = None
+                with self.lock:
+                    self._container = None
                 frame_iter = None
-                time.sleep(self.reconnect_delay)
+                self._stop_event.wait(self.reconnect_delay)
                 continue
 
             full_frame = frame
@@ -77,6 +106,17 @@ class Camera:
                 self.last_frame_full = full_frame
                 self.frame_id += 1
                 self.last_frame_time = time.time()
+
+        # Regulaeres Schleifenende ueber die while-Bedingung (stop() kam
+        # zwischen zwei Frames, nicht waehrend eines blockierenden next()) -
+        # container ist dann meist schon durch stop() geschlossen, ein
+        # zweiter close()-Versuch auf einem bereits geschlossenen Container
+        # ist bei PyAV ungefaehrlich, daher hier ohne Sonderfall-Pruefung.
+        if container is not None:
+            try:
+                container.close()
+            except Exception:
+                pass
 
     def getFrame(self, full=False):
         with self.lock:
