@@ -8,6 +8,7 @@ import queue
 import subprocess
 import cv2
 import tkinter as tk
+import tkinter.font as tkfont
 import numpy as np
 import transformlib as tl
 import config_with_yaml as config
@@ -211,13 +212,22 @@ def save_pin(new_pin):
 # (siehe to_display_frame/redraw).
 EDITOR_MAX_W, EDITOR_MAX_H = 1000, 620
 
-# Zusaetzliche, grobe Zeichenbegrenzung fuer den Standnamen - der eigentliche
-# Schutz gegen ein auseinandergedruecktes Layout ist der feste Pixel-Rahmen
-# um das Label in Window._build_main_view() (Frame mit fester width/height +
-# pack_propagate(False)). Diese Kuerzung hier ist nur eine zusaetzliche
-# Sicherheitsmarge, damit gar nicht erst extrem lange Strings an Tk
-# uebergeben werden.
-STANDNAME_MAX_CHARS = 30
+# Maximale Pixelbreite fuer den Standnamen im Header (siehe
+# Window.set_stand_name()) - etwas schmaler als die 280px des umgebenden
+# Frames (Window._build_main_view(), Frame mit fester width/height +
+# pack_propagate(False) als harte Grenze), damit der gekuerzte Text inkl.
+# "…" nie ganz an die beiden Header-Icon-Buttons rechts daneben heranreicht.
+# Ersetzt eine fruehere, rein zeichenbasierte Kuerzung (STANDNAME_MAX_CHARS
+# = 30 Zeichen) - die passte noch zum alten 440px breiten Namensfeld ohne
+# Header-Icons, war aber nach deren Einfuehrung (Design-Runde 3, Feld auf
+# 280px verschmaelert) deutlich zu grosszuegig: ein Live-Test mit einem nur
+# 31 Zeichen langen Namen ("Schützenverein Musterstadt-Nord") zeigte, dass
+# der Frame den Text weit VOR der 30-Zeichen-Grenze hart abschneidet - ohne
+# "…", einfach mitten im Wort. Eine Pixelmessung mit der tatsaechlich
+# verwendeten Schrift (Helvetica 24pt bold) ist robust gegenueber
+# unterschiedlich breiten Zeichen (macht bei Grossbuchstaben/Umlauten einen
+# spuerbaren Unterschied), waehrend ein fester Zeichen-Wert das nicht kann.
+STANDNAME_MAX_PX = 260
 
 # Helles Farbschema (Redesign 2026-09, ueber vier Design-Canvas-Runden mit
 # dem Nutzer abgestimmt - loest das alte PySimpleGUI-"LightGreen"-Theme ab).
@@ -441,6 +451,18 @@ class Window:
     def refresh(self):
         self.root.update()
 
+    def set_stand_name(self, name):
+        # Pixelgenaue Kuerzung mit "…" statt einer festen Zeichenanzahl
+        # (siehe STANDNAME_MAX_PX oben) - haengt jeweils ein Zeichen ab und
+        # prueft per Font.measure() erneut, bis Text+"…" wieder unter das
+        # Limit passt. Bei sehr kurzen Namen (passen von vornherein) laeuft
+        # die while-Schleife kein einziges Mal.
+        if self._standname_font.measure(name) > STANDNAME_MAX_PX:
+            while name and self._standname_font.measure(name + '…') > STANDNAME_MAX_PX:
+                name = name[:-1]
+            name = name + '…'
+        self.widgets['-STANDNAME-'].update(name)
+
     def show_page(self, key):
         self.pages[key].tkraise()
         self.root.update()
@@ -538,10 +560,16 @@ class Window:
         name_frame = tk.Frame(header, width=280, height=38, bg=BG)
         name_frame.pack(side='left')
         name_frame.pack_propagate(False)
-        name_label = tk.Label(name_frame, text='', font=('Helvetica', 24, 'bold'),
+        standname_font = ('Helvetica', 24, 'bold')
+        name_label = tk.Label(name_frame, text='', font=standname_font,
                                bg=BG, fg=FG_DARK, anchor='w')
         name_label.pack(fill='both', expand=True)
         self._reg('-STANDNAME-', name_label)
+        # Fuer die pixelgenaue Kuerzung in set_stand_name() unten - dieselbe
+        # Schriftart/-groesse wie name_label, sonst wuerde gegen die falsche
+        # Breite gemessen.
+        self._standname_font = tkfont.Font(family=standname_font[0], size=standname_font[1],
+                                            weight=standname_font[2])
 
         icon_row = tk.Frame(header, bg=BG)
         icon_row.pack(side='right')
@@ -638,7 +666,7 @@ class Window:
         make_caption(timer_group, 'Timer', ACCENT_TIMER)
         row1 = tk.Frame(timer_group, bg=BG)
         row1.pack(side='top', fill='x')
-        b1 = self._make_accent_button(row1, '-TIMER_5_3_7-', '5 x 3/7 Sek.',
+        b1 = self._make_accent_button(row1, '-TIMER_5_3_7-', '5 x 3 Sek.',
                                        ACCENT_TIMER, 'white', ACCENT_TIMER_MUTED_BG, ACCENT_TIMER_MUTED_FG,
                                        icon_on=icon('clock_white'), icon_off=icon('clock_timer_muted'))
         b2 = self._make_accent_button(row1, '-TIMER_20-', '20 Sek.',
@@ -664,13 +692,15 @@ class Window:
                                              start_enabled=False, font=('Helvetica', 14, 'bold'))
         stop_btn.pack(side='left', fill='both', expand=True)
 
-        # -- Footer (Design-Runde 4, Variante B: Logo mittig oben, Uhrzeit
-        # darunter zentriert ueber die volle Breite - vom Nutzer als
-        # "sieht sehr gut aus" ausgewaehlt). Ab hier (unterhalb von Timer
-        # Stop) war Anordnung/Groesse laut Nutzer-Vorgabe bewusst frei.
-        # side='bottom' in dieser Reihenfolge gepackt: die zuerst gepackte
-        # Version/FPS-Zeile landet ganz unten, danach die Datum/Uhrzeit-
-        # Flaeche, danach das Logo obendrauf - macht zusammen mit dem
+        # -- Footer (Design-Runde 4, Variante B). Kein Sidebar-Logo mehr
+        # (Nutzer-Feedback Design-Runde 5: das kleine Logo wirkte neben der
+        # jetzt grossen Uhrzeit verloren/"ueberdeckt") - das Vereinswappen
+        # bleibt ausschliesslich dem Blank-Screen-Wasserzeichen vorbehalten
+        # (siehe blend_logo_centered() bei '-TOGGLEVIDEO-' in main()). Ab
+        # hier (unterhalb von Timer Stop) war Anordnung/Groesse laut
+        # Nutzer-Vorgabe bewusst frei. side='bottom' in dieser Reihenfolge
+        # gepackt: die zuerst gepackte Version/FPS-Zeile landet ganz unten,
+        # die Datum/Uhrzeit-Flaeche darueber - macht zusammen mit dem
         # zwischen Buttons und Footer liegenden, nicht explizit gepackten
         # Rest-Platz denselben VPush()-Effekt wie im PySimpleGUI-Original.
         version_row = tk.Frame(left, bg=BG)
@@ -690,10 +720,6 @@ class Window:
         time_label = tk.Label(dt_frame, font=('Courier', 52, 'bold'), bg=DATETIME_BG, fg=FG_DARK)
         time_label.pack(pady=(0, 8))
         self._reg('-TIME-', time_label)
-
-        logo_label = tk.Label(left, bg=BG, bd=0)
-        logo_label.pack(side='bottom', pady=(0, 12))
-        self._reg('-LOGO-', logo_label)
 
     def _on_video_click(self, event):
         px = event.x / self.video_size[0] * 100
@@ -861,10 +887,7 @@ def popup(message):
 
 
 def _set_stand_name(name):
-    name = name or ''
-    if len(name) > STANDNAME_MAX_CHARS:
-        name = name[:STANDNAME_MAX_CHARS - 1] + '…'
-    window['-STANDNAME-'].update(name)
+    window.set_stand_name(name or '')
 
 
 def _run_pin_keypad(title, show_cancel, validate):
@@ -1378,27 +1401,18 @@ def main():
     window_time = window['-TIME-']
     window_fps = window['-FPS-']
 
-    # Hoehenbasiert statt (wie vor dem Footer-Redesign) breitenbasiert: das
-    # Logo im Footer ist jetzt zentriert und bewusst deutlich groesser (Design-
-    # Runde 3/4, "eher noch größer... ist ja eine Art CI Branding") -
-    # Ausgangsgroesse fuer die Skalierung ist deshalb seine Zielhoehe, die
-    # Breite ergibt sich seitenverhaeltnistreu aus dem jeweiligen Logo.
-    logo_height = 145
     _show_page('-MAINVIEW-')
     # ressources/logo.png ist bewusst NICHT Teil des Repos (siehe README) -
     # jede Installation legt dort ihr eigenes Logo ab. Fehlt die Datei,
-    # bleiben Sidebar-Logo und Blank-Screen-Wasserzeichen einfach leer statt
-    # abzustuerzen.
-    logo = cv2.imread('ressources/logo.png', cv2.IMREAD_UNCHANGED)
-    blank_logo = None
-    if logo is not None:
-        blank_logo = logo.copy()  # unskalierte Variante fuer den Blank-Screen ("Video aus")
-        logo_scale = logo_height / logo.shape[0]
-        logo = cv2.resize(logo, (max(1, int(logo.shape[1] * logo_scale)), logo_height))
-        logobytes = cv2.imencode('.png', logo)[1].tobytes()
-        window['-LOGO-'].update(data=logobytes)
-    else:
-        print("ressources/logo.png nicht gefunden - Logo-Anzeige bleibt leer.", file=sys.stderr)
+    # bleibt das Blank-Screen-Wasserzeichen einfach leer statt abzustuerzen.
+    # Seit Design-Runde 5 gibt es KEIN eigenes Sidebar-Logo mehr (wirkte
+    # neben der grossen Uhrzeit im Footer verloren/"ueberdeckt", Nutzer-
+    # Feedback) - das Logo bleibt ausschliesslich dem Blank-Screen
+    # vorbehalten ("Video aus", siehe blend_logo_centered() unten), deshalb
+    # wird hier nur noch die unskalierte blank_logo-Variante gebraucht.
+    blank_logo = cv2.imread('ressources/logo.png', cv2.IMREAD_UNCHANGED)
+    if blank_logo is None:
+        print("ressources/logo.png nicht gefunden - Blank-Screen-Wasserzeichen bleibt leer.", file=sys.stderr)
 
     # --- Ersteinrichtungs-Assistent: Stand -> Ausschnitte -> PIN ---
     # Erzwungen (kein Abbrechen zum Hauptbildschirm) solange die jeweilige
