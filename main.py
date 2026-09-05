@@ -213,21 +213,26 @@ def save_pin(new_pin):
 EDITOR_MAX_W, EDITOR_MAX_H = 1000, 620
 
 # Maximale Pixelbreite fuer den Standnamen im Header (siehe
-# Window.set_stand_name()) - etwas schmaler als die 280px des umgebenden
+# Window.set_stand_name()) - etwas schmaler als die 330px des umgebenden
 # Frames (Window._build_main_view(), Frame mit fester width/height +
 # pack_propagate(False) als harte Grenze), damit der gekuerzte Text inkl.
 # "…" nie ganz an die beiden Header-Icon-Buttons rechts daneben heranreicht.
 # Ersetzt eine fruehere, rein zeichenbasierte Kuerzung (STANDNAME_MAX_CHARS
 # = 30 Zeichen) - die passte noch zum alten 440px breiten Namensfeld ohne
-# Header-Icons, war aber nach deren Einfuehrung (Design-Runde 3, Feld auf
-# 280px verschmaelert) deutlich zu grosszuegig: ein Live-Test mit einem nur
-# 31 Zeichen langen Namen ("Schützenverein Musterstadt-Nord") zeigte, dass
-# der Frame den Text weit VOR der 30-Zeichen-Grenze hart abschneidet - ohne
-# "…", einfach mitten im Wort. Eine Pixelmessung mit der tatsaechlich
-# verwendeten Schrift (Helvetica 24pt bold) ist robust gegenueber
-# unterschiedlich breiten Zeichen (macht bei Grossbuchstaben/Umlauten einen
-# spuerbaren Unterschied), waehrend ein fester Zeichen-Wert das nicht kann.
-STANDNAME_MAX_PX = 260
+# Header-Icons, war aber nach deren Einfuehrung (Design-Runde 3) deutlich
+# zu grosszuegig: ein Live-Test mit einem nur 31 Zeichen langen Namen
+# ("Schützenverein Musterstadt-Nord") zeigte, dass der Frame den Text weit
+# VOR der 30-Zeichen-Grenze hart abschneidet - ohne "…", einfach mitten im
+# Wort. Eine Pixelmessung mit der tatsaechlich verwendeten Schrift
+# (Helvetica 24pt bold) ist robust gegenueber unterschiedlich breiten
+# Zeichen, waehrend ein fester Zeichen-Wert das nicht kann. Der erste Wert
+# (280px Frame / 260px Kuerzgrenze) war allerdings zu knapp bemessen -
+# Nutzer-Feedback: "da wäre ja noch einiges an Platz bevor die Buttons
+# angehen". Neu vermessen: Header ist 450px breit, die beiden 46px-Icon-
+# Buttons + 10px Abstand dazwischen brauchen exakt 102px - bis dahin sind
+# also 348px fuer den Namen frei, minus etwas Sicherheitsabstand zu den
+# Icons (Frame 330px, Kuerzgrenze 310px davon).
+STANDNAME_MAX_PX = 310
 
 # Helles Farbschema (Redesign 2026-09, ueber vier Design-Canvas-Runden mit
 # dem Nutzer abgestimmt - loest das alte PySimpleGUI-"LightGreen"-Theme ab).
@@ -403,30 +408,35 @@ class Window:
                              start_enabled=True, font=('Helvetica', 15, 'bold')):
         # Gemeinsamer Baustein fuer alle farbcodierten Hauptbildschirm-Buttons
         # (Zoom/Blinken/Timer, inkl. des reinen Text-Buttons "Timer Stop").
-        # Tk faerbt einen deaktivierten Button NICHT automatisch um (nur der
-        # Text wird ueber disabledforeground blass) - der eigentliche
-        # "deaktiviert"-Look (helle Muted-Flaeche statt satter Akzentfarbe,
-        # Design-Runde 2) wird stattdessen explizit hier UND in
-        # _set_icon_buttons() (bei jedem Enable/Disable danach) gesetzt.
-        # disabledforeground wird einmalig fest auf muted_fg gesetzt - dieser
-        # Wert kommt ohnehin nur zur Geltung, waehrend der Button disabled
-        # ist, muss also bei einem State-Wechsel nicht erneut angefasst
-        # werden (nur bg/fg/image aendern sich dynamisch).
+        # Der Button bleibt bewusst IMMER state=NORMAL - "deaktiviert" wird
+        # rein optisch (Muted-Flaeche/-Icon, siehe Design-Runde 2) UND
+        # funktional (command wird zu einem No-Op statt self.post(key), s.u.)
+        # simuliert, nie ueber Tks eigenes state=DISABLED. Grund: ein
+        # tk.Button mit -image zeichnet im disabled-Zustand automatisch ein
+        # eingebautes Schachbrett-Stipple-Muster UEBER das Bild (der
+        # klassische Motif-"insensitive"-Look, X11-spezifisch) - es gibt
+        # dafuer keine abschaltbare Option (ein Versuch mit -disabledimage
+        # ist mit "_tkinter.TclError: unknown option" abgestuerzt, dieses
+        # Option existiert schlicht nicht bei tk.Button). Live auf dem
+        # Test-Pi sah das wie ein Rendering-Defekt aus ("Icons sehen nicht
+        # sauber aus, Farbe passt nicht"), obwohl PNG/Alpha der Icons in
+        # Ordnung waren - das Stipple kam einzig von state=DISABLED selbst.
         icon = (icon_on if start_enabled else icon_off) if icon_on is not None else None
         bg = accent_bg if start_enabled else muted_bg
         fg = accent_fg if start_enabled else muted_fg
-        kwargs = dict(text=text, bg=bg, fg=fg, disabledforeground=muted_fg,
+        real_command = lambda: self.post(key)
+        kwargs = dict(text=text, bg=bg, fg=fg,
                       activebackground=bg, activeforeground=fg,
                       bd=0, relief='flat', highlightthickness=0, font=font,
                       wraplength=140, justify='center',
-                      state=(tk.NORMAL if start_enabled else tk.DISABLED),
-                      command=lambda: self.post(key))
+                      command=(real_command if start_enabled else lambda: None))
         if icon is not None:
             kwargs.update(image=icon, compound='top')
         b = tk.Button(parent, **kwargs)
         self._btn_style[key] = dict(icon_on=icon_on, icon_off=icon_off,
                                      bg_on=accent_bg, fg_on=accent_fg,
-                                     bg_off=muted_bg, fg_off=muted_fg)
+                                     bg_off=muted_bg, fg_off=muted_fg,
+                                     command_on=real_command)
         self._reg(key, b)
         return b
 
@@ -557,7 +567,7 @@ class Window:
         # Frame mit fester width/height + pack_propagate(False) erzwingt
         # dagegen eine wirklich harte Breite - ueberstehender Inhalt wird
         # abgeschnitten statt den Frame zu vergroessern.
-        name_frame = tk.Frame(header, width=280, height=38, bg=BG)
+        name_frame = tk.Frame(header, width=330, height=38, bg=BG)
         name_frame.pack(side='left')
         name_frame.pack_propagate(False)
         standname_font = ('Helvetica', 24, 'bold')
@@ -609,9 +619,31 @@ class Window:
                      bg=BG, fg=color, anchor='w').pack(side='top', anchor='w', pady=(0, 7))
 
         def pack_equal(buttons, gap=BTN_GAP):
-            n = len(buttons)
+            # WICHTIG: pack(fill='both', expand=True) macht Geschwister-Widgets
+            # NICHT gleich breit - Tk vergibt jedem Button zunaechst seine
+            # eigene, inhaltsabhaengige "natuerliche" Breite (laengerer Text
+            # = mehr Platz) und verteilt nur den DANACH uebrigen Leerraum
+            # gleichmaessig, siehe Tk-Doku zu pack(). Live gemessen: bei
+            # "Ganze Scheibe/Innen Scheibe/Reset" kam so 151/151/128px heraus,
+            # bei "Start/Referenz/Stop" sogar 130/175/125px - Nutzer-Feedback
+            # zu Recht "immer noch nicht gleich breit". grid() mit
+            # uniform= erzwingt dagegen ECHTE Gleichverteilung: alle Spalten
+            # einer uniform-Gruppe bekommen exakt dieselbe Breite, unabhaengig
+            # vom Inhalt. Der Zwischenraum wird bewusst als EIGENE, schmale
+            # Spacer-Spalte (fixe minsize=gap, weight=0, NICHT Teil der
+            # uniform-Gruppe) zwischen die Button-Spalten gesetzt, statt als
+            # padx AM Button - sonst faellt der Randbutton (kein padx an der
+            # Aussenseite) breiter aus als die beiden mit Gap-padx (live
+            # gemessen: 140/140/150px statt wirklich identisch).
+            parent = buttons[0].master
+            col = 0
             for i, b in enumerate(buttons):
-                b.pack(side='left', fill='both', expand=True, padx=(0, gap) if i < n - 1 else 0)
+                parent.grid_columnconfigure(col, weight=1, uniform='btnrow')
+                b.grid(row=0, column=col, sticky='nsew')
+                col += 1
+                if i < len(buttons) - 1:
+                    parent.grid_columnconfigure(col, weight=0, minsize=gap)
+                    col += 1
 
         icon = self._icon
 
@@ -902,7 +934,7 @@ def _run_pin_keypad(title, show_cancel, validate):
     window['-PIN_TITLE-'].update(title)
     window['-PIN_CANCEL-'].update(visible=show_cancel)
     _show_page('-PINVIEW-')
-    window['-PINDISPLAY-'].update('', text_color='black')
+    window['-PINDISPLAY-'].update('', text_color=FG_DARK)
     entered = ''
     result = None
     while True:
@@ -925,7 +957,7 @@ def _run_pin_keypad(title, show_cancel, validate):
         elif event in '0123456789':
             if len(entered) < 6:
                 entered += event
-        window['-PINDISPLAY-'].update('*' * len(entered), text_color='black')
+        window['-PINDISPLAY-'].update('*' * len(entered), text_color=FG_DARK)
     return result
 
 
@@ -1298,22 +1330,18 @@ def run_settings_flow(cap, section_full, section_detail, stands, current_pin):
         return False
     return True
 
-def _set_disabled(keys, disable):
-    for k in keys:
-        window[k].update(disabled=disable)
-
 def _set_icon_buttons(keys, enabled):
-    # Analog zu _set_disabled(), aber fuer die farbcodierten Buttons aus
-    # Window._make_accent_button(): ein disabled Tk-Button faerbt sich NICHT
-    # von selbst um (nur der Text wird blass), das eigentliche "Muted"-Aussehen
-    # (helle Flaeche + gedaempftes Icon statt satter Akzentfarbe, siehe
-    # Design-Runde 2) wird hier bei jedem Enable/Disable explizit gesetzt.
+    # Fuer die farbcodierten Buttons aus Window._make_accent_button():
+    # bleibt bewusst immer state=NORMAL (siehe
+    # Kommentar dort - state=DISABLED wuerde Tks eingebautes Schachbrett-
+    # Stipple ueber das Icon zeichnen), "deaktiviert" wird rein durch
+    # bg/fg/Icon-Farbe (Muted-Variante) UND einen No-Op-command simuliert.
     for k in keys:
         st = window._btn_style[k]
         w = window[k].widget
-        cfg = dict(state=(tk.NORMAL if enabled else tk.DISABLED),
-                   bg=st['bg_on'] if enabled else st['bg_off'],
-                   fg=st['fg_on'] if enabled else st['fg_off'])
+        cfg = dict(bg=st['bg_on'] if enabled else st['bg_off'],
+                   fg=st['fg_on'] if enabled else st['fg_off'],
+                   command=(st['command_on'] if enabled else (lambda: None)))
         cfg['activebackground'] = cfg['bg']
         cfg['activeforeground'] = cfg['fg']
         if st['icon_on'] is not None:
@@ -1334,7 +1362,13 @@ def timer_disabled(disable):
   _set_icon_buttons(('-TIMER_STOP-',), False)
 
 def video_filter_disabled(disable):
-  window['-TOGGLEVIDEO-'].update(disabled=disable)
+  # Bewusst NICHT ueber Elem.update(disabled=...)/state=DISABLED (siehe
+  # Kommentar in Window._make_accent_button()) - dieser Button hat ein
+  # -image, ein disabled Tk-Button wuerde es mit einem Schachbrett-Stipple
+  # ueberzeichnen. Command auf No-Op umschalten hat denselben functionalen
+  # Effekt (Klick tut nichts), ohne den Rendering-Fehler.
+  window['-TOGGLEVIDEO-'].widget.config(
+      command=(lambda: None) if disable else (lambda: window.post('-TOGGLEVIDEO-')))
 
 def blend_logo_centered(canvas, logo_rgba, margin_ratio=0.05):
     # skaliert ein BGRA-Logo unter Beibehaltung des Seitenverhaeltnisses so
