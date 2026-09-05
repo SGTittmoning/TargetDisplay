@@ -219,13 +219,41 @@ EDITOR_MAX_W, EDITOR_MAX_H = 1000, 620
 # uebergeben werden.
 STANDNAME_MAX_CHARS = 30
 
-# Exakte Farben aus dem frueheren PySimpleGUI-Theme "LightGreen" - per
-# Pixel-Sample aus einem Live-Screenshot der noch laufenden PySimpleGUI-
-# Version auf dem Test-Pi ermittelt (2026-09-04), nicht geschaetzt.
-BG = '#b7cece'
-BTN_BG = '#658268'
-BTN_FG = 'white'
-BTN_DISABLED_FG = '#a3a3a3'
+# Helles Farbschema (Redesign 2026-09, ueber vier Design-Canvas-Runden mit
+# dem Nutzer abgestimmt - loest das alte PySimpleGUI-"LightGreen"-Theme ab).
+# Je Funktionsgruppe auf dem Hauptbildschirm (Zoom/Blinken/Timer) eine eigene
+# Akzentfarbe statt Rahmen zur Unterscheidung; jede Akzentfarbe hat
+# zusaetzlich eine abgeschwaechte "Muted"-Variante fuer deaktivierte Buttons
+# (statt nur ausgegrautem Text) - siehe _make_accent_button()/
+# _set_icon_buttons() unten.
+BG = '#f4f6f5'
+FG_DARK = '#1c2024'
+FG_MUTED = '#9aa7b3'
+
+ACCENT_ZOOM = '#3b6ea5'
+ACCENT_ZOOM_MUTED_BG = '#dfe7ee'
+ACCENT_ZOOM_MUTED_FG = '#9aa7b3'
+
+ACCENT_BLINK = '#c17f27'
+ACCENT_BLINK_MUTED_BG = '#f1e3cf'
+ACCENT_BLINK_MUTED_FG = '#c2a677'
+
+ACCENT_TIMER = '#a5433b'
+ACCENT_TIMER_MUTED_BG = '#f4dcda'
+ACCENT_TIMER_MUTED_FG = '#c98f89'
+
+NEUTRAL_BG = '#eef1f0'
+NEUTRAL_BORDER = '#dde3e1'
+NEUTRAL_FG = '#5a6570'
+
+DATETIME_BG = '#e3e8e6'
+
+# Vorgerenderte Icon-PNGs (dev-time per Pillow erzeugt, siehe
+# ressources/icons/README fehlt bewusst - main.py braucht KEIN Pillow zur
+# Laufzeit, genau wie ressources/logo.png schon immer ein statisches Asset
+# war). __file__-relativ statt "ressources/..." direkt, damit main.py
+# unabhaengig vom aktuellen Arbeitsverzeichnis funktioniert.
+ICON_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'ressources', 'icons')
 
 WIN_CLOSED = '__WIN_CLOSED__'
 TIMEOUT_EVENT = '__TIMEOUT__'
@@ -304,16 +332,26 @@ class Window:
         screen = self.screen_size
         self.root.geometry(f'{screen[0]}x{screen[1]}+0+0')
         self.root.configure(bg=BG)
-        # Globale Button-Optik ueber die Tk-Optionsdatenbank statt an jedem
-        # der ~30 einzelnen tk.Button(...)-Aufrufe - gilt automatisch fuer
-        # jeden danach erzeugten Button in diesem Root, entspricht optisch
-        # dem alten PySimpleGUI-Theme "LightGreen" (siehe BTN_BG/BTN_FG oben).
-        self.root.option_add('*Button.background', BTN_BG)
-        self.root.option_add('*Button.foreground', BTN_FG)
-        self.root.option_add('*Button.disabledForeground', BTN_DISABLED_FG)
-        self.root.option_add('*Button.activeBackground', BTN_BG)
-        self.root.option_add('*Button.activeForeground', BTN_FG)
+        # Globale Button-Optik ueber die Tk-Optionsdatenbank: gilt fuer alle
+        # "einfachen" Dialog-Buttons (PIN-Tastenfeld, Settings-Menue,
+        # Bestaetigen, Editor, Stand-Auswahl, Kamera-Warteseite) als
+        # neutrale Grundoptik, flach statt des alten 3D-Reliefs. Die
+        # farbcodierten Hauptbildschirm-Buttons (Zoom/Blinken/Timer) und die
+        # beiden Header-Icon-Buttons setzen ihre Farben/Icons explizit selbst
+        # (siehe _make_accent_button()) und ueberschreiben diese Vorgabe pro
+        # Widget - einzelne .config()-Aufrufe haben in Tk immer Vorrang vor
+        # der Optionsdatenbank.
+        self.root.option_add('*Button.background', NEUTRAL_BG)
+        self.root.option_add('*Button.foreground', FG_DARK)
+        self.root.option_add('*Button.disabledForeground', FG_MUTED)
+        self.root.option_add('*Button.activeBackground', NEUTRAL_BG)
+        self.root.option_add('*Button.activeForeground', FG_DARK)
+        self.root.option_add('*Button.relief', 'flat')
+        self.root.option_add('*Button.borderWidth', 0)
         self.root.protocol('WM_DELETE_WINDOW', lambda: self.post(WIN_CLOSED))
+
+        self.icons = {}
+        self._btn_style = {}
 
         self.container = tk.Frame(self.root, bg=BG)
         self.container.pack(fill='both', expand=True)
@@ -339,6 +377,48 @@ class Window:
     def _reg(self, key, widget, show=None):
         self.widgets[key] = Elem(widget, show=show)
         return widget
+
+    def _icon(self, name):
+        # Cache haelt die tk.PhotoImage-Referenzen dauerhaft am Leben (Tk
+        # gibt ein Image sofort frei, sobald keine Python-Referenz mehr
+        # existiert) - dieselbe Notwendigkeit wie Elem._image_ref.
+        img = self.icons.get(name)
+        if img is None:
+            img = tk.PhotoImage(file=os.path.join(ICON_DIR, name + '.png'))
+            self.icons[name] = img
+        return img
+
+    def _make_accent_button(self, parent, key, text, accent_bg, accent_fg,
+                             muted_bg, muted_fg, icon_on=None, icon_off=None,
+                             start_enabled=True, font=('Helvetica', 15, 'bold')):
+        # Gemeinsamer Baustein fuer alle farbcodierten Hauptbildschirm-Buttons
+        # (Zoom/Blinken/Timer, inkl. des reinen Text-Buttons "Timer Stop").
+        # Tk faerbt einen deaktivierten Button NICHT automatisch um (nur der
+        # Text wird ueber disabledforeground blass) - der eigentliche
+        # "deaktiviert"-Look (helle Muted-Flaeche statt satter Akzentfarbe,
+        # Design-Runde 2) wird stattdessen explizit hier UND in
+        # _set_icon_buttons() (bei jedem Enable/Disable danach) gesetzt.
+        # disabledforeground wird einmalig fest auf muted_fg gesetzt - dieser
+        # Wert kommt ohnehin nur zur Geltung, waehrend der Button disabled
+        # ist, muss also bei einem State-Wechsel nicht erneut angefasst
+        # werden (nur bg/fg/image aendern sich dynamisch).
+        icon = (icon_on if start_enabled else icon_off) if icon_on is not None else None
+        bg = accent_bg if start_enabled else muted_bg
+        fg = accent_fg if start_enabled else muted_fg
+        kwargs = dict(text=text, bg=bg, fg=fg, disabledforeground=muted_fg,
+                      activebackground=bg, activeforeground=fg,
+                      bd=0, relief='flat', highlightthickness=0, font=font,
+                      wraplength=140, justify='center',
+                      state=(tk.NORMAL if start_enabled else tk.DISABLED),
+                      command=lambda: self.post(key))
+        if icon is not None:
+            kwargs.update(image=icon, compound='top')
+        b = tk.Button(parent, **kwargs)
+        self._btn_style[key] = dict(icon_on=icon_on, icon_off=icon_off,
+                                     bg_on=accent_bg, fg_on=accent_fg,
+                                     bg_off=muted_bg, fg_off=muted_fg)
+        self._reg(key, b)
+        return b
 
     def __getitem__(self, key):
         return self.widgets[key]
@@ -410,15 +490,21 @@ class Window:
         # 780px Bildhoehe bleiben nur 20px insgesamt, also 10px oben+unten -
         # live am Test-Pi gemessen, urspruenglich 0px links vs. 60px rechts
         # uebrig, deutlich asymmetrisch). Der ueberschuessige horizontale
-        # Platz (hier meist deutlich mehr als vertikal frei ist) landet nicht
-        # als reiner rechter Rand, sondern sichtbar als Luecke zwischen
-        # Button-Spalte und Video (siehe spacer unten) - dadurch bleibt der
-        # Aussenrand auf allen 4 Seiten exakt gleich, unabhaengig von der
-        # tatsaechlichen Breite der Button-Spalte oder des Bildschirms.
+        # Platz landet nicht als reiner rechter Rand, sondern sichtbar als
+        # Luecke zwischen Button-Spalte und Video (siehe spacer unten) -
+        # dadurch bleibt der Aussenrand auf allen 4 Seiten exakt gleich.
         margin = max(0, (self.screen_size[1] - self.video_size[1]) // 2)
 
-        left = tk.Frame(page, bg=BG)
+        # Feste 450px-Breite (statt wie zuvor inhaltsbestimmt) - exakt der
+        # Wert aus den mit dem Nutzer abgestimmten Design-Canvas-Mockups
+        # (Design-Runden 1-4). pack_propagate(False) erzwingt das hart, die
+        # drei Button-Reihen darunter teilen sich diese Breite ueber
+        # fill='both'+expand=True gleichmaessig auf (siehe pack_equal()) -
+        # das Tk-Aequivalent zu "grid-template-columns: repeat(3, 1fr)" im
+        # Mockup, da Tk kein CSS-Grid kennt.
+        left = tk.Frame(page, bg=BG, width=450)
         left.pack(side='left', fill='y', padx=(margin, 0), pady=margin)
+        left.pack_propagate(False)
 
         spacer = tk.Frame(page, bg=BG)
         spacer.pack(side='left', fill='both', expand=True)
@@ -429,130 +515,185 @@ class Window:
         video_canvas.bind('<Button-1>', self._on_video_click)
         self.video_canvas = video_canvas
 
+        # -- Header: Standname links, zwei kleine neutrale Icon-Buttons
+        # rechts (Video aus, Settings mit Schloss-Badge) - bewusst NICHT
+        # mehr so prominent wie die vorherigen breiten Textbuttons
+        # (Nutzer-Feedback Design-Runde 3: "Settings-Zugang muss nicht so
+        # prominent sein"). Restart ist ausschliesslich ueber Settings ->
+        # Menue erreichbar (siehe _build_menu_view/run_settings_flow),
+        # kein eigener Button mehr auf der Hauptseite.
+        header = tk.Frame(left, bg=BG)
+        header.pack(side='top', fill='x', pady=(0, 18))
+
         # sg.Text(size=...) allein reicht NICHT: das ist bei Tk nur eine
         # Mindestbreite in Zeichen, kein Maximum - bei fetter/grosser Schrift
-        # (25pt bold) wird das Element trotzdem breiter als size= wenn der
-        # Inhalt es verlangt. Der Standname kommt seit der Mehr-Stand-
-        # Faehigkeit aus der frei editierbaren targetdisplay-stands.json,
-        # nicht mehr aus einer kurzen, kontrollierten Ansible-Variable - ein
-        # zu langer Name hat live am Test-Pi das ganze Layout auseinander-
-        # gedrueckt und dadurch das Videobild verschoben/verkleinert. Ein
+        # wird das Element trotzdem breiter als size= wenn der Inhalt es
+        # verlangt. Der Standname kommt seit der Mehr-Stand-Faehigkeit aus
+        # der frei editierbaren targetdisplay-stands.json, nicht mehr aus
+        # einer kurzen, kontrollierten Ansible-Variable - ein zu langer Name
+        # hat live am Test-Pi das ganze Layout auseinandergedrueckt. Ein
         # Frame mit fester width/height + pack_propagate(False) erzwingt
         # dagegen eine wirklich harte Breite - ueberstehender Inhalt wird
         # abgeschnitten statt den Frame zu vergroessern.
-        name_frame = tk.Frame(left, width=440, height=45, bg=BG)
-        name_frame.pack(side='top', anchor='w')
+        name_frame = tk.Frame(header, width=280, height=38, bg=BG)
+        name_frame.pack(side='left')
         name_frame.pack_propagate(False)
-        name_label = tk.Label(name_frame, text='', font=('Helvetica', 25, 'underline bold'),
-                               bg=BG, anchor='w')
+        name_label = tk.Label(name_frame, text='', font=('Helvetica', 24, 'bold'),
+                               bg=BG, fg=FG_DARK, anchor='w')
         name_label.pack(fill='both', expand=True)
         self._reg('-STANDNAME-', name_label)
 
+        icon_row = tk.Frame(header, bg=BG)
+        icon_row.pack(side='right')
+
+        def make_header_icon_button(key, icon_name, command):
+            b = tk.Button(icon_row, image=self._icon(icon_name), width=46, height=46,
+                          bg=NEUTRAL_BG, activebackground=NEUTRAL_BG, bd=0, relief='flat',
+                          highlightthickness=1, highlightbackground=NEUTRAL_BORDER,
+                          command=command)
+            self._reg(key, b)
+            return b
+
+        video_btn = make_header_icon_button('-TOGGLEVIDEO-', 'eye_slash_neutral',
+                                             lambda: self.post('-TOGGLEVIDEO-'))
+        video_btn.pack(side='left', padx=(0, 10))
+        settings_btn = make_header_icon_button('-SETTINGS-', 'settings_lock_neutral',
+                                                lambda: self.post('-SETTINGS-'))
+        settings_btn.pack(side='left')
+
         # BTN_GAP: sichtbarer Abstand zwischen benachbarten Touch-Buttons
         # (Finger sind ungenauer als ein Mauszeiger - direkt aneinander-
-        # stossende Buttons wie zuvor riskieren Fehltreffer auf den
-        # Nachbar-Button). Als Nebeneffekt wird die Button-Spalte dadurch
-        # insgesamt breiter, was automatisch die Luecke zum Video (siehe
-        # spacer oben, expandiert in den jeweils uebrigen Platz) im
-        # gleichen Zug schmaler macht.
-        # FRAME_PAD: Abstand zwischen LabelFrame-Rahmen ("Zoom"/"Blinken"/
-        # "Timer") und den Buttons darin - im Original per Pixel-Messung
-        # vorhanden (ca. 6-13px je Seite), stiess bei diesem Entwurf
-        # anfangs direkt an den Rahmen (0px), am Test-Pi als optisch
-        # unsauber bemaengelt. tk.LabelFrame kennt kein eingebautes
-        # "padding" (das ist eine ttk-Eigenschaft) - stattdessen bekommt
-        # jede Button-Zeile eine eigene Frame, die MIT Aussenabstand in
-        # die LabelFrame gepackt wird; BTN_GAP bleibt reine Innen-Sache
-        # der Zeile (zwischen den Buttons).
-        BTN_GAP = 8
-        FRAME_PAD = 8
+        # stossende Buttons riskieren Fehltreffer auf den Nachbar-Button).
+        # GROUP_GAP: Abstand zwischen den drei Funktionsgruppen. Die
+        # frueheren tk.LabelFrame-Rahmen ("Zoom"/"Blinken"/"Timer") sind
+        # durch eine schlichte Grossbuchstaben-Caption in der jeweiligen
+        # Akzentfarbe ersetzt (Design-Runde 2/3) - kein Rahmen mehr noetig,
+        # die Farbe der Buttons selbst uebernimmt die Gruppierung.
+        BTN_GAP = 10
+        GROUP_GAP = 20
+        BTN_HEIGHT = 78
 
-        zoom_frame = tk.LabelFrame(left, text='Zoom', bg=BG)
-        zoom_frame.pack(side='top', anchor='w', pady=4)
-        zoom_row = tk.Frame(zoom_frame, bg=BG)
-        zoom_row.pack(padx=FRAME_PAD, pady=FRAME_PAD)
-        b = tk.Button(zoom_row, text='Ganze Scheibe', width=14, height=2,
-                      command=lambda: self.post('-FULL_VIDEO-'))
-        b.pack(side='left', padx=(0, BTN_GAP)); self._reg('-FULL_VIDEO-', b)
-        b = tk.Button(zoom_row, text='Innen Scheibe', width=14, height=2,
-                      command=lambda: self.post('-DETAIL_VIDEO-'))
-        b.pack(side='left', padx=(0, BTN_GAP)); self._reg('-DETAIL_VIDEO-', b)
-        b = tk.Button(zoom_row, text='Reset', width=14, height=2, state=tk.DISABLED,
-                      command=lambda: self.post('-RESETZOOM-'))
-        b.pack(side='left'); self._reg('-RESETZOOM-', b)
+        groups = tk.Frame(left, bg=BG)
+        groups.pack(side='top', fill='x')
 
-        blink_frame = tk.LabelFrame(left, text='Blinken', bg=BG)
-        blink_frame.pack(side='top', anchor='w', pady=4)
-        blink_row = tk.Frame(blink_frame, bg=BG)
-        blink_row.pack(padx=FRAME_PAD, pady=FRAME_PAD)
-        b = tk.Button(blink_row, text='Start', width=14, height=2,
-                      command=lambda: self.post('-BLINK_START-'))
-        b.pack(side='left', padx=(0, BTN_GAP)); self._reg('-BLINK_START-', b)
-        b = tk.Button(blink_row, text='Referenz', width=14, height=2, state=tk.DISABLED,
-                      command=lambda: self.post('-BLINK_REF-'))
-        b.pack(side='left', padx=(0, BTN_GAP)); self._reg('-BLINK_REF-', b)
-        b = tk.Button(blink_row, text='Stop', width=14, height=2, state=tk.DISABLED,
-                      command=lambda: self.post('-BLINK_STOP-'))
-        b.pack(side='left'); self._reg('-BLINK_STOP-', b)
+        def make_caption(parent, text, color):
+            tk.Label(parent, text=text.upper(), font=('Helvetica', 13, 'bold'),
+                     bg=BG, fg=color, anchor='w').pack(side='top', anchor='w', pady=(0, 7))
 
-        timer_frame = tk.LabelFrame(left, text='Timer', bg=BG)
-        timer_frame.pack(side='top', anchor='w', pady=4)
-        row1 = tk.Frame(timer_frame, bg=BG)
-        row1.pack(side='top', fill='x', padx=FRAME_PAD, pady=(FRAME_PAD, 0))
-        b = tk.Button(row1, text='5 x 3/7 Sek.', width=14, height=2,
-                      command=lambda: self.post('-TIMER_5_3_7-'))
-        b.pack(side='left', padx=(0, BTN_GAP)); self._reg('-TIMER_5_3_7-', b)
-        b = tk.Button(row1, text='20 Sek.', width=14, height=2,
-                      command=lambda: self.post('-TIMER_20-'))
-        b.pack(side='left', padx=(0, BTN_GAP)); self._reg('-TIMER_20-', b)
-        b = tk.Button(row1, text='10 Sek.', width=14, height=2,
-                      command=lambda: self.post('-TIMER_10-'))
-        b.pack(side='left'); self._reg('-TIMER_10-', b)
-        row2 = tk.Frame(timer_frame, bg=BG)
-        row2.pack(side='top', fill='x', padx=FRAME_PAD, pady=(BTN_GAP, FRAME_PAD))
-        b = tk.Button(row2, text='Stop', width=14, height=2, state=tk.DISABLED,
-                      command=lambda: self.post('-TIMER_STOP-'))
-        b.pack(side='left', fill='x', expand=True); self._reg('-TIMER_STOP-', b)
+        def pack_equal(buttons, gap=BTN_GAP):
+            n = len(buttons)
+            for i, b in enumerate(buttons):
+                b.pack(side='left', fill='both', expand=True, padx=(0, gap) if i < n - 1 else 0)
 
-        sep = tk.Frame(left, bg='#a0a0a0', height=2)
-        sep.pack(side='top', fill='x', pady=10)
+        icon = self._icon
 
-        toggle_frame = tk.Frame(left, bg=BG)
-        toggle_frame.pack(side='top', anchor='w')
-        b = tk.Button(toggle_frame, text='Video aus', width=14, height=2,
-                      command=lambda: self.post('-TOGGLEVIDEO-'))
-        b.pack(side='left', padx=(0, BTN_GAP)); self._reg('-TOGGLEVIDEO-', b)
-        b = tk.Button(toggle_frame, text='Settings (PIN)', width=14, height=2,
-                      command=lambda: self.post('-SETTINGS-'))
-        b.pack(side='left', padx=(0, BTN_GAP)); self._reg('-SETTINGS-', b)
-        b = tk.Button(toggle_frame, text='Restart (PIN)', width=14, height=2,
-                      command=lambda: self.post('-RESTART-'))
-        b.pack(side='left'); self._reg('-RESTART-', b)
+        # Zoom
+        zoom_group = tk.Frame(groups, bg=BG)
+        zoom_group.pack(side='top', fill='x', pady=(0, GROUP_GAP))
+        make_caption(zoom_group, 'Zoom', ACCENT_ZOOM)
+        zoom_row = tk.Frame(zoom_group, bg=BG)
+        zoom_row.pack(side='top', fill='x')
+        b1 = self._make_accent_button(zoom_row, '-FULL_VIDEO-', 'Ganze Scheibe',
+                                       ACCENT_ZOOM, 'white', ACCENT_ZOOM_MUTED_BG, ACCENT_ZOOM_MUTED_FG,
+                                       icon_on=icon('grid_white'), icon_off=icon('grid_zoom_muted'))
+        b2 = self._make_accent_button(zoom_row, '-DETAIL_VIDEO-', 'Innen Scheibe',
+                                       ACCENT_ZOOM, 'white', ACCENT_ZOOM_MUTED_BG, ACCENT_ZOOM_MUTED_FG,
+                                       icon_on=icon('zoomin_white'), icon_off=icon('zoomin_zoom_muted'))
+        # Reset ist eine dauerhaft deaktivierte Funktion (siehe zoom_disabled()
+        # unten - der Aufrufer setzt es IMMER auf disabled=True, unabhaengig
+        # vom Parameter) - braucht deshalb keine "weiss"-Variante, es zeigt
+        # nie etwas anderes als seinen Muted-Zustand.
+        b3 = self._make_accent_button(zoom_row, '-RESETZOOM-', 'Reset',
+                                       ACCENT_ZOOM, 'white', ACCENT_ZOOM_MUTED_BG, ACCENT_ZOOM_MUTED_FG,
+                                       icon_on=icon('undo_zoom_muted'), icon_off=icon('undo_zoom_muted'),
+                                       start_enabled=False)
+        for b in (b1, b2, b3):
+            b.config(height=BTN_HEIGHT)
+        pack_equal([b1, b2, b3])
 
-        # Untere Zeilen mit side='bottom' gepackt (in umgekehrter visueller
-        # Reihenfolge, damit die zuerst gepackte Version/FPS-Zeile ganz unten
-        # landet) - das entspricht der VPush()-Wirkung aus dem PySimpleGUI-
-        # Original, ohne einen expliziten Spacer zu brauchen.
+        # Blinken
+        blink_group = tk.Frame(groups, bg=BG)
+        blink_group.pack(side='top', fill='x', pady=(0, GROUP_GAP))
+        make_caption(blink_group, 'Blinken', ACCENT_BLINK)
+        blink_row = tk.Frame(blink_group, bg=BG)
+        blink_row.pack(side='top', fill='x')
+        b1 = self._make_accent_button(blink_row, '-BLINK_START-', 'Start',
+                                       ACCENT_BLINK, 'white', ACCENT_BLINK_MUTED_BG, ACCENT_BLINK_MUTED_FG,
+                                       icon_on=icon('eye_white'), icon_off=icon('eye_blink_muted'))
+        b2 = self._make_accent_button(blink_row, '-BLINK_REF-', 'Referenz',
+                                       ACCENT_BLINK, 'white', ACCENT_BLINK_MUTED_BG, ACCENT_BLINK_MUTED_FG,
+                                       icon_on=icon('target_white'), icon_off=icon('target_blink_muted'),
+                                       start_enabled=False)
+        b3 = self._make_accent_button(blink_row, '-BLINK_STOP-', 'Stop',
+                                       ACCENT_BLINK, 'white', ACCENT_BLINK_MUTED_BG, ACCENT_BLINK_MUTED_FG,
+                                       icon_on=icon('stopsquare_white'), icon_off=icon('stopsquare_blink_muted'),
+                                       start_enabled=False)
+        for b in (b1, b2, b3):
+            b.config(height=BTN_HEIGHT)
+        pack_equal([b1, b2, b3])
+
+        # Timer
+        timer_group = tk.Frame(groups, bg=BG)
+        timer_group.pack(side='top', fill='x')
+        make_caption(timer_group, 'Timer', ACCENT_TIMER)
+        row1 = tk.Frame(timer_group, bg=BG)
+        row1.pack(side='top', fill='x')
+        b1 = self._make_accent_button(row1, '-TIMER_5_3_7-', '5 x 3/7 Sek.',
+                                       ACCENT_TIMER, 'white', ACCENT_TIMER_MUTED_BG, ACCENT_TIMER_MUTED_FG,
+                                       icon_on=icon('clock_white'), icon_off=icon('clock_timer_muted'))
+        b2 = self._make_accent_button(row1, '-TIMER_20-', '20 Sek.',
+                                       ACCENT_TIMER, 'white', ACCENT_TIMER_MUTED_BG, ACCENT_TIMER_MUTED_FG,
+                                       icon_on=icon('clock_white'), icon_off=icon('clock_timer_muted'))
+        b3 = self._make_accent_button(row1, '-TIMER_10-', '10 Sek.',
+                                       ACCENT_TIMER, 'white', ACCENT_TIMER_MUTED_BG, ACCENT_TIMER_MUTED_FG,
+                                       icon_on=icon('clock_white'), icon_off=icon('clock_timer_muted'))
+        for b in (b1, b2, b3):
+            b.config(height=BTN_HEIGHT)
+        pack_equal([b1, b2, b3])
+        # Ohne image= interpretiert Tk width/height eines Buttons als
+        # Text-ZEILEN/-ZEICHEN, nicht als Pixel (anders als bei den Icon-
+        # Buttons oben) - "Timer Stop" hat bewusst kein Icon (reiner Text-
+        # Button, siehe Design-Runde 2/3). Fuer eine exakte Pixelhoehe daher
+        # derselbe Kniff wie bei name_frame oben: feste Frame-Hoehe +
+        # pack_propagate(False), der Button selbst fuellt sie per fill='both'.
+        row2 = tk.Frame(timer_group, bg=BG, height=46)
+        row2.pack(side='top', fill='x', pady=(BTN_GAP, 0))
+        row2.pack_propagate(False)
+        stop_btn = self._make_accent_button(row2, '-TIMER_STOP-', 'Timer Stop',
+                                             ACCENT_TIMER, 'white', ACCENT_TIMER_MUTED_BG, ACCENT_TIMER_MUTED_FG,
+                                             start_enabled=False, font=('Helvetica', 14, 'bold'))
+        stop_btn.pack(side='left', fill='both', expand=True)
+
+        # -- Footer (Design-Runde 4, Variante B: Logo mittig oben, Uhrzeit
+        # darunter zentriert ueber die volle Breite - vom Nutzer als
+        # "sieht sehr gut aus" ausgewaehlt). Ab hier (unterhalb von Timer
+        # Stop) war Anordnung/Groesse laut Nutzer-Vorgabe bewusst frei.
+        # side='bottom' in dieser Reihenfolge gepackt: die zuerst gepackte
+        # Version/FPS-Zeile landet ganz unten, danach die Datum/Uhrzeit-
+        # Flaeche, danach das Logo obendrauf - macht zusammen mit dem
+        # zwischen Buttons und Footer liegenden, nicht explizit gepackten
+        # Rest-Platz denselben VPush()-Effekt wie im PySimpleGUI-Original.
         version_row = tk.Frame(left, bg=BG)
         version_row.pack(side='bottom', fill='x')
-        tk.Label(version_row, text='V: ' + version, font=('Helvetica', 8), bg=BG).pack(side='left', padx=5, pady=(0, 10))
-        fps_label = tk.Label(version_row, text='', font=('Helvetica', 8), bg=BG, anchor='w')
-        fps_label.pack(side='left', padx=5, pady=(0, 10))
+        tk.Label(version_row, text='V: ' + version, font=('Helvetica', 11),
+                 bg=BG, fg=FG_MUTED).pack(side='left', padx=5, pady=(8, 0))
+        fps_label = tk.Label(version_row, text='', font=('Helvetica', 11),
+                              bg=BG, fg=FG_MUTED, anchor='w')
+        fps_label.pack(side='left', padx=5, pady=(8, 0))
         self._reg('-FPS-', fps_label)
 
-        bottom_row = tk.Frame(left, bg=BG)
-        bottom_row.pack(side='bottom', fill='x')
-        logo_label = tk.Label(bottom_row, bg=BG, bd=0)
-        logo_label.pack(side='left')
-        self._reg('-LOGO-', logo_label)
-        dt_frame = tk.LabelFrame(bottom_row, text='Datum / Uhrzeit', bg=BG)
-        dt_frame.pack(side='right', padx=(0, 5))
-        date_label = tk.Label(dt_frame, font=('Courier', 14), bg=BG, anchor='e')
-        date_label.pack(anchor='e', padx=15, pady=(5, 0))
+        dt_frame = tk.Frame(left, bg=DATETIME_BG)
+        dt_frame.pack(side='bottom', fill='x', pady=(0, 10))
+        date_label = tk.Label(dt_frame, font=('Courier', 14), bg=DATETIME_BG, fg=NEUTRAL_FG)
+        date_label.pack(pady=(8, 0))
         self._reg('-DATE-', date_label)
-        time_label = tk.Label(dt_frame, font=('Courier', 34, 'bold'), bg=BG, anchor='e')
-        time_label.pack(anchor='e', padx=15, pady=(0, 5))
+        time_label = tk.Label(dt_frame, font=('Courier', 52, 'bold'), bg=DATETIME_BG, fg=FG_DARK)
+        time_label.pack(pady=(0, 8))
         self._reg('-TIME-', time_label)
+
+        logo_label = tk.Label(left, bg=BG, bd=0)
+        logo_label.pack(side='bottom', pady=(0, 12))
+        self._reg('-LOGO-', logo_label)
 
     def _on_video_click(self, event):
         px = event.x / self.video_size[0] * 100
@@ -561,7 +702,7 @@ class Window:
 
     def _build_pin_view(self):
         page = self._new_page('-PINVIEW-')
-        content = tk.Frame(page, bg=BG, bd=2, relief='groove')
+        content = tk.Frame(page, bg=BG, bd=0, highlightthickness=1, highlightbackground=NEUTRAL_BORDER)
         content.place(relx=0.5, rely=0.5, anchor='center')
 
         # Titeltext wechselt zur Laufzeit zwischen kurzen ("PIN eingeben")
@@ -576,11 +717,11 @@ class Window:
         # das Verhalten, das PySimpleGUIs zeilenbasiertes Layout hier von
         # Haus aus hatte (dort nie ein gemeinsames grid() zwischen Titel und
         # Tastenfeld).
-        title = tk.Label(content, text='PIN eingeben', font=('Helvetica', 30), bg=BG)
+        title = tk.Label(content, text='PIN eingeben', font=('Helvetica', 30), bg=BG, fg=FG_DARK)
         title.pack(padx=30, pady=(20, 10))
         self._reg('-PIN_TITLE-', title)
 
-        display = tk.Label(content, text='', font=('Courier', 40), bg=BG, width=10, justify='center')
+        display = tk.Label(content, text='', font=('Courier', 40), bg=BG, fg=FG_DARK, width=10, justify='center')
         display.pack(pady=10)
         self._reg('-PINDISPLAY-', display)
 
@@ -595,7 +736,11 @@ class Window:
                   command=lambda: self.post('-PIN_CLEAR-')).grid(row=3, column=0, padx=3, pady=3)
         tk.Button(keypad, text='0', width=8, height=4,
                   command=lambda: self.post('0')).grid(row=3, column=1, padx=3, pady=3)
-        tk.Button(keypad, text='OK', width=8, height=4,
+        # OK ist die primaere Aktion des Tastenfelds - Akzentfarbe statt der
+        # neutralen Grundoptik (siehe Window.__init__ option_add), damit sie
+        # sich sichtbar von den Ziffern/Loeschen abhebt.
+        tk.Button(keypad, text='OK', width=8, height=4, bg=ACCENT_ZOOM, fg='white',
+                  activebackground=ACCENT_ZOOM, activeforeground='white',
                   command=lambda: self.post('-PIN_OK-')).grid(row=3, column=2, padx=3, pady=3)
 
         cancel_btn = tk.Button(content, text='Abbrechen', width=26, height=2,
@@ -605,20 +750,21 @@ class Window:
 
     def _build_confirm_view(self):
         page = self._new_page('-CONFIRMVIEW-')
-        content = tk.Frame(page, bg=BG, bd=2, relief='groove')
+        content = tk.Frame(page, bg=BG, bd=0, highlightthickness=1, highlightbackground=NEUTRAL_BORDER)
         content.place(relx=0.5, rely=0.5, anchor='center')
-        tk.Label(content, text='Gerät jetzt neu starten?', font=('Helvetica', 28), bg=BG).grid(
+        tk.Label(content, text='Gerät jetzt neu starten?', font=('Helvetica', 28), bg=BG, fg=FG_DARK).grid(
             row=0, column=0, columnspan=2, padx=30, pady=(30, 15))
-        tk.Button(content, text='Ja, neu starten', width=20, height=3,
+        tk.Button(content, text='Ja, neu starten', width=20, height=3, bg=ACCENT_ZOOM, fg='white',
+                  activebackground=ACCENT_ZOOM, activeforeground='white',
                   command=lambda: self.post('-CONFIRM_YES-')).grid(row=1, column=0, padx=15, pady=(0, 30))
         tk.Button(content, text='Abbrechen', width=20, height=3,
                   command=lambda: self.post('-CONFIRM_NO-')).grid(row=1, column=1, padx=15, pady=(0, 30))
 
     def _build_menu_view(self):
         page = self._new_page('-MENUVIEW-')
-        content = tk.Frame(page, bg=BG, bd=2, relief='groove')
+        content = tk.Frame(page, bg=BG, bd=0, highlightthickness=1, highlightbackground=NEUTRAL_BORDER)
         content.place(relx=0.5, rely=0.5, anchor='center')
-        tk.Label(content, text='Einstellungen', font=('Helvetica', 24), bg=BG).pack(padx=30, pady=(30, 15))
+        tk.Label(content, text='Einstellungen', font=('Helvetica', 24), bg=BG, fg=FG_DARK).pack(padx=30, pady=(30, 15))
         tk.Button(content, text='Ganze Scheibe', width=24, height=3,
                   command=lambda: self.post('-MENU_FULL-')).pack(pady=5)
         tk.Button(content, text='Innen Scheibe', width=24, height=3,
@@ -627,15 +773,21 @@ class Window:
                   command=lambda: self.post('-MENU_STAND-')).pack(pady=5)
         tk.Button(content, text='PIN ändern', width=24, height=3,
                   command=lambda: self.post('-MENU_PIN-')).pack(pady=5)
+        # Restart lebt seit dem Header-Redesign (Design-Runde 3) hier statt
+        # als eigener Button auf der Hauptseite - der PIN-Schutz besteht
+        # weiterhin unveraendert ueber den Settings-Zugang selbst (siehe
+        # '-SETTINGS-'-Handler in main()), keine zweite PIN-Abfrage noetig.
+        tk.Button(content, text='Neu starten', width=24, height=3,
+                  command=lambda: self.post('-MENU_RESTART-')).pack(pady=5)
         tk.Button(content, text='Zurück', width=24, height=2,
                   command=lambda: self.post('-MENU_BACK-')).pack(pady=(5, 30))
 
     def _build_editor_view(self):
         page = self._new_page('-EDITORVIEW-')
-        content = tk.Frame(page, bg=BG, bd=2, relief='groove')
+        content = tk.Frame(page, bg=BG, bd=0, highlightthickness=1, highlightbackground=NEUTRAL_BORDER)
         content.place(relx=0.5, rely=0.5, anchor='center')
 
-        title = tk.Label(content, text='', font=('Helvetica', 18), bg=BG)
+        title = tk.Label(content, text='', font=('Helvetica', 18), bg=BG, fg=FG_DARK)
         title.pack(pady=(15, 5))
         self._reg('-EDITOR_TITLE-', title)
 
@@ -651,7 +803,8 @@ class Window:
         btnrow.pack(pady=15)
         tk.Button(btnrow, text='Neues Bild', width=13, height=2,
                   command=lambda: self.post('-EDIT_REFRESH-')).pack(side='left', padx=5)
-        tk.Button(btnrow, text='Speichern', width=13, height=2,
+        tk.Button(btnrow, text='Speichern', width=13, height=2, bg=ACCENT_ZOOM, fg='white',
+                  activebackground=ACCENT_ZOOM, activeforeground='white',
                   command=lambda: self.post('-EDIT_SAVE-')).pack(side='left', padx=5)
         cancel_btn = tk.Button(btnrow, text='Abbrechen', width=13, height=2,
                                 command=lambda: self.post('-EDIT_CANCEL-'))
@@ -663,15 +816,18 @@ class Window:
 
     def _build_stand_view(self):
         page = self._new_page('-STANDVIEW-')
-        content = tk.Frame(page, bg=BG, bd=2, relief='groove')
+        content = tk.Frame(page, bg=BG, bd=0, highlightthickness=1, highlightbackground=NEUTRAL_BORDER)
         content.place(relx=0.5, rely=0.5, anchor='center')
-        tk.Label(content, text='Stand auswählen', font=('Helvetica', 28), bg=BG).pack(pady=(30, 15))
-        listbox = tk.Listbox(content, height=8, width=38, font=('Helvetica', 20))
+        tk.Label(content, text='Stand auswählen', font=('Helvetica', 28), bg=BG, fg=FG_DARK).pack(pady=(30, 15))
+        listbox = tk.Listbox(content, height=8, width=38, font=('Helvetica', 20),
+                              bg=BG, fg=FG_DARK, selectbackground=ACCENT_ZOOM, selectforeground='white',
+                              highlightthickness=1, highlightbackground=NEUTRAL_BORDER, bd=0)
         listbox.pack(padx=30)
         self._reg('-STAND_LIST-', listbox)
         btnrow = tk.Frame(content, bg=BG)
         btnrow.pack(pady=(15, 30))
-        select_btn = tk.Button(btnrow, text='Auswählen', width=20, height=2,
+        select_btn = tk.Button(btnrow, text='Auswählen', width=20, height=2, bg=ACCENT_ZOOM, fg='white',
+                                activebackground=ACCENT_ZOOM, activeforeground='white',
                                 command=lambda: self.post('-STAND_SELECT-'))
         select_btn.pack(side='left', padx=10)
         self._reg('-STAND_SELECT-', select_btn)
@@ -682,14 +838,15 @@ class Window:
 
     def _build_camwait_view(self):
         page = self._new_page('-CAMWAITVIEW-')
-        content = tk.Frame(page, bg=BG, bd=2, relief='groove')
+        content = tk.Frame(page, bg=BG, bd=0, highlightthickness=1, highlightbackground=NEUTRAL_BORDER)
         content.place(relx=0.5, rely=0.5, anchor='center')
-        text_label = tk.Label(content, text='', font=('Helvetica', 22), bg=BG, wraplength=460, justify='center')
+        text_label = tk.Label(content, text='', font=('Helvetica', 22), bg=BG, fg=FG_DARK, wraplength=460, justify='center')
         text_label.pack(padx=30, pady=(30, 15))
         self._reg('-CAMWAIT_TEXT-', text_label)
         btnrow = tk.Frame(content, bg=BG)
         btnrow.pack(pady=(0, 30))
-        tk.Button(btnrow, text='Erneut versuchen', width=20, height=2,
+        tk.Button(btnrow, text='Erneut versuchen', width=20, height=2, bg=ACCENT_ZOOM, fg='white',
+                  activebackground=ACCENT_ZOOM, activeforeground='white',
                   command=lambda: self.post('-CAMWAIT_RETRY-')).pack(side='left', padx=10)
         tk.Button(btnrow, text='Zurück zur Stand-Auswahl', width=24, height=2,
                   command=lambda: self.post('-CAMWAIT_BACK-')).pack(side='left', padx=10)
@@ -1091,6 +1248,16 @@ def run_settings_flow(cap, section_full, section_detail, stands, current_pin):
             new_pin = change_pin_flow(current_pin, forced=False)
             _show_page('-MAINVIEW-')
             return new_pin is not None
+        elif event == '-MENU_RESTART-':
+            # Restart lebt seit dem Header-Redesign hier statt als eigener
+            # Hauptbildschirm-Button (siehe _build_menu_view) - der Zugang
+            # ist bereits durch den vorgelagerten check_pin() in main()s
+            # '-SETTINGS-'-Handler geschuetzt, keine zweite PIN-Abfrage noetig.
+            # confirm_reboot() navigiert selbst schon zurueck zur Hauptseite,
+            # egal ob bestaetigt oder abgebrochen wurde.
+            if confirm_reboot():
+                subprocess.run(['/usr/bin/sudo', '/usr/sbin/reboot'])
+            return False
 
     current = section_full if which == 'full' else section_detail
     other = section_detail if which == 'full' else section_full
@@ -1112,17 +1279,36 @@ def _set_disabled(keys, disable):
     for k in keys:
         window[k].update(disabled=disable)
 
+def _set_icon_buttons(keys, enabled):
+    # Analog zu _set_disabled(), aber fuer die farbcodierten Buttons aus
+    # Window._make_accent_button(): ein disabled Tk-Button faerbt sich NICHT
+    # von selbst um (nur der Text wird blass), das eigentliche "Muted"-Aussehen
+    # (helle Flaeche + gedaempftes Icon statt satter Akzentfarbe, siehe
+    # Design-Runde 2) wird hier bei jedem Enable/Disable explizit gesetzt.
+    for k in keys:
+        st = window._btn_style[k]
+        w = window[k].widget
+        cfg = dict(state=(tk.NORMAL if enabled else tk.DISABLED),
+                   bg=st['bg_on'] if enabled else st['bg_off'],
+                   fg=st['fg_on'] if enabled else st['fg_off'])
+        cfg['activebackground'] = cfg['bg']
+        cfg['activeforeground'] = cfg['fg']
+        if st['icon_on'] is not None:
+            cfg['image'] = st['icon_on'] if enabled else st['icon_off']
+        w.config(**cfg)
+
 def zoom_disabled(disable):
-  _set_disabled(('-FULL_VIDEO-', '-DETAIL_VIDEO-'), disable)
-  window['-RESETZOOM-'].update(disabled=True)
+  _set_icon_buttons(('-FULL_VIDEO-', '-DETAIL_VIDEO-'), not disable)
+  # Reset bleibt dauerhaft im Muted-Zustand (siehe Kommentar bei seiner
+  # Erzeugung in _build_main_view) - hier nichts mehr zu tun.
 
 def blink_disabled(disable):
-  _set_disabled(('-BLINK_START-',), disable)
-  _set_disabled(('-BLINK_STOP-', '-BLINK_REF-'), True)
+  _set_icon_buttons(('-BLINK_START-',), not disable)
+  _set_icon_buttons(('-BLINK_STOP-', '-BLINK_REF-'), False)
 
 def timer_disabled(disable):
-  _set_disabled(('-TIMER_5_3_7-', '-TIMER_20-', '-TIMER_10-'), disable)
-  window['-TIMER_STOP-'].update(disabled=True)
+  _set_icon_buttons(('-TIMER_5_3_7-', '-TIMER_20-', '-TIMER_10-'), not disable)
+  _set_icon_buttons(('-TIMER_STOP-',), False)
 
 def video_filter_disabled(disable):
   window['-TOGGLEVIDEO-'].update(disabled=disable)
@@ -1192,7 +1378,12 @@ def main():
     window_time = window['-TIME-']
     window_fps = window['-FPS-']
 
-    logo_width = 110
+    # Hoehenbasiert statt (wie vor dem Footer-Redesign) breitenbasiert: das
+    # Logo im Footer ist jetzt zentriert und bewusst deutlich groesser (Design-
+    # Runde 3/4, "eher noch größer... ist ja eine Art CI Branding") -
+    # Ausgangsgroesse fuer die Skalierung ist deshalb seine Zielhoehe, die
+    # Breite ergibt sich seitenverhaeltnistreu aus dem jeweiligen Logo.
+    logo_height = 145
     _show_page('-MAINVIEW-')
     # ressources/logo.png ist bewusst NICHT Teil des Repos (siehe README) -
     # jede Installation legt dort ihr eigenes Logo ab. Fehlt die Datei,
@@ -1202,7 +1393,8 @@ def main():
     blank_logo = None
     if logo is not None:
         blank_logo = logo.copy()  # unskalierte Variante fuer den Blank-Screen ("Video aus")
-        logo = cv2.resize(logo, (logo_width,int((logo_width / logo.shape[1]) * logo.shape[0])))
+        logo_scale = logo_height / logo.shape[0]
+        logo = cv2.resize(logo, (max(1, int(logo.shape[1] * logo_scale)), logo_height))
         logobytes = cv2.imencode('.png', logo)[1].tobytes()
         window['-LOGO-'].update(data=logobytes)
     else:
@@ -1323,14 +1515,14 @@ def main():
         elif event == '-TOGGLEVIDEO-':
             displayVideo = not displayVideo
             if displayVideo:
-              window['-TOGGLEVIDEO-'].update('Video aus')
+              window['-TOGGLEVIDEO-'].widget.config(image=window._icon('eye_slash_neutral'))
               frame_count = 1
               frame_timestamps.clear()
               zoom_disabled(False)
               blink_disabled(False)
               timer_disabled(False)
             else:
-              window['-TOGGLEVIDEO-'].update('Video ein')
+              window['-TOGGLEVIDEO-'].widget.config(image=window._icon('eye_neutral'))
               frame = np.zeros((VideoSize[1], VideoSize[0], 3), np.uint8)
               if blank_logo is not None:
                 frame = blend_logo_centered(frame, blank_logo)
@@ -1347,10 +1539,6 @@ def main():
                     # systemd-Unit startet main.py sofort mit den neuen
                     # Werten neu (Exit-Code 0 = regulaeres Beenden).
                     sys.exit(0)
-        elif event == '-RESTART-':
-            if check_pin(SettingsPin):
-                if confirm_reboot():
-                    subprocess.run(['/usr/bin/sudo', '/usr/sbin/reboot'])
         elif event == '-FULL_VIDEO-':
           zoom_level = 'full'
           zoom_center = []
@@ -1379,9 +1567,8 @@ def main():
           zoom_disabled(True)
           timer_disabled(True)
           video_filter_disabled(True)
-          window['-BLINK_START-'].update(disabled=True)
-          window['-BLINK_STOP-'].update(disabled=False)
-          window['-BLINK_REF-'].update(disabled=False)
+          _set_icon_buttons(('-BLINK_START-',), False)
+          _set_icon_buttons(('-BLINK_STOP-', '-BLINK_REF-'), True)
           blink_ref = []
           blink = True
         elif event == '-BLINK_REF-':
@@ -1405,10 +1592,8 @@ def main():
           blink_disabled(True)
           video_filter_disabled(True)
           displayTimer = True
-          window['-TIMER_5_3_7-'].update(disabled=True)
-          window['-TIMER_20-'].update(disabled=True)
-          window['-TIMER_10-'].update(disabled=True)
-          window['-TIMER_STOP-'].update(disabled=False)
+          _set_icon_buttons(('-TIMER_5_3_7-', '-TIMER_20-', '-TIMER_10-'), False)
+          _set_icon_buttons(('-TIMER_STOP-',), True)
           displayVideo = False
           timerType = event
           timerStart = datetime.now()
@@ -1419,10 +1604,8 @@ def main():
           video_filter_disabled(False)
           displayTimer = False
           displayVideo = True
-          window['-TIMER_5_3_7-'].update(disabled=False)
-          window['-TIMER_10-'].update(disabled=False)
-          window['-TIMER_20-'].update(disabled=False)
-          window['-TIMER_STOP-'].update(disabled=True)
+          _set_icon_buttons(('-TIMER_5_3_7-', '-TIMER_20-', '-TIMER_10-'), True)
+          _set_icon_buttons(('-TIMER_STOP-',), False)
 
 
         ### Image handling
