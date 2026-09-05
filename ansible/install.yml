@@ -1,8 +1,8 @@
 ---
 # TargetDisplay Installation - X11 + systemd-Service (startx) + matchbox,
-# PySimpleGUI-App ueber eine venv, alles unter einem dedizierten,
-# unprivilegierten User. Fuer eine frische Installation mit aktuellem
-# Raspberry Pi OS.
+# Tkinter-App (reine Stdlib-GUI, kein pip-Paket dafuer noetig) ueber eine
+# venv, alles unter einem dedizierten, unprivilegierten User. Fuer eine
+# frische Installation mit aktuellem Raspberry Pi OS.
 #
 # Aufruf:
 #   ansible-playbook -i inventory.yml install.yml --limit <host>

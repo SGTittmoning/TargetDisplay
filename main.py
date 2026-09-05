@@ -47,7 +47,7 @@ version = '0.11.0'
 
 cfg = config.load("config.yml")
 
-window = ''
+window = None
 
 # Ausschnitts-Konfiguration (section_full/section_detail) kann ueber den
 # PIN-geschuetzten Settings-Screen live geaendert werden. Persistiert wird
@@ -238,10 +238,9 @@ class Elem:
     # unveraendert weiterzuverwenden und dadurch den Rest der Datei (State-
     # Machine, Event-Handling) fast unveraendert vom PySimpleGUI-Original
     # uebernehmen zu koennen.
-    def __init__(self, widget, geo=None):
+    def __init__(self, widget):
         self.widget = widget
-        self.geo = geo  # 'pack'/'grid', nur fuer Widgets mit visible=-Toggle noetig
-        self._geo_info = None
+        self._pack_info = None  # nur fuer Widgets mit visible=-Toggle noetig, alle davon sind pack()-verwaltet
         self._image_ref = None
 
     def update(self, value=None, disabled=None, visible=None, values=None, text_color=None, data=None):
@@ -262,18 +261,11 @@ class Elem:
             w.config(image=img)
         if visible is not None:
             if visible:
-                if self._geo_info is not None:
-                    if self.geo == 'grid':
-                        w.grid(**self._geo_info)
-                    else:
-                        w.pack(**self._geo_info)
+                if self._pack_info is not None:
+                    w.pack(**self._pack_info)
             else:
-                if self.geo == 'grid':
-                    self._geo_info = w.grid_info()
-                    w.grid_remove()
-                else:
-                    self._geo_info = w.pack_info()
-                    w.pack_forget()
+                self._pack_info = w.pack_info()
+                w.pack_forget()
 
 
 class Window:
@@ -333,8 +325,8 @@ class Window:
         self.pages[key] = f
         return f
 
-    def _reg(self, key, widget, geo=None):
-        self.widgets[key] = Elem(widget, geo=geo)
+    def _reg(self, key, widget):
+        self.widgets[key] = Elem(widget)
         return widget
 
     def __getitem__(self, key):
@@ -598,7 +590,7 @@ class Window:
         cancel_btn = tk.Button(content, text='Abbrechen', width=26, height=2,
                                 command=lambda: self.post('-PIN_CANCEL-'))
         cancel_btn.pack(pady=(5, 20))
-        self._reg('-PIN_CANCEL-', cancel_btn, geo='pack')
+        self._reg('-PIN_CANCEL-', cancel_btn)
 
     def _build_confirm_view(self):
         page = self._new_page('-CONFIRMVIEW-')
@@ -653,7 +645,7 @@ class Window:
         cancel_btn = tk.Button(btnrow, text='Abbrechen', width=13, height=2,
                                 command=lambda: self.post('-EDIT_CANCEL-'))
         cancel_btn.pack(side='left', padx=5)
-        self._reg('-EDIT_CANCEL-', cancel_btn, geo='pack')
+        self._reg('-EDIT_CANCEL-', cancel_btn)
 
     def _on_editgraph_event(self, event):
         self.post('-EDITGRAPH-', {'-EDITGRAPH-': (event.x, event.y)})
@@ -675,7 +667,7 @@ class Window:
         back_btn = tk.Button(btnrow, text='Zurück', width=20, height=2,
                               command=lambda: self.post('-STAND_BACK-'))
         back_btn.pack(side='left', padx=10)
-        self._reg('-STAND_BACK-', back_btn, geo='pack')
+        self._reg('-STAND_BACK-', back_btn)
 
     def _build_camwait_view(self):
         page = self._new_page('-CAMWAITVIEW-')
@@ -707,56 +699,15 @@ def _set_stand_name(name):
     window['-STANDNAME-'].update(name)
 
 
-def check_pin(correct_pin):
-    # Generische PIN-Abfrage, schuetzt sowohl Settings als auch Restart.
-    # Bewusst keine Sperre nach Fehlversuchen (Nutzer-Entscheidung) - das
-    # Bedrohungsmodell ist "zufaelliges Herumtippen vor Ort abschrecken",
-    # keine gezielte Brute-Force-Absicherung.
-    # Titel/Abbrechen-Sichtbarkeit explizit zuruecksetzen - _enter_new_pin()
-    # (PIN-Aenderung) aendert beides auf derselben Seite, eine vorherige
-    # Aenderung darf hier nicht durchschlagen.
-    window['-PIN_TITLE-'].update('PIN eingeben')
-    window['-PIN_CANCEL-'].update(visible=True)
-    _show_page('-PINVIEW-')
-    window['-PINDISPLAY-'].update('', text_color='black')
-    entered = ''
-    result = False
-    while True:
-        event, _ = window.read()
-        if event in (WIN_CLOSED, '-PIN_CANCEL-'):
-            break
-        elif event == '-PIN_CLEAR-':
-            entered = ''
-        elif event == '-PIN_OK-':
-            if entered == str(correct_pin):
-                result = True
-                break
-            else:
-                entered = ''
-                window['-PINDISPLAY-'].update('falsch', text_color='red')
-                window.refresh()
-                time.sleep(0.6)
-        elif event in '0123456789':
-            if len(entered) < 6:
-                entered += event
-        window['-PINDISPLAY-'].update('*' * len(entered), text_color='black')
-    _show_page('-MAINVIEW-')
-    return result
-
-
-def confirm_reboot():
-    _show_page('-CONFIRMVIEW-')
-    event, _ = window.read()
-    _show_page('-MAINVIEW-')
-    return event == '-CONFIRM_YES-'
-
-
-def _enter_new_pin(title, show_cancel):
-    # Tastatur-Grundgeruest wie check_pin(), aber OHNE Vergleich mit einem
-    # "richtigen" PIN - liefert die eingetippte Ziffernfolge (4-6 Stellen,
-    # OK gedrueckt) zurueck, oder None (Abbrechen/Fenster zu). Wird sowohl
-    # fuer die Neueingabe als auch die Wiederholung genutzt (change_pin_flow
-    # ruft diese Funktion zweimal auf).
+def _run_pin_keypad(title, show_cancel, validate):
+    # Gemeinsames Tastenfeld-Grundgeruest fuer check_pin() und
+    # _enter_new_pin() - beide sammeln Ziffern/-PIN_CLEAR- identisch und
+    # unterscheiden sich nur darin, was bei -PIN_OK- als "gueltig" zaehlt
+    # und was bei Erfolg zurueckgegeben wird. validate(entered) liefert
+    # (True, ergebnis) bei Erfolg (Schleife endet), sonst
+    # (False, (fehlertext, sekunden)) - zeigt den Fehlertext rot fuer die
+    # angegebene Dauer, dann geht die Eingabe leer weiter. Liefert das
+    # Erfolgsergebnis, oder None bei Abbrechen/Fenster zu.
     window['-PIN_TITLE-'].update(title)
     window['-PIN_CANCEL-'].update(visible=show_cancel)
     _show_page('-PINVIEW-')
@@ -770,18 +721,59 @@ def _enter_new_pin(title, show_cancel):
         elif event == '-PIN_CLEAR-':
             entered = ''
         elif event == '-PIN_OK-':
-            if 4 <= len(entered) <= 6:
-                result = entered
+            ok, value = validate(entered)
+            if ok:
+                result = value
                 break
             else:
-                window['-PINDISPLAY-'].update('4-6 Ziffern', text_color='red')
-                window.refresh()
-                time.sleep(0.8)
+                error_text, sleep_s = value
                 entered = ''
+                window['-PINDISPLAY-'].update(error_text, text_color='red')
+                window.refresh()
+                time.sleep(sleep_s)
         elif event in '0123456789':
             if len(entered) < 6:
                 entered += event
         window['-PINDISPLAY-'].update('*' * len(entered), text_color='black')
+    return result
+
+
+def check_pin(correct_pin):
+    # Generische PIN-Abfrage, schuetzt sowohl Settings als auch Restart.
+    # Bewusst keine Sperre nach Fehlversuchen (Nutzer-Entscheidung) - das
+    # Bedrohungsmodell ist "zufaelliges Herumtippen vor Ort abschrecken",
+    # keine gezielte Brute-Force-Absicherung.
+    # Titel/Abbrechen-Sichtbarkeit werden von _run_pin_keypad() explizit
+    # auf 'PIN eingeben'/sichtbar zurueckgesetzt - _enter_new_pin()
+    # (PIN-Aenderung) aendert beides auf derselben Seite, eine vorherige
+    # Aenderung darf hier nicht durchschlagen.
+    def validate(entered):
+        if entered == str(correct_pin):
+            return True, True
+        return False, ('falsch', 0.6)
+    result = _run_pin_keypad('PIN eingeben', True, validate)
+    _show_page('-MAINVIEW-')
+    return bool(result)
+
+
+def confirm_reboot():
+    _show_page('-CONFIRMVIEW-')
+    event, _ = window.read()
+    _show_page('-MAINVIEW-')
+    return event == '-CONFIRM_YES-'
+
+
+def _enter_new_pin(title, show_cancel):
+    # Liefert die eingetippte Ziffernfolge (4-6 Stellen, OK gedrueckt)
+    # zurueck, oder None (Abbrechen/Fenster zu) - OHNE Vergleich mit einem
+    # "richtigen" PIN, anders als check_pin(). Wird sowohl fuer die
+    # Neueingabe als auch die Wiederholung genutzt (change_pin_flow ruft
+    # diese Funktion zweimal auf).
+    def validate(entered):
+        if 4 <= len(entered) <= 6:
+            return True, entered
+        return False, ('4-6 Ziffern', 0.8)
+    result = _run_pin_keypad(title, show_cancel, validate)
     # Seite fuer die naechste Nutzung (check_pin) wieder in den
     # Grundzustand versetzen.
     window['-PIN_TITLE-'].update('PIN eingeben')
@@ -962,7 +954,12 @@ def edit_section_points(region_label, cap, points, other_points=None, allow_canc
         mag = cv2.resize(crop, (MAG_SIZE, MAG_SIZE), interpolation=cv2.INTER_NEAREST)
         cv2.line(mag, (MAG_SIZE // 2, 0), (MAG_SIZE // 2, MAG_SIZE), (0, 255, 255), 1)
         cv2.line(mag, (0, MAG_SIZE // 2), (MAG_SIZE, MAG_SIZE // 2), (0, 255, 255), 1)
-        magbytes = cv2.imencode('.png', mag)[1].tobytes()
+        # PPM statt PNG: gleiche Begruendung wie bei Window.draw_image() -
+        # unkomprimiert ist beim Kodieren billiger, das Ergebnis wird
+        # ohnehin sofort wieder dekodiert (kein Speichern/Uebertragen). Der
+        # Lupen-Redraw feuert bei jedem Drag-Motion-Event, potenziell
+        # mehrfach pro Sekunde.
+        magbytes = cv2.imencode('.ppm', mag)[1].tobytes()
         # Fest oben rechts im Canvas verankert (nicht am Bild), damit die
         # Lupe unabhaengig von Bildgroesse/Zentrierung immer an derselben,
         # vorhersehbaren Stelle erscheint.
@@ -991,7 +988,7 @@ def edit_section_points(region_label, cap, points, other_points=None, allow_canc
     def redraw(mag_center=None):
         graph.delete('all')
         graph.image_refs = []
-        photo = tk.PhotoImage(data=cv2.imencode('.png', disp_frame)[1].tobytes())
+        photo = tk.PhotoImage(data=cv2.imencode('.ppm', disp_frame)[1].tobytes())  # PPM statt PNG, s.o.
         graph.image_refs.append(photo)
         graph.create_image(off_x, off_y, anchor='nw', image=photo)
         if other_pts is not None:
@@ -1100,20 +1097,20 @@ def run_settings_flow(cap, section_full, section_detail, stands, current_pin):
         return False
     return True
 
+def _set_disabled(keys, disable):
+    for k in keys:
+        window[k].update(disabled=disable)
+
 def zoom_disabled(disable):
-  window['-FULL_VIDEO-'].update(disabled=disable)
-  window['-DETAIL_VIDEO-'].update(disabled=disable)
+  _set_disabled(('-FULL_VIDEO-', '-DETAIL_VIDEO-'), disable)
   window['-RESETZOOM-'].update(disabled=True)
 
 def blink_disabled(disable):
-  window['-BLINK_START-'].update(disabled=disable)
-  window['-BLINK_STOP-'].update(disabled=True)
-  window['-BLINK_REF-'].update(disabled=True)
+  _set_disabled(('-BLINK_START-',), disable)
+  _set_disabled(('-BLINK_STOP-', '-BLINK_REF-'), True)
 
 def timer_disabled(disable):
-  window['-TIMER_5_3_7-'].update(disabled=disable)
-  window['-TIMER_20-'].update(disabled=disable)
-  window['-TIMER_10-'].update(disabled=disable)
+  _set_disabled(('-TIMER_5_3_7-', '-TIMER_20-', '-TIMER_10-'), disable)
   window['-TIMER_STOP-'].update(disabled=True)
 
 def video_filter_disabled(disable):
@@ -1161,12 +1158,10 @@ def main():
     VideoSize = (cfg.getProperty('video.size.x'), cfg.getProperty('video.size.y'))
 
     frame_count = 1
-    startupTime = datetime.now()
     frame_timestamps = deque()
     FPS_WINDOW_SECONDS = 60
     displayVideo = True
     displayTimer = False
-    timerLoop = 0
     timerCurrentLoop = 0
     timerStart = datetime.now()
     timerType = ""
@@ -1175,6 +1170,8 @@ def main():
     zoom_center = []
     zoom_level = 'full'
     last_frame_id = -1
+    last_date_str = None
+    last_time_str = None
     global window
 
     window = Window(cfg, VideoSize)
@@ -1310,14 +1307,13 @@ def main():
 
         event, values = window.read(timeout=10)
         ### Button handling
-        if event in (WIN_CLOSED, 'Exit'):
+        if event == WIN_CLOSED:
             break
         elif event == '-TOGGLEVIDEO-':
             displayVideo = not displayVideo
             if displayVideo:
               window['-TOGGLEVIDEO-'].update('Video aus')
               frame_count = 1
-              startupTime = datetime.now()
               frame_timestamps.clear()
               zoom_disabled(False)
               blink_disabled(False)
@@ -1387,7 +1383,13 @@ def main():
           video_filter_disabled(False)
           blink_ref = []
           blink = False
-        elif event == '-TIMER_5_3_7-':
+        elif event in ('-TIMER_5_3_7-', '-TIMER_20-', '-TIMER_10-'):
+          # Alle drei Timer-Varianten starten identisch - nur timerType
+          # (=event) unterscheidet, welcher Countdown weiter unten
+          # gerendert wird. timerCurrentLoop wird auch fuer -TIMER_20-/
+          # -TIMER_10- zurueckgesetzt, obwohl nur die 5x3/7-Variante es
+          # liest - unschaedlich, vermeidet aber eine dritte fast
+          # identische Kopie dieses Blocks.
           zoom_disabled(True)
           blink_disabled(True)
           video_filter_disabled(True)
@@ -1400,30 +1402,6 @@ def main():
           timerType = event
           timerStart = datetime.now()
           timerCurrentLoop = 0
-        elif event == '-TIMER_20-':
-          zoom_disabled(True)
-          blink_disabled(True)
-          video_filter_disabled(True)
-          displayTimer = True
-          window['-TIMER_5_3_7-'].update(disabled=True)
-          window['-TIMER_20-'].update(disabled=True)
-          window['-TIMER_10-'].update(disabled=True)
-          window['-TIMER_STOP-'].update(disabled=False)
-          displayVideo = False
-          timerType = event
-          timerStart = datetime.now()
-        elif event == '-TIMER_10-':
-          zoom_disabled(True)
-          blink_disabled(True)
-          video_filter_disabled(True)
-          displayTimer = True
-          window['-TIMER_5_3_7-'].update(disabled=True)
-          window['-TIMER_20-'].update(disabled=True)
-          window['-TIMER_10-'].update(disabled=True)
-          window['-TIMER_STOP-'].update(disabled=False)
-          displayVideo = False
-          timerType = event
-          timerStart = datetime.now()
         elif event == '-TIMER_STOP-':
           zoom_disabled(False)
           blink_disabled(False)
@@ -1505,24 +1483,13 @@ def main():
               else:
                 window.post('-TIMER_STOP-')
               frame[:] = (0, 0, 255)
-          if timerType == "-TIMER_20-":
-            showTime = 20
-            if(tmpTimerSecs < prepTime):
-              #red
-              frame[:] = (0, 0, 255)
-              draw_timer_countdown(frame, prepTime - tmpTimerSecs)
-            elif tmpTimerSecs < (prepTime + showTime):
-              #green
-              frame[:] = (0, 255, 0)
-              draw_timer_countdown(frame, prepTime + showTime - tmpTimerSecs)
-            elif tmpTimerSecs < (prepTime + showTime + stopTime):
-              #red
-              frame[:] = (0, 0, 255)
-            else:
-              window.post('-TIMER_STOP-')
-          if timerType == "-TIMER_10-":
-            showTime = 10
-            if(tmpTimerSecs < prepTime):
+          elif timerType in ("-TIMER_20-", "-TIMER_10-"):
+            # -TIMER_20-/-TIMER_10- unterscheiden sich nur in showTime -
+            # derselbe einfache Rot-Vorbereitung/Gruen-Countdown/Rot-Stop-
+            # Ablauf wie oben, nur ohne die Mehrfach-Wiederholung von
+            # -TIMER_5_3_7-.
+            showTime = 20 if timerType == "-TIMER_20-" else 10
+            if tmpTimerSecs < prepTime:
               #red
               frame[:] = (0, 0, 255)
               draw_timer_countdown(frame, prepTime - tmpTimerSecs)
@@ -1539,8 +1506,18 @@ def main():
           window_fps.update('')
 
         now = datetime.now()
-        window_date.update(now.strftime("%d.%m.%Y"))
-        window_time.update(now.strftime("%H:%M:%S"))
+        # Nur bei tatsaechlicher Aenderung neu zeichnen (Datum/Uhrzeit
+        # aendern sich hoechstens einmal pro Sekunde, dieser Loop-Tick
+        # laeuft aber alle ~10ms) - spart bei rund 99% der Iterationen ein
+        # unnoetiges Tk-Redraw dieser beiden Labels.
+        date_str = now.strftime("%d.%m.%Y")
+        if date_str != last_date_str:
+            window_date.update(date_str)
+            last_date_str = date_str
+        time_str = now.strftime("%H:%M:%S")
+        if time_str != last_time_str:
+            window_time.update(time_str)
+            last_time_str = time_str
     window.close()
 
 
