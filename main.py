@@ -445,45 +445,68 @@ class Window:
         name_label.pack(fill='both', expand=True)
         self._reg('-STANDNAME-', name_label)
 
+        # BTN_GAP: sichtbarer Abstand zwischen benachbarten Touch-Buttons
+        # (Finger sind ungenauer als ein Mauszeiger - direkt aneinander-
+        # stossende Buttons wie zuvor riskieren Fehltreffer auf den
+        # Nachbar-Button). Als Nebeneffekt wird die Button-Spalte dadurch
+        # insgesamt breiter, was automatisch die Luecke zum Video (siehe
+        # spacer oben, expandiert in den jeweils uebrigen Platz) im
+        # gleichen Zug schmaler macht.
+        # FRAME_PAD: Abstand zwischen LabelFrame-Rahmen ("Zoom"/"Blinken"/
+        # "Timer") und den Buttons darin - im Original per Pixel-Messung
+        # vorhanden (ca. 6-13px je Seite), stiess bei diesem Entwurf
+        # anfangs direkt an den Rahmen (0px), am Test-Pi als optisch
+        # unsauber bemaengelt. tk.LabelFrame kennt kein eingebautes
+        # "padding" (das ist eine ttk-Eigenschaft) - stattdessen bekommt
+        # jede Button-Zeile eine eigene Frame, die MIT Aussenabstand in
+        # die LabelFrame gepackt wird; BTN_GAP bleibt reine Innen-Sache
+        # der Zeile (zwischen den Buttons).
+        BTN_GAP = 8
+        FRAME_PAD = 8
+
         zoom_frame = tk.LabelFrame(left, text='Zoom', bg=BG)
         zoom_frame.pack(side='top', anchor='w', pady=4)
-        b = tk.Button(zoom_frame, text='Ganze Scheibe', width=13, height=2,
+        zoom_row = tk.Frame(zoom_frame, bg=BG)
+        zoom_row.pack(padx=FRAME_PAD, pady=FRAME_PAD)
+        b = tk.Button(zoom_row, text='Ganze Scheibe', width=13, height=2,
                       command=lambda: self.post('-FULL_VIDEO-'))
-        b.pack(side='left'); self._reg('-FULL_VIDEO-', b)
-        b = tk.Button(zoom_frame, text='Innen Scheibe', width=13, height=2,
+        b.pack(side='left', padx=(0, BTN_GAP)); self._reg('-FULL_VIDEO-', b)
+        b = tk.Button(zoom_row, text='Innen Scheibe', width=13, height=2,
                       command=lambda: self.post('-DETAIL_VIDEO-'))
-        b.pack(side='left'); self._reg('-DETAIL_VIDEO-', b)
-        b = tk.Button(zoom_frame, text='Reset', width=13, height=2, state=tk.DISABLED,
+        b.pack(side='left', padx=(0, BTN_GAP)); self._reg('-DETAIL_VIDEO-', b)
+        b = tk.Button(zoom_row, text='Reset', width=13, height=2, state=tk.DISABLED,
                       command=lambda: self.post('-RESETZOOM-'))
         b.pack(side='left'); self._reg('-RESETZOOM-', b)
 
         blink_frame = tk.LabelFrame(left, text='Blinken', bg=BG)
         blink_frame.pack(side='top', anchor='w', pady=4)
-        b = tk.Button(blink_frame, text='Start', width=13, height=2,
+        blink_row = tk.Frame(blink_frame, bg=BG)
+        blink_row.pack(padx=FRAME_PAD, pady=FRAME_PAD)
+        b = tk.Button(blink_row, text='Start', width=13, height=2,
                       command=lambda: self.post('-BLINK_START-'))
-        b.pack(side='left'); self._reg('-BLINK_START-', b)
-        b = tk.Button(blink_frame, text='Referenz', width=13, height=2, state=tk.DISABLED,
+        b.pack(side='left', padx=(0, BTN_GAP)); self._reg('-BLINK_START-', b)
+        b = tk.Button(blink_row, text='Referenz', width=13, height=2, state=tk.DISABLED,
                       command=lambda: self.post('-BLINK_REF-'))
-        b.pack(side='left'); self._reg('-BLINK_REF-', b)
-        b = tk.Button(blink_frame, text='Stop', width=13, height=2, state=tk.DISABLED,
+        b.pack(side='left', padx=(0, BTN_GAP)); self._reg('-BLINK_REF-', b)
+        b = tk.Button(blink_row, text='Stop', width=13, height=2, state=tk.DISABLED,
                       command=lambda: self.post('-BLINK_STOP-'))
         b.pack(side='left'); self._reg('-BLINK_STOP-', b)
 
         timer_frame = tk.LabelFrame(left, text='Timer', bg=BG)
         timer_frame.pack(side='top', anchor='w', pady=4)
         row1 = tk.Frame(timer_frame, bg=BG)
-        row1.pack(side='top', fill='x')
+        row1.pack(side='top', fill='x', padx=FRAME_PAD, pady=(FRAME_PAD, 0))
         b = tk.Button(row1, text='5 x 3/7 Sek.', width=13, height=2,
                       command=lambda: self.post('-TIMER_5_3_7-'))
-        b.pack(side='left'); self._reg('-TIMER_5_3_7-', b)
+        b.pack(side='left', padx=(0, BTN_GAP)); self._reg('-TIMER_5_3_7-', b)
         b = tk.Button(row1, text='20 Sek.', width=13, height=2,
                       command=lambda: self.post('-TIMER_20-'))
-        b.pack(side='left'); self._reg('-TIMER_20-', b)
+        b.pack(side='left', padx=(0, BTN_GAP)); self._reg('-TIMER_20-', b)
         b = tk.Button(row1, text='10 Sek.', width=13, height=2,
                       command=lambda: self.post('-TIMER_10-'))
         b.pack(side='left'); self._reg('-TIMER_10-', b)
         row2 = tk.Frame(timer_frame, bg=BG)
-        row2.pack(side='top', fill='x')
+        row2.pack(side='top', fill='x', padx=FRAME_PAD, pady=(BTN_GAP, FRAME_PAD))
         b = tk.Button(row2, text='Stop', width=13, height=2, state=tk.DISABLED,
                       command=lambda: self.post('-TIMER_STOP-'))
         b.pack(side='left', fill='x', expand=True); self._reg('-TIMER_STOP-', b)
@@ -495,10 +518,10 @@ class Window:
         toggle_frame.pack(side='top', anchor='w')
         b = tk.Button(toggle_frame, text='Video aus', width=13, height=2,
                       command=lambda: self.post('-TOGGLEVIDEO-'))
-        b.pack(side='left'); self._reg('-TOGGLEVIDEO-', b)
+        b.pack(side='left', padx=(0, BTN_GAP)); self._reg('-TOGGLEVIDEO-', b)
         b = tk.Button(toggle_frame, text='Settings (PIN)', width=13, height=2,
                       command=lambda: self.post('-SETTINGS-'))
-        b.pack(side='left'); self._reg('-SETTINGS-', b)
+        b.pack(side='left', padx=(0, BTN_GAP)); self._reg('-SETTINGS-', b)
         b = tk.Button(toggle_frame, text='Restart (PIN)', width=13, height=2,
                       command=lambda: self.post('-RESTART-'))
         b.pack(side='left'); self._reg('-RESTART-', b)
