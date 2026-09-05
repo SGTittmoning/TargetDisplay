@@ -959,6 +959,12 @@ def main():
                     active_stand = chosen
             StreamPath = active_stand['url']
             _set_stand_name(active_stand['displayName'])
+            # Alten Hintergrund-Thread stoppen, bevor er durch ein neues
+            # Camera-Objekt ersetzt wird - sonst liefe er als Daemon fuer den
+            # Rest der Prozesslaufzeit unbegrenzt weiter und versuchte
+            # endlos, die verworfene (ggf. nicht erreichbare) alte URL erneut
+            # zu verbinden (camera.py::Camera.stop()).
+            cap.stop()
             cap = Camera(StreamPath)
             continue
         which = 'full' if section_full_orig is None else 'detail'
