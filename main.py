@@ -460,6 +460,7 @@ class Window:
                           bd=0, relief='flat', highlightthickness=0, font=font,
                           wraplength=140, justify='center', command=command)
             self._btn_style[key] = dict(icon_on=None, icon_off=None, label=None,
+                                         containers=(),
                                          bg_on=accent_bg, fg_on=accent_fg,
                                          bg_off=muted_bg, fg_off=muted_fg,
                                          command_on=real_command)
@@ -481,11 +482,23 @@ class Window:
         # zusaetzlich das Label, damit _set_icon_buttons() dessen bg/fg mit
         # umschalten kann.
         frame = tk.Frame(parent, bg=bg)
-        b = tk.Button(frame, image=icon, bg=bg, activebackground=bg,
+        # inner-Frame statt Icon+Label direkt in frame packen: pack_equal()
+        # streckt alle Buttons einer Zeile per grid(sticky='nsew') auf die
+        # Hoehe des groessten Geschwisters - in der Zoom-Zeile ist das die
+        # zweizeilige "Ganze/Innen Scheibe". Ohne inner-Frame haengt der
+        # Inhalt oben im (dadurch viel hoeheren) Reset-Frame und sitzt
+        # sichtbar hoeher als bei einzeiligen Buttons in kuerzeren Zeilen
+        # (Start/Stop/Timer) - Nutzer-Feedback: "Platzierung nicht
+        # identisch wie bei den anderen einzeiligen Buttons". inner.pack
+        # (expand=True) zentriert den Icon+Text-Block vertikal im jeweils
+        # tatsaechlich zugewiesenen Platz, egal wie hoch die Zeile wird.
+        inner = tk.Frame(frame, bg=bg)
+        inner.pack(expand=True)
+        b = tk.Button(inner, image=icon, bg=bg, activebackground=bg,
                       bd=0, relief='flat', highlightthickness=0,
                       command=command)
         b.pack(side='top', pady=(6, 6))
-        label = tk.Label(frame, text=text, bg=bg, fg=fg, font=font,
+        label = tk.Label(inner, text=text, bg=bg, fg=fg, font=font,
                           wraplength=140, justify='center')
         label.pack(side='top', pady=(0, 8))
         # Klick auf den Text soll denselben Effekt wie ein Klick auf das
@@ -494,6 +507,7 @@ class Window:
         label.bind('<Button-1>', lambda e: b.invoke())
 
         self._btn_style[key] = dict(icon_on=icon_on, icon_off=icon_off, label=label,
+                                     containers=(inner, frame),
                                      bg_on=accent_bg, fg_on=accent_fg,
                                      bg_off=muted_bg, fg_off=muted_fg,
                                      command_on=real_command)
@@ -1441,13 +1455,15 @@ def _set_icon_buttons(keys, enabled):
             cfg['image'] = st['icon_on'] if enabled else st['icon_off']
         w.config(**cfg)
         # Icon+Text-Buttons (siehe _make_accent_button()) bestehen aus dem
-        # Icon-Button plus einem separaten Text-Label und dessen Frame -
-        # beide muessen beim Umschalten dieselbe bg/fg wie der Button
-        # bekommen, sonst faerbt nur das Icon um, Text/Hintergrund bleiben
-        # auf der alten Farbe stehen.
+        # Icon-Button, einem separaten Text-Label und den umgebenden
+        # inner-/aussen-Frames (siehe dort - inner zentriert den Inhalt
+        # vertikal) - alle muessen beim Umschalten dieselbe bg wie der
+        # Button bekommen, sonst bleiben Text/Hintergrund auf der alten
+        # Farbe stehen.
         if st['label'] is not None:
             st['label'].config(bg=cfg['bg'], fg=cfg['fg'])
-            st['label'].master.config(bg=cfg['bg'])
+            for c in st['containers']:
+                c.config(bg=cfg['bg'])
 
 def zoom_disabled(disable):
   _set_icon_buttons(('-FULL_VIDEO-', '-DETAIL_VIDEO-'), not disable)
