@@ -501,10 +501,17 @@ class Window:
         label = tk.Label(inner, text=text, bg=bg, fg=fg, font=font,
                           wraplength=140, justify='center')
         label.pack(side='top', pady=(0, 8))
-        # Klick auf den Text soll denselben Effekt wie ein Klick auf das
-        # Icon haben - invoke() ruft das GERADE konfigurierte command auf,
-        # respektiert also automatisch den enabled/disabled-No-Op-Swap oben.
-        label.bind('<Button-1>', lambda e: b.invoke())
+        # Klick soll ueberall auf der Buttonflaeche denselben Effekt wie ein
+        # Klick auf das Icon haben - invoke() ruft das GERADE konfigurierte
+        # command auf, respektiert also automatisch den enabled/disabled-
+        # No-Op-Swap oben. Bug gefunden durch den Nutzer auf dem echten
+        # Touch-Display: nur Icon (tk.Button) und Label hatten einen
+        # Klick-Handler, die umgebende Frame-/inner-Flaeche (der komplette
+        # Rand rund um Icon+Text, siehe inner.pack(expand=True) oben) blieb
+        # tot - auf einem Touchscreen muss aber die GESAMTE farbige Flaeche
+        # reagieren, nicht nur Icon und Textzeile selbst.
+        for w in (frame, inner, label):
+            w.bind('<Button-1>', lambda e: b.invoke())
 
         self._btn_style[key] = dict(icon_on=icon_on, icon_off=icon_off, label=label,
                                      containers=(inner, frame),
