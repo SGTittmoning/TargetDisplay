@@ -1676,10 +1676,17 @@ def main():
         elif event == '-FULL_VIDEO-':
           zoom_level = 'full'
           zoom_center = []
+          # Erzwingt eine frische Referenzaufnahme, falls Blinken laeuft -
+          # siehe Kommentar direkt bei der blink_ref-Aufnahme im Rendering-
+          # Abschnitt unten fuer die volle Begruendung.
+          if blink:
+            blink_ref = []
           _sync_reset_button(zoom_level, zoom_center)
         elif event == '-DETAIL_VIDEO-':
           zoom_level = 'detail'
           zoom_center = []
+          if blink:
+            blink_ref = []
           _sync_reset_button(zoom_level, zoom_center)
         elif event == '-VIDEO-':
           if zoom_center == []:
@@ -1704,6 +1711,8 @@ def main():
           # vorher blieb ein aktiver "Innen Scheibe"-Zoom nach Reset bestehen.
           zoom_level = 'full'
           zoom_center = []
+          if blink:
+            blink_ref = []
           _sync_reset_button(zoom_level, zoom_center)
         elif event == '-BLINK_START-':
           # Zoom (Buttons, Klick-Pan UND Reset) bleibt waehrend Blinken
@@ -1769,6 +1778,22 @@ def main():
             #ready to display, all image manipulations are done only display options from here
             #--------------------------------------------------------------------------
             #blink
+            # blink_ref wird aus dem bereits PERSPEKTIVISCH ENTZERRTEN Frame
+            # aufgenommen (nach warpPerspective(), oben) - haengt die
+            # Referenz also am zoom_level, das zum Aufnahmezeitpunkt aktiv
+            # war. Nutzer-Feedback/Bug: ein Zoom-Wechsel (Ganze<->Innen
+            # Scheibe) WAEHREND aktiven Blinkens hat vorher NICHT zu einer
+            # neuen Referenzaufnahme gefuehrt - das eingefrorene
+            # Referenzbild blieb auf dem alten Zoom-Level, waehrend jeder
+            # neue Live-Frame bereits mit dem neuen Level entzerrt wurde,
+            # dadurch sprang die Anzeige beim Blinken sichtbar zwischen
+            # beiden Groessen hin und her. Fix: -FULL_VIDEO-/-DETAIL_VIDEO-/
+            # -RESETZOOM- setzen blink_ref jetzt selbst zurueck, wenn
+            # blink=True, damit hier sofort eine neue, zum neuen Level
+            # passende Referenz aufgenommen wird. Der manuelle Klick-Pan
+            # (tl.crop() weiter unten) hat dieses Problem NICHT - der wird
+            # NACH dieser Referenz-Auswahl auf beide (Live und Referenz)
+            # gleichermassen angewendet, nie in blink_ref eingefroren.
             if ((blink) & (len(blink_ref)==0)): blink_ref = frame
             if ((blink) & (datetime.now().second % 2)==1): frame = blink_ref
 
