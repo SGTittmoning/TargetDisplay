@@ -13,6 +13,7 @@
     version: "{{ targetdisplay_git_version | default('main') }}"
     force: yes
   become_user: "{{ targetdisplay_service_user }}"
+  register: targetdisplay_app_checkout
 
 - name: Python-Abhaengigkeiten aus requirements.txt in eine venv installieren
   pip:
@@ -21,6 +22,7 @@
     virtualenv_command: "python3 -m venv"
     virtualenv_site_packages: yes
   become_user: "{{ targetdisplay_service_user }}"
+  register: targetdisplay_app_venv
 
 - name: config.yml aus Template rendern
   template:
@@ -29,6 +31,7 @@
     owner: "{{ targetdisplay_service_user }}"
     group: "{{ targetdisplay_service_user }}"
     mode: "0600"
+  register: targetdisplay_app_config
 
 # ressources/logo.png kommt bereits ueber den Git-Checkout oben mit (das im
 # Repo mitgelieferte generische Platzhalter-Wappen, quasi das "dist"-Logo).
@@ -55,3 +58,4 @@
     mode: "0644"
   become_user: "{{ targetdisplay_service_user }}"
   when: targetdisplay_custom_logo.stat.exists
+  register: targetdisplay_app_logo

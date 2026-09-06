@@ -29,6 +29,7 @@
     owner: "{{ targetdisplay_service_user }}"
     group: "{{ targetdisplay_service_user }}"
     mode: "0700"
+  register: targetdisplay_xinitrc
 
 - name: targetdisplay.service aus Template rendern
   template:
@@ -56,8 +57,29 @@
     state: stopped
   failed_when: false
 
+# Vorher (Bug, per Live-Test gefunden): nur die Unit-DATEI selbst loeste
+# einen Neustart aus - ein reiner App-Code-/Config-Update (z.B. Wechsel
+# auf einen anderen Branch/Commit via targetdisplay_git_version, oder eine
+# geaenderte config.yml/venv/Logo) OHNE Unit-Aenderung lief mit "started"
+# (kein Neustart bei bereits laufendem Service) durch die Play-Recap durch
+# ("changed" stand trotzdem korrekt bei den einzelnen Deploy-Tasks), aber
+# der laufende Prozess zeigte danach weiterhin den ALTEN Code/State - live
+# beobachtet: ein Redeploy von main auf tkinter-rewrite (Branch-Wechsel,
+# Unit-Datei unveraendert) landete unbemerkt auf der Boot-Partition/im
+# venv, der laufende targetdisplay.service lief aber unveraendert mit dem
+# alten main-Checkout weiter, bis ein manueller "systemctl restart" halt.
+# Fix: Neustart immer wenn IRGENDEINER der App-Deploy-Schritte (Checkout,
+# venv, config.yml, Logo) ODER die Unit-Datei/.xinitrc sich geaendert hat.
 - name: targetdisplay.service aktivieren und (neu)starten
   systemd:
     name: targetdisplay.service
     enabled: yes
-    state: "{{ 'restarted' if targetdisplay_service_unit is changed else 'started' }}"
+    state: >-
+      {{ 'restarted' if (
+        targetdisplay_service_unit is changed or
+        targetdisplay_xinitrc is changed or
+        targetdisplay_app_checkout is changed or
+        targetdisplay_app_venv is changed or
+        targetdisplay_app_config is changed or
+        targetdisplay_app_logo is changed
+      ) else 'started' }}
