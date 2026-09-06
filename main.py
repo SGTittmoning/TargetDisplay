@@ -449,20 +449,56 @@ class Window:
         bg = accent_bg if start_enabled else muted_bg
         fg = accent_fg if start_enabled else muted_fg
         real_command = lambda: self.post(key)
-        kwargs = dict(text=text, bg=bg, fg=fg,
-                      activebackground=bg, activeforeground=fg,
-                      bd=0, relief='flat', highlightthickness=0, font=font,
-                      wraplength=140, justify='center',
-                      command=(real_command if start_enabled else lambda: None))
-        if icon is not None:
-            kwargs.update(image=icon, compound='top')
-        b = tk.Button(parent, **kwargs)
-        self._btn_style[key] = dict(icon_on=icon_on, icon_off=icon_off,
+        command = real_command if start_enabled else (lambda: None)
+
+        if icon is None:
+            # Reiner Text-Button (aktuell nur "Timer Stop") - keine
+            # Compound-Bild/Text-Problematik (siehe unten), unveraendert
+            # ein einzelnes tk.Button-Widget.
+            b = tk.Button(parent, text=text, bg=bg, fg=fg,
+                          activebackground=bg, activeforeground=fg,
+                          bd=0, relief='flat', highlightthickness=0, font=font,
+                          wraplength=140, justify='center', command=command)
+            self._btn_style[key] = dict(icon_on=None, icon_off=None, label=None,
+                                         bg_on=accent_bg, fg_on=accent_fg,
+                                         bg_off=muted_bg, fg_off=muted_fg,
+                                         command_on=real_command)
+            self._reg(key, b)
+            return b
+
+        # Icon+Text-Buttons: Tks eigenes compound='top' (Bild+Text in EINEM
+        # Widget) packt zwischen Bild und Text einen deutlich groesseren,
+        # nicht konfigurierbaren Abstand als am oberen/unteren Rand des
+        # Buttons (live vermessen per Screenshot-Pixelanalyse: ca. 10-14px
+        # Bild-Text-Luecke gegen nur 1-5px Rand-Luecke, unabhaengig von
+        # -pady). Bei einzeiligem Text fiel das kaum auf, bei den
+        # zweizeilig umbrechenden Labels ("Ganze Scheibe"/"Innen Scheibe")
+        # sah der Inhalt dadurch sichtbar "nach oben verrutscht" aus
+        # (Nutzer-Feedback nach Test auf echtem Display). Fix: Icon (reiner
+        # Bild-Button) und Text (eigenes Label) als zwei gestapelte Widgets
+        # mit selbst gewaehltem, gleichmaessigem Abstand statt eines
+        # einzelnen Compound-Widgets - dafuer noetig: ._btn_style haelt
+        # zusaetzlich das Label, damit _set_icon_buttons() dessen bg/fg mit
+        # umschalten kann.
+        frame = tk.Frame(parent, bg=bg)
+        b = tk.Button(frame, image=icon, bg=bg, activebackground=bg,
+                      bd=0, relief='flat', highlightthickness=0,
+                      command=command)
+        b.pack(side='top', pady=(6, 6))
+        label = tk.Label(frame, text=text, bg=bg, fg=fg, font=font,
+                          wraplength=140, justify='center')
+        label.pack(side='top', pady=(0, 8))
+        # Klick auf den Text soll denselben Effekt wie ein Klick auf das
+        # Icon haben - invoke() ruft das GERADE konfigurierte command auf,
+        # respektiert also automatisch den enabled/disabled-No-Op-Swap oben.
+        label.bind('<Button-1>', lambda e: b.invoke())
+
+        self._btn_style[key] = dict(icon_on=icon_on, icon_off=icon_off, label=label,
                                      bg_on=accent_bg, fg_on=accent_fg,
                                      bg_off=muted_bg, fg_off=muted_fg,
                                      command_on=real_command)
         self._reg(key, b)
-        return b
+        return frame
 
     def __getitem__(self, key):
         return self.widgets[key]
@@ -1404,6 +1440,14 @@ def _set_icon_buttons(keys, enabled):
         if st['icon_on'] is not None:
             cfg['image'] = st['icon_on'] if enabled else st['icon_off']
         w.config(**cfg)
+        # Icon+Text-Buttons (siehe _make_accent_button()) bestehen aus dem
+        # Icon-Button plus einem separaten Text-Label und dessen Frame -
+        # beide muessen beim Umschalten dieselbe bg/fg wie der Button
+        # bekommen, sonst faerbt nur das Icon um, Text/Hintergrund bleiben
+        # auf der alten Farbe stehen.
+        if st['label'] is not None:
+            st['label'].config(bg=cfg['bg'], fg=cfg['fg'])
+            st['label'].master.config(bg=cfg['bg'])
 
 def zoom_disabled(disable):
   _set_icon_buttons(('-FULL_VIDEO-', '-DETAIL_VIDEO-'), not disable)
