@@ -36,6 +36,29 @@ Vereinslogo per MD5-Abgleich bestätigt korrekt eingespielt.
   ansible-galaxy collection install community.general
   ```
 
+### Control-Rechner ist ein Mac
+
+Alles oben gilt unverändert (die Playbooks laufen auf dem *verwalteten*
+Pi, nicht auf dem Mac) — nur die Installation von Ansible selbst
+unterscheidet sich:
+
+```bash
+brew install ansible
+```
+
+Installiert damit direkt das volle `ansible`-Paket (nicht nur
+`ansible-core`) inkl. `community.general` — der oben beschriebene
+zusätzliche `ansible-galaxy collection install`-Schritt entfällt dann.
+Wer stattdessen bewusst nur `ansible-core` will (z.B. um wie in diesem
+Projekt genutzt Lücken zwischen `ansible.builtin` und den Collections
+sichtbar zu halten, siehe Kommentar oben): `python3 -m pip install --user
+ansible-core`, dann weiterhin den `ansible-galaxy collection
+install community.general`-Schritt ausführen. In beiden Fällen wird kein
+Xcode/Homebrew-Zubehör auf dem *Pi* installiert — nur `git`,
+`ansible-playbook`, ein SSH-Key und (für den optionalen Boot-Overrides-
+Kniff im Anhang) der Finder zum Mounten der frisch geflashten SD-Karte
+werden auf dem Mac gebraucht.
+
 ## Schritt 0 — Manueller Vorbereitungsschritt: Passwortloses sudo
 
 **Das ist der einzige Schritt in dieser Anleitung, der nicht über Ansible

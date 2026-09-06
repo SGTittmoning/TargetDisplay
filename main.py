@@ -44,7 +44,7 @@ STREAM_STALE_TIMEOUT_SEC = 10
 # einen Ausfall WAEHREND eines bereits laufenden Streams.
 STREAM_STARTUP_TIMEOUT_SEC = 30
 
-version = '0.11.1'
+version = '0.11.2'
 
 cfg = config.load("config.yml")
 
