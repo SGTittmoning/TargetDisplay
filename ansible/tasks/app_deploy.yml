@@ -1,12 +1,22 @@
 ---
 # TargetDisplay selbst: Code, Python-Abhaengigkeiten (venv), Konfiguration.
 
+# Alle vier folgenden Tasks werden registriert (Checkout, venv, config.yml,
+# Logo) - startup_service.yml startet den Dienst nur dann neu, wenn
+# IRGENDEINER davon "changed" meldet. Frueher loeste ausschliesslich eine
+# Aenderung an der systemd-Unit-Datei selbst einen Neustart aus: ein reiner
+# App-Code-Update (z.B. ein neuer Commit auf demselben Branch) lief mit
+# state=started statt restarted durch - der laufende Prozess zeigte danach
+# unbemerkt weiterhin den ALTEN Code, obwohl Checkout/venv/config.yml/Logo
+# auf der Platte schon aktualisiert waren. Live am Test-Pi reproduziert und
+# mit dieser Registrierung behoben.
 - name: "Aktuellen TargetDisplay-Stand nach {{ targetdisplay_app_path }} holen"
   git:
     repo: "{{ targetdisplay_git_repo }}"
     dest: "{{ targetdisplay_app_path }}"
     force: yes
   become_user: "{{ targetdisplay_service_user }}"
+  register: targetdisplay_app_checkout
 
 - name: Python-Abhaengigkeiten aus requirements.txt in eine venv installieren
   pip:
@@ -15,6 +25,7 @@
     virtualenv_command: "python3 -m venv"
     virtualenv_site_packages: yes
   become_user: "{{ targetdisplay_service_user }}"
+  register: targetdisplay_app_venv
 
 - name: config.yml aus Template rendern
   template:
@@ -23,6 +34,7 @@
     owner: "{{ targetdisplay_service_user }}"
     group: "{{ targetdisplay_service_user }}"
     mode: "0600"
+  register: targetdisplay_app_config
 
 # ressources/logo.png kommt bereits ueber den Git-Checkout oben mit (das im
 # Repo mitgelieferte generische Platzhalter-Wappen, quasi das "dist"-Logo).
@@ -49,3 +61,4 @@
     mode: "0644"
   become_user: "{{ targetdisplay_service_user }}"
   when: targetdisplay_custom_logo.stat.exists
+  register: targetdisplay_app_logo

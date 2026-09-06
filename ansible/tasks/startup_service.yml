@@ -29,6 +29,7 @@
     owner: "{{ targetdisplay_service_user }}"
     group: "{{ targetdisplay_service_user }}"
     mode: "0700"
+  register: targetdisplay_xinitrc
 
 - name: targetdisplay.service aus Template rendern
   template:
@@ -56,8 +57,23 @@
     state: stopped
   failed_when: false
 
+# Neustart nicht nur bei einer geaenderten Unit-Datei, sondern bei JEDER
+# Aenderung, die den laufenden Prozess betrifft (Checkout/venv/config.yml/
+# Logo aus app_deploy.yml, .xinitrc hier) - sonst laeuft ein reiner
+# App-Code-Update (z.B. neuer Commit, Branch-Wechsel) mit state=started statt
+# restarted durch und der bereits laufende Prozess zeigt unbemerkt weiterhin
+# den ALTEN Code, obwohl alle Dateien auf der Platte schon aktuell sind.
+# Live am Test-Pi reproduziert (2026-09-06) und mit dieser Registrierung
+# behoben.
 - name: targetdisplay.service aktivieren und (neu)starten
   systemd:
     name: targetdisplay.service
     enabled: yes
-    state: "{{ 'restarted' if targetdisplay_service_unit is changed else 'started' }}"
+    state: >-
+      {{ 'restarted' if (targetdisplay_service_unit is changed
+          or targetdisplay_xinitrc is changed
+          or targetdisplay_app_checkout is changed
+          or targetdisplay_app_venv is changed
+          or targetdisplay_app_config is changed
+          or targetdisplay_app_logo is changed)
+          else 'started' }}
