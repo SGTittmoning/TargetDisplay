@@ -1706,8 +1706,13 @@ def main():
           zoom_center = []
           _sync_reset_button(zoom_level, zoom_center)
         elif event == '-BLINK_START-':
-          zoom_disabled(True)
-          _sync_reset_button(zoom_level, zoom_center, globally_disabled=True)
+          # Zoom (Buttons, Klick-Pan UND Reset) bleibt waehrend Blinken
+          # bewusst nutzbar - Nutzer-Feedback: der Klick-Pan war ohnehin nie
+          # wirklich gesperrt (nur die beiden Buttons) und funktioniert
+          # einwandfrei waehrend des Blinkens (Crop wird pro Frame nach der
+          # Referenz/Live-Auswahl angewendet, betrifft also beide gleich) -
+          # auf Wunsch deshalb jetzt fuer alle drei Zoom-Bedienwege einheitlich
+          # erlaubt statt nur fuer den Klick.
           timer_disabled(True)
           video_filter_disabled(True)
           _set_icon_buttons(('-BLINK_START-',), False)
@@ -1718,8 +1723,6 @@ def main():
           blink_ref = []
           blink = True
         elif event == '-BLINK_STOP-':
-          zoom_disabled(False)
-          _sync_reset_button(zoom_level, zoom_center)
           timer_disabled(False)
           blink_disabled(False)
           video_filter_disabled(False)
