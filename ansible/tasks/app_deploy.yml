@@ -3,17 +3,21 @@
 
 # Alle vier folgenden Tasks werden registriert (Checkout, venv, config.yml,
 # Logo) - startup_service.yml startet den Dienst nur dann neu, wenn
-# IRGENDEINER davon "changed" meldet. Frueher loeste ausschliesslich eine
-# Aenderung an der systemd-Unit-Datei selbst einen Neustart aus: ein reiner
-# App-Code-Update (z.B. ein neuer Commit auf demselben Branch) lief mit
-# state=started statt restarted durch - der laufende Prozess zeigte danach
-# unbemerkt weiterhin den ALTEN Code, obwohl Checkout/venv/config.yml/Logo
-# auf der Platte schon aktualisiert waren. Live am Test-Pi reproduziert und
-# mit dieser Registrierung behoben.
+# IRGENDEINER davon "changed" meldet. Ohne diese Registrierung wuerde ein
+# reiner App-Code-Update (z.B. ein neuer Commit auf demselben Branch) mit
+# state=started statt restarted durchlaufen, und der laufende Prozess wuerde
+# unbemerkt weiterhin den ALTEN Code zeigen, obwohl Checkout/venv/config.yml/
+# Logo auf der Platte schon aktualisiert sind.
 - name: "Aktuellen TargetDisplay-Stand nach {{ targetdisplay_app_path }} holen"
   git:
     repo: "{{ targetdisplay_git_repo }}"
     dest: "{{ targetdisplay_app_path }}"
+    # Standardmaessig der Default-Branch des Repos (aktuell "main") - ohne
+    # dieses Argument wuerde ein Test-Deploy eines Feature-Branches (z.B.
+    # "tkinter-rewrite" vor dessen Merge) sonst still den falschen,
+    # unbeabsichtigten Stand ausrollen. Ueberschreibbar per
+    # "-e targetdisplay_git_version=<branch|tag|commit>", siehe README.
+    version: "{{ targetdisplay_git_version | default('main') }}"
     force: yes
   become_user: "{{ targetdisplay_service_user }}"
   register: targetdisplay_app_checkout

@@ -11,9 +11,9 @@ def compute_perspective_matrix(pts, dsize):
   # gibt). pts_full/pts_detail aendern sich zur Laufzeit nie (nur ein
   # Neustart nach einer Settings-Aenderung setzt sie neu) - die Matrix wird
   # deshalb bewusst einmalig in main() berechnet und pro Frame nur noch
-  # mit cv2.warpPerspective() angewendet, statt sie (und die vorher
-  # zusaetzlich noetige separate cv2.resize()-Skalierung auf VideoSize) bei
-  # jedem einzelnen Frame neu zu berechnen.
+  # mit cv2.warpPerspective() angewendet - warpPerspective() skaliert direkt
+  # auf dsize mit, eine zusaetzliche separate cv2.resize()-Skalierung auf
+  # VideoSize ist damit nicht noetig.
   rect = order_points(pts)
   dst = np.array([
     [0, 0],

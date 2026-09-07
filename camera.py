@@ -80,13 +80,11 @@ class Camera:
                     # genau dieses next(frame_iter) zu unterbrechen - kein
                     # echter Verbindungsfehler, kein Retry noetig.
                     break
-                # Bisher wurde hier stillschweigend weiterversucht, ohne
-                # jemals zu protokollieren WAS eigentlich schiefging - bei der
-                # Fehlersuche zu Reboot-Guard-Fehlausloesungen (2026-08-28)
-                # gab es dadurch keinerlei Anhaltspunkt, ob/wie oft/warum
-                # Verbindungsversuche scheitern. Deshalb jetzt Typ+Meldung
-                # jedes einzelnen Fehlschlags loggen (via stderr, landet ueber
-                # StandardError=journal des Service in journald).
+                # Typ+Meldung jedes einzelnen Fehlschlags loggen (via stderr,
+                # landet ueber StandardError=journal des Service in
+                # journald), sonst gibt es keinerlei Anhaltspunkt, ob/wie
+                # oft/warum Verbindungsversuche scheitern - relevant u.a. fuer
+                # die Fehlersuche bei Reboot-Guard-Fehlausloesungen.
                 print(f"camera.py: Verbindungs-/Decode-Fehler ({type(e).__name__}: {e}), naechster Versuch in {self.reconnect_delay}s", file=sys.stderr)
                 if container is not None:
                     container.close()
@@ -135,7 +133,7 @@ class Camera:
         # Vor dem allerersten Frame gilt ein eigener, grosszuegigerer
         # "startup_timeout" statt "timeout": av.open() hat keinen expliziten
         # Verbindungs-Timeout, ein frischer Verbindungsaufbau kann je nach
-        # Netzwerk/Server-Zustand vereinzelt 30s+ dauern (beobachtet), obwohl
+        # Netzwerk/Server-Zustand vereinzelt 30s+ dauern, obwohl
         # camera.py dabei keineswegs haengt - "timeout" ist dagegen bewusst
         # knapp bemessen fuer den Fall eines Ausfalls WAEHREND eines bereits
         # laufenden Streams. Ohne diese Unterscheidung wuerde ein einfach nur

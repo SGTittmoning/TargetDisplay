@@ -57,23 +57,25 @@
     state: stopped
   failed_when: false
 
-# Neustart nicht nur bei einer geaenderten Unit-Datei, sondern bei JEDER
-# Aenderung, die den laufenden Prozess betrifft (Checkout/venv/config.yml/
-# Logo aus app_deploy.yml, .xinitrc hier) - sonst laeuft ein reiner
-# App-Code-Update (z.B. neuer Commit, Branch-Wechsel) mit state=started statt
-# restarted durch und der bereits laufende Prozess zeigt unbemerkt weiterhin
-# den ALTEN Code, obwohl alle Dateien auf der Platte schon aktuell sind.
-# Live am Test-Pi reproduziert (2026-09-06) und mit dieser Registrierung
-# behoben.
+# Neustart erfolgt, wenn IRGENDEINER der App-Deploy-Schritte (Checkout,
+# venv, config.yml, Logo) ODER die Unit-Datei/.xinitrc sich geaendert hat -
+# nicht nur bei einer geaenderten Unit-Datei. Ein reiner App-Code-/
+# Config-Update (z.B. Wechsel auf einen anderen Branch/Commit via
+# targetdisplay_git_version, oder eine geaenderte config.yml/venv/Logo) OHNE
+# Unit-Aenderung wuerde sonst nur mit "started" durchlaufen (kein Neustart
+# bei bereits laufendem Service), und der laufende Prozess wuerde weiterhin
+# den ALTEN Code/State zeigen, obwohl Checkout/venv/config.yml/Logo auf der
+# Platte bereits aktuell sind.
 - name: targetdisplay.service aktivieren und (neu)starten
   systemd:
     name: targetdisplay.service
     enabled: yes
     state: >-
-      {{ 'restarted' if (targetdisplay_service_unit is changed
-          or targetdisplay_xinitrc is changed
-          or targetdisplay_app_checkout is changed
-          or targetdisplay_app_venv is changed
-          or targetdisplay_app_config is changed
-          or targetdisplay_app_logo is changed)
-          else 'started' }}
+      {{ 'restarted' if (
+        targetdisplay_service_unit is changed or
+        targetdisplay_xinitrc is changed or
+        targetdisplay_app_checkout is changed or
+        targetdisplay_app_venv is changed or
+        targetdisplay_app_config is changed or
+        targetdisplay_app_logo is changed
+      ) else 'started' }}

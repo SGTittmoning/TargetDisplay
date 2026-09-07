@@ -1,13 +1,12 @@
 # Pinned to the versions verified running on the production Pis (stand1, 2026-08-21).
 # Install with: pip3 install -r requirements.txt
 
-PySimpleGUI==4.60.5.1
-# 4.32.1 (the version actually running on stand1-5) was pulled from PyPI at
-# some point after that install - "pip install PySimpleGUI==4.32.1" now
-# 404s (verified during the ansible test-Pi install, 2026-08-28), so a fresh
-# install can only ever get 4.60.5.1, the last freely available release.
-# Anything newer requires a paid license and will fail/nag without one.
-# Do not upgrade past 4.60.5.1.
+# GUI is plain Tkinter (stdlib, via the python3-tk apt package) - no separate
+# GUI package to pip-install/pin anymore. Previously PySimpleGUI, which had
+# to be pinned to 4.60.5.1 because 4.32.1 was pulled from PyPI without
+# replacement and anything past 4.60.5.1 required a paid license - permanent
+# independence from exactly that kind of third-party-package risk was the
+# reason for the Tkinter rewrite.
 
 config-with-yaml==0.1.0
 

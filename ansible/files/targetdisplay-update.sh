@@ -22,8 +22,8 @@
 # Nach demselben Muster wie im oeffentlichen CamDisplay-Repo:
 # https://github.com/SGTittmoning/CamDisplay
 #
-# WICHTIG (gefunden 2026-08-28, siehe targetdisplay-reboot-guard.sh fuer
-# Details): "[ cond ] && cmd" als LETZTE Anweisung einer Funktion liefert
+# WICHTIG (siehe targetdisplay-reboot-guard.sh fuer Details): "[ cond ] &&
+# cmd" als LETZTE Anweisung einer Funktion liefert
 # unter "set -e" bei falschem cond Exit-Code 1 - und da write_state()/
 # clear_state() unten als blanke Anweisungen (nicht in if/||) aufgerufen
 # werden, bricht das den jeweiligen Aufrufer sofort ab, sobald die

@@ -2,8 +2,14 @@
 
 cd "$(dirname "$(readlink -f "$0")")"
 
-echo "****************************************************************************************" >> /tmp/play_it.log
-echo "`date`: Starting up TargetDisplay..." >> /tmp/play_it.log
+# Bewusst KEINE eigene Log-Datei: main.py's stdout/stderr bleiben
+# unumgeleitet und laufen ueber play_it -> xinit -> die X11-Session ->
+# targetdisplay.service, dessen StandardOutput=journal/StandardError=journal
+# (siehe targetdisplay.service.j2) sie dauerhaft und durchsuchbar in
+# journald ablegt: "journalctl -u targetdisplay.service" zeigt so jeden
+# Neustart-Zyklus vollstaendig, statt bei einer bei jedem Neustart
+# ueberschriebenen Datei nur den letzten.
+echo "Starting up TargetDisplay..."
 
 # Bewusst nur EIN Versuch hier, keine eigene Retry-Schleife mehr - das
 # Zaehlen/Eskalieren passiert komplett auf systemd-Ebene
@@ -13,8 +19,8 @@ echo "`date`: Starting up TargetDisplay..." >> /tmp/play_it.log
 # scheitert -> systemd startet automatisch neu. Nach der konfigurierten
 # Anzahl Fehlschlaege in Folge greift dessen OnFailure= (Pi-Reboot mit
 # persistentem Zaehler, siehe tasks/reboot_guard.yml).
-.venv/bin/python3 ./main.py > /tmp/play_it.out 2>&1
+.venv/bin/python3 ./main.py
 RET=$?
 
-echo "`date`: TargetDisplay beendet (exit ${RET})." >> /tmp/play_it.log
+echo "TargetDisplay beendet (exit ${RET})."
 exit "${RET}"

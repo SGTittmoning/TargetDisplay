@@ -21,7 +21,7 @@ Fullscreen kiosk display for a shooting-range target camera. Straightens out the
 ## Requirements
 
 - Raspberry Pi (or similar Linux SBC) with an attached display (touchscreen recommended)
-- Python 3 with `opencv-python`, `numpy`, `PySimpleGUI` (**pinned to 4.60.5.1 or older** — later releases require a paid license), `config_with_yaml`
+- Python 3 with `opencv-python`, `numpy`, `config_with_yaml`, `av`, and `python3-tk` (the GUI is plain Tkinter — ships with CPython, no separate GUI package to install/pin)
 - An RTSP/RTMP camera feed
 
 In production this runs on a Raspberry Pi 4, Raspberry Pi OS Lite (64-bit), with a Joy-IT RB-LCD10-2 10.1" HDMI touchscreen.
@@ -37,7 +37,7 @@ python3 main.py
 
 `requirements.txt` pins the versions verified against production. On Debian/Raspberry Pi OS, prefer installing `opencv-python`/`numpy` via `apt` (`python3-opencv`, `python3-numpy`) instead of pip — see the comments in `requirements.txt` for why.
 
-`ressources/logo.png` (RGBA) is shown small in the sidebar and centered as a watermark when the video feed is toggled off — ships with a generic placeholder shield, swap in your own club/range logo there. The app runs fine without one too (missing file, not an error — the logo areas just stay empty).
+`ressources/logo.png` (RGBA) is shown centered as a watermark when the video feed is toggled off ("Video aus") — ships with a generic placeholder shield, swap in your own club/range logo there. The app runs fine without one too (missing file, not an error — the watermark just stays empty). It is not shown anywhere else on the main screen (an earlier small always-visible sidebar copy was removed — it got visually lost next to the large clock).
 
 On the production Pis, `pip`-managed dependencies live in a `.venv` (created with `--system-site-packages` so it still sees the apt-installed `opencv`/`numpy`/`tkinter`), and `play_it` runs `main.py` through `.venv/bin/python3`:
 

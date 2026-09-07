@@ -119,11 +119,12 @@
   when: targetdisplay_timesyncd_conf is changed
 
 # journald speichert standardmaessig nur fluechtig unter /run/log/journal -
-# ueberlebt keinen Reboot. Genau das machte die Fehlersuche beim Reboot-Guard-
-# Testing wiederholt unmoeglich (Logs vom Absturz/Reboot-Zyklus waren nach dem
-# naechsten Boot weg). Persistente Journal-Speicherung unter /var/log/journal
-# behebt das. Sobald spaeter das Root-Overlay aktiv ist (Produktion), landen
-# Schreibzugriffe wie bei jeder anderen Datei im fluechtigen tmpfs-Layer -
+# ueberlebt keinen Reboot, was die Fehlersuche nach einem Absturz-/
+# Reboot-Zyklus des Reboot-Guards unmoeglich machen wuerde (Logs davon waeren
+# nach dem naechsten Boot weg). Persistente Journal-Speicherung unter
+# /var/log/journal behebt das. Sobald spaeter das Root-Overlay aktiv ist
+# (Produktion), landen Schreibzugriffe wie bei jeder anderen Datei im
+# fluechtigen tmpfs-Layer -
 # faellt also automatisch und unschaedlich auf das bisherige Verhalten
 # zurueck, kein gesonderter Rueckbau noetig.
 #
@@ -132,19 +133,18 @@
 # (/usr/lib/systemd/journald.conf.d/40-rpi-volatile-storage.conf) mit
 # "Storage=volatile", das die Haupt-Config immer überschreibt (Drop-ins
 # gewinnen grundsaetzlich gegen die Haupt-Config). Eigenes Drop-in mit
-# alphabetisch spaeterem Namen noetig, um das zu ueberstimmen - empirisch
-# verifiziert (2026-08-28) per "systemd-analyze cat-config systemd/journald.conf".
+# alphabetisch spaeterem Namen noetig, um das zu ueberstimmen (per
+# "systemd-analyze cat-config systemd/journald.conf" nachvollziehbar).
 #
 # Zusaetzlich WICHTIG: Ein blosses "systemctl restart systemd-journald" nach
 # der Config-Aenderung reicht NICHT - journald bleibt dabei live im
 # volatilen Modus haengen. Erst nach einem echten Reboot greift die neue
-# Storage-Einstellung zuverlaessig (ebenfalls live verifiziert).
-# Aufraeumen eines fruehen, falschen Versuchs (direkte Aenderung an der
-# Haupt-Config statt einem Drop-in, siehe oben) - dieser Task lief bereits
-# einmal live und hat "Storage=persistent" dort stehen lassen. Voellig
-# wirkungslos (wird vom RPi-Drop-in ueberschrieben), aber verwirrend fuer
-# spaeteres Lesen der Datei - Zeile wieder auskommentieren.
-- name: Alten, wirkungslosen direkten Storage-Eintrag aus der Haupt-Config wieder entfernen
+# Storage-Einstellung zuverlaessig.
+# Ein direkter "Storage=persistent"-Eintrag in der Haupt-Config waere
+# wirkungslos (wird vom RPi-Drop-in ueberschrieben) und nur verwirrend beim
+# spaeteren Lesen der Datei - dieser Task stellt sicher, dass die Zeile dort
+# auskommentiert bleibt, egal ob sie durch einen frueheren Lauf gesetzt wurde.
+- name: Direkten Storage-Eintrag aus der Haupt-Config auskommentiert halten
   lineinfile:
     path: /etc/systemd/journald.conf
     regexp: '^Storage=persistent$'
