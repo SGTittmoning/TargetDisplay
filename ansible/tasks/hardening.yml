@@ -76,3 +76,49 @@
   reboot:
     msg: "Reboot nach dtoverlay=disable-bt (config.txt)"
   when: targetdisplay_disable_bt is changed
+
+# SSH-Detailhaertung. Bewusst OHNE AllowUsers (noch nicht gewuenscht).
+# "validate" laesst sshd die neue Config per "sshd -t" gegenpruefen, BEVOR
+# sie uebernommen wird - ein Tippfehler koennte sshd sonst beim naechsten
+# Neustart am Start hindern und den Host aussperren.
+- name: "SSH: PermitRootLogin no (root loggt sich hier nie direkt ein, nur per sudo)"
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: "^#?PermitRootLogin"
+    line: "PermitRootLogin no"
+    validate: "sshd -T -f %s"
+  register: targetdisplay_ssh_rootlogin
+
+- name: "SSH: X11Forwarding no (ungenutzt)"
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: "^#?X11Forwarding"
+    line: "X11Forwarding no"
+    validate: "sshd -T -f %s"
+  register: targetdisplay_ssh_x11
+
+- name: "SSH: ClientAliveInterval 300 (haengende/tote Sessions nach 5 Minuten trennen)"
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: "^#?ClientAliveInterval"
+    line: "ClientAliveInterval 300"
+    validate: "sshd -T -f %s"
+  register: targetdisplay_ssh_aliveinterval
+
+- name: "SSH: ClientAliveCountMax 2 (Session nach 2 verpassten Keepalives trennen)"
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: "^#?ClientAliveCountMax"
+    line: "ClientAliveCountMax 2"
+    validate: "sshd -T -f %s"
+  register: targetdisplay_ssh_alivecountmax
+
+- name: sshd neu laden (nach Config-Aenderung)
+  systemd:
+    name: ssh
+    state: reloaded
+  when: >-
+    targetdisplay_ssh_rootlogin is changed or
+    targetdisplay_ssh_x11 is changed or
+    targetdisplay_ssh_aliveinterval is changed or
+    targetdisplay_ssh_alivecountmax is changed
