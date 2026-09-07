@@ -16,14 +16,12 @@ from camera import Camera
 from datetime import datetime
 from collections import deque
 
-# Diagnose fuer die am 2026-08-28 beobachteten Faelle, in denen der Dienst
-# beim Stoppen (z.B. "systemctl restart") nicht sofort reagierte und
-# systemd nach TimeoutStopSec per SIGKILL eingreifen musste - das zaehlt
-# systemd-seitig als eigener Fehlerzustand ("Failed with result 'timeout'")
-# und loest OnFailure=/den Reboot-Guard aus, VOELLIG unabhaengig von der
-# Staleness-Logik oben. Ohne diesen Handler war unklar, ob/wann main.py
-# das SIGTERM ueberhaupt erreicht - jetzt landet das im (jetzt persistenten)
-# Journal.
+# Ohne einen expliziten Handler ist im Journal nicht sichtbar, ob/wann
+# main.py ein SIGTERM (z.B. von "systemctl restart") ueberhaupt erreicht.
+# Reagiert main.py nicht rechtzeitig, greift systemd nach TimeoutStopSec
+# per SIGKILL ein - das zaehlt als eigener Fehlerzustand ("Failed with
+# result 'timeout'") und loest OnFailure=/den Reboot-Guard aus, unabhaengig
+# von der Staleness-Logik oben.
 def _handle_sigterm(signum, frame):
     print("SIGTERM empfangen, beende main.py.", file=sys.stderr)
     sys.exit(0)
@@ -84,18 +82,16 @@ VIDEO_ZOOM_FACTOR = 3
 
 
 def _clamp_zoom_center(center, zoom_factor=VIDEO_ZOOM_FACTOR):
-    # zoom_center lebt in main() als (x%, y%) und wurde bisher bei jedem
-    # Rand-Klick unbegrenzt weiter ueber 100/unter 0 hinaus verschoben -
-    # tl.crop() clampt seine EIGENE, rein lokale Kopie in Pixelkoordinaten
-    # fuers Anzeigen korrekt, gibt den geclampten Wert aber nie an
-    # zoom_center in main() zurueck. Nutzer-Feedback: nach mehreren Klicks
-    # am Rand "haengt" die jeweilige Achse fest - tatsaechlich war sie nur
-    # weit ausserhalb des gueltigen Bereichs abgedriftet und brauchte erst
-    # ebenso viele Klicks in die Gegenrichtung, um ueberhaupt wieder in den
-    # sichtbar wirksamen Bereich zurueckzukommen. tl.crop()s eigene Grenze
-    # haengt nur von zoom_factor ab (nicht von der tatsaechlichen Bild-
-    # groesse: offset/width ist immer 1/(2*zoom_factor)), kann hier also
-    # unabhaengig reproduziert werden.
+    # zoom_center lebt in main() als (x%, y%) und muss hier explizit geclampt
+    # werden: tl.crop() clampt nur seine EIGENE, rein lokale Kopie in
+    # Pixelkoordinaten fuers Anzeigen, gibt den geclampten Wert aber nie an
+    # zoom_center in main() zurueck - ohne diesen Clamp koennte der Wert bei
+    # wiederholten Rand-Klicks beliebig weit ueber 100/unter 0 hinauswandern,
+    # sodass mehrere Klicks in die Gegenrichtung noetig waeren, bevor sich
+    # wieder sichtbar etwas bewegt. Die Grenze haengt nur von zoom_factor ab
+    # (nicht von der tatsaechlichen Bildgroesse: offset/width ist immer
+    # 1/(2*zoom_factor)), kann hier also unabhaengig von tl.crop() berechnet
+    # werden.
     lo = 100 / (2 * zoom_factor)
     hi = 100 - lo
     return (min(max(center[0], lo), hi), min(max(center[1], lo), hi))
@@ -241,26 +237,16 @@ EDITOR_MAX_W, EDITOR_MAX_H = 1000, 620
 # Frames (Window._build_main_view(), Frame mit fester width/height +
 # pack_propagate(False) als harte Grenze), damit der gekuerzte Text inkl.
 # "…" nie ganz an die beiden Header-Icon-Buttons rechts daneben heranreicht.
-# Ersetzt eine fruehere, rein zeichenbasierte Kuerzung (STANDNAME_MAX_CHARS
-# = 30 Zeichen) - die passte noch zum alten 440px breiten Namensfeld ohne
-# Header-Icons, war aber nach deren Einfuehrung (Design-Runde 3) deutlich
-# zu grosszuegig: ein Live-Test mit einem nur 31 Zeichen langen Namen
-# ("Schützenverein Musterstadt-Nord") zeigte, dass der Frame den Text weit
-# VOR der 30-Zeichen-Grenze hart abschneidet - ohne "…", einfach mitten im
-# Wort. Eine Pixelmessung mit der tatsaechlich verwendeten Schrift
-# (Helvetica 24pt bold) ist robust gegenueber unterschiedlich breiten
-# Zeichen, waehrend ein fester Zeichen-Wert das nicht kann. Der erste Wert
-# (280px Frame / 260px Kuerzgrenze) war allerdings zu knapp bemessen -
-# Nutzer-Feedback: "da wäre ja noch einiges an Platz bevor die Buttons
-# angehen". Neu vermessen: Header ist 450px breit, die beiden 46px-Icon-
-# Buttons + 10px Abstand dazwischen brauchen exakt 102px - bis dahin sind
-# also 348px fuer den Namen frei, minus etwas Sicherheitsabstand zu den
-# Icons (Frame 330px, Kuerzgrenze 310px davon).
+# Eine Pixelmessung mit der tatsaechlich verwendeten Schrift (Helvetica
+# 24pt bold) ist robust gegenueber unterschiedlich breiten Zeichen, ein
+# fester Zeichen-Wert waere das nicht. Header ist 450px breit, die beiden
+# 46px-Icon-Buttons + 10px Abstand dazwischen brauchen exakt 102px - bis
+# dahin sind also 348px fuer den Namen frei, minus etwas Sicherheitsabstand
+# zu den Icons (Frame 330px, Kuerzgrenze 310px davon).
 STANDNAME_MAX_PX = 310
 
-# Helles Farbschema (Redesign 2026-09, ueber vier Design-Canvas-Runden mit
-# dem Nutzer abgestimmt - loest das alte PySimpleGUI-"LightGreen"-Theme ab).
-# Je Funktionsgruppe auf dem Hauptbildschirm (Zoom/Blinken/Timer) eine eigene
+# Helles Farbschema. Je Funktionsgruppe auf dem Hauptbildschirm
+# (Zoom/Blinken/Timer) eine eigene
 # Akzentfarbe statt Rahmen zur Unterscheidung; jede Akzentfarbe hat
 # zusaetzlich eine abgeschwaechte "Muted"-Variante fuer deaktivierte Buttons
 # (statt nur ausgegrautem Text) - siehe _make_accent_button()/
@@ -301,25 +287,22 @@ TIMEOUT_EVENT = '__TIMEOUT__'
 class Elem:
     # Duenner Wrapper um ein natives Tk-Widget, der nur die .update(...)-
     # Aufrufmuster abdeckt, die in diesem Skript tatsaechlich vorkommen -
-    # kein Nachbau von PySimpleGUI, nur genug, um window['-KEY-'].update(...)
-    # unveraendert weiterzuverwenden und dadurch den Rest der Datei (State-
-    # Machine, Event-Handling) fast unveraendert vom PySimpleGUI-Original
-    # uebernehmen zu koennen.
+    # ermoeglicht window['-KEY-'].update(...) als einheitliches Zugriffsmuster
+    # fuer die State-Machine/das Event-Handling, ohne dass jede Aufrufstelle
+    # zwischen den unterschiedlichen nativen Tk-Widget-APIs unterscheiden muss.
     def __init__(self, widget, show=None):
         self.widget = widget
-        # show: die exakten pack()-Kwargs, mit denen das Widget urspruenglich
-        # sichtbar gemacht wurde - fuer die drei Widgets mit visible=-Toggle
+        # show: die exakten pack()-Kwargs, mit denen das Widget sichtbar
+        # gemacht wird - fuer die drei Widgets mit visible=-Toggle
         # (-PIN_CANCEL-, -EDIT_CANCEL-, -STAND_BACK-) explizit beim
         # Registrieren mitgegeben, statt sie erst beim ersten Verstecken per
-        # w.pack_info() aus Tk zurueckzufragen. Live auf dem Test-Pi
-        # (Debian Trixie, Python 3.13) ist genau diese pack_info()-Abfrage
-        # beim ALLERERSTEN Verstecken mit "_tkinter.TclError: window ...
-        # isn't packed" gescheitert, obwohl das Widget nachweislich schon
-        # bei der Konstruktion gepackt wurde (auf Python 3.12 lokal nicht
-        # reproduzierbar - vermutlich eine Tcl/Tk-Versions-Eigenheit). Die
-        # pack()-Optionen sind zur Erstellungszeit ohnehin exakt bekannt,
-        # eine spaetere Tk-Rueckfrage ist unnoetig und genau die fragile
-        # Stelle.
+        # w.pack_info() aus Tk zurueckzufragen. Unter Debian Trixie/Python
+        # 3.13 kann genau diese pack_info()-Abfrage beim allerersten
+        # Verstecken mit "_tkinter.TclError: window ... isn't packed"
+        # fehlschlagen, obwohl das Widget bei der Konstruktion nachweislich
+        # gepackt wurde (Tcl/Tk-versionsabhaengig). Die pack()-Optionen sind
+        # zur Erstellungszeit ohnehin exakt bekannt, eine spaetere
+        # Tk-Rueckfrage ist unnoetig und genau die fragile Stelle.
         self._show_kwargs = show
         self._image_ref = None
 
@@ -347,15 +330,15 @@ class Elem:
 
 
 class Window:
-    # Ersetzt sg.Window: EIN Tk-Root mit mehreren als Geschwister-Frames
-    # angelegten "Seiten" (siehe _PAGE_KEYS), zwischen denen per
-    # Frame.tkraise() umgeschaltet wird (siehe show_page). read()/post()
-    # bilden das blockierende window.read()-Verhalten von PySimpleGUI nach:
+    # EIN Tk-Root mit mehreren als Geschwister-Frames angelegten "Seiten"
+    # (siehe _PAGE_KEYS), zwischen denen per Frame.tkraise() umgeschaltet
+    # wird (siehe show_page). read()/post() bilden ein synchrones,
+    # blockierendes Event-Read ueber dem eigentlich asynchronen Tk-Eventloop:
     # jedes Button-Kommando legt sein Event in eine Queue, read() pumpt den
     # Tk-Eventloop per periodischem root.update() und liefert das naechste
-    # Event (oder nach Ablauf von timeout ein TIMEOUT_EVENT). Genau dieses
-    # Verhalten hat PySimpleGUI intern ohnehin schon so umgesetzt - hier nur
-    # ohne die Abstraktionsschicht dazwischen.
+    # Event (oder nach Ablauf von timeout ein TIMEOUT_EVENT) - dadurch bleibt
+    # der Rest der Datei (State-Machine, Event-Handling) eine einfache
+    # sequenzielle Schleife statt callback-getriebenem Code.
     def __init__(self, cfg, video_size):
         self.video_size = video_size
         self.screen_size = cfg.getProperty('screenSize')
@@ -433,18 +416,15 @@ class Window:
         # Gemeinsamer Baustein fuer alle farbcodierten Hauptbildschirm-Buttons
         # (Zoom/Blinken/Timer, inkl. des reinen Text-Buttons "Timer Stop").
         # Der Button bleibt bewusst IMMER state=NORMAL - "deaktiviert" wird
-        # rein optisch (Muted-Flaeche/-Icon, siehe Design-Runde 2) UND
-        # funktional (command wird zu einem No-Op statt self.post(key), s.u.)
-        # simuliert, nie ueber Tks eigenes state=DISABLED. Grund: ein
-        # tk.Button mit -image zeichnet im disabled-Zustand automatisch ein
-        # eingebautes Schachbrett-Stipple-Muster UEBER das Bild (der
-        # klassische Motif-"insensitive"-Look, X11-spezifisch) - es gibt
-        # dafuer keine abschaltbare Option (ein Versuch mit -disabledimage
-        # ist mit "_tkinter.TclError: unknown option" abgestuerzt, dieses
-        # Option existiert schlicht nicht bei tk.Button). Live auf dem
-        # Test-Pi sah das wie ein Rendering-Defekt aus ("Icons sehen nicht
-        # sauber aus, Farbe passt nicht"), obwohl PNG/Alpha der Icons in
-        # Ordnung waren - das Stipple kam einzig von state=DISABLED selbst.
+        # rein optisch (Muted-Flaeche/-Icon) UND funktional (command wird zu
+        # einem No-Op statt self.post(key), s.u.) simuliert, nie ueber Tks
+        # eigenes state=DISABLED. Grund: ein tk.Button mit -image zeichnet im
+        # disabled-Zustand automatisch ein eingebautes Schachbrett-Stipple-
+        # Muster UEBER das Bild (der klassische Motif-"insensitive"-Look,
+        # X11-spezifisch) - es gibt dafuer keine abschaltbare Option
+        # (-disabledimage existiert bei tk.Button nicht). Das Stipple wuerde
+        # wie ein Rendering-Defekt wirken, unabhaengig davon wie sauber
+        # PNG/Alpha der Icons selbst sind.
         icon = (icon_on if start_enabled else icon_off) if icon_on is not None else None
         bg = accent_bg if start_enabled else muted_bg
         fg = accent_fg if start_enabled else muted_fg
@@ -470,28 +450,23 @@ class Window:
         # Icon+Text-Buttons: Tks eigenes compound='top' (Bild+Text in EINEM
         # Widget) packt zwischen Bild und Text einen deutlich groesseren,
         # nicht konfigurierbaren Abstand als am oberen/unteren Rand des
-        # Buttons (live vermessen per Screenshot-Pixelanalyse: ca. 10-14px
-        # Bild-Text-Luecke gegen nur 1-5px Rand-Luecke, unabhaengig von
-        # -pady). Bei einzeiligem Text fiel das kaum auf, bei den
-        # zweizeilig umbrechenden Labels ("Ganze Scheibe"/"Innen Scheibe")
-        # sah der Inhalt dadurch sichtbar "nach oben verrutscht" aus
-        # (Nutzer-Feedback nach Test auf echtem Display). Fix: Icon (reiner
-        # Bild-Button) und Text (eigenes Label) als zwei gestapelte Widgets
-        # mit selbst gewaehltem, gleichmaessigem Abstand statt eines
-        # einzelnen Compound-Widgets - dafuer noetig: ._btn_style haelt
-        # zusaetzlich das Label, damit _set_icon_buttons() dessen bg/fg mit
-        # umschalten kann.
+        # Buttons, unabhaengig von -pady. Bei zweizeilig umbrechenden Labels
+        # ("Ganze Scheibe"/"Innen Scheibe") wirkt der Inhalt dadurch sichtbar
+        # nach oben verschoben. Deshalb Icon (reiner Bild-Button) und Text
+        # (eigenes Label) als zwei gestapelte Widgets mit selbst gewaehltem,
+        # gleichmaessigem Abstand statt eines einzelnen Compound-Widgets -
+        # dafuer noetig: ._btn_style haelt zusaetzlich das Label, damit
+        # _set_icon_buttons() dessen bg/fg mit umschalten kann.
         frame = tk.Frame(parent, bg=bg)
         # inner-Frame statt Icon+Label direkt in frame packen: pack_equal()
         # streckt alle Buttons einer Zeile per grid(sticky='nsew') auf die
         # Hoehe des groessten Geschwisters - in der Zoom-Zeile ist das die
         # zweizeilige "Ganze/Innen Scheibe". Ohne inner-Frame haengt der
         # Inhalt oben im (dadurch viel hoeheren) Reset-Frame und sitzt
-        # sichtbar hoeher als bei einzeiligen Buttons in kuerzeren Zeilen
-        # (Start/Stop/Timer) - Nutzer-Feedback: "Platzierung nicht
-        # identisch wie bei den anderen einzeiligen Buttons". inner.pack
-        # (expand=True) zentriert den Icon+Text-Block vertikal im jeweils
-        # tatsaechlich zugewiesenen Platz, egal wie hoch die Zeile wird.
+        # dadurch hoeher als bei einzeiligen Buttons in kuerzeren Zeilen
+        # (Start/Stop/Timer). inner.pack(expand=True) zentriert den
+        # Icon+Text-Block vertikal im jeweils tatsaechlich zugewiesenen
+        # Platz, egal wie hoch die Zeile wird.
         inner = tk.Frame(frame, bg=bg)
         inner.pack(expand=True)
         b = tk.Button(inner, image=icon, bg=bg, activebackground=bg,
@@ -504,12 +479,11 @@ class Window:
         # Klick soll ueberall auf der Buttonflaeche denselben Effekt wie ein
         # Klick auf das Icon haben - invoke() ruft das GERADE konfigurierte
         # command auf, respektiert also automatisch den enabled/disabled-
-        # No-Op-Swap oben. Bug gefunden durch den Nutzer auf dem echten
-        # Touch-Display: nur Icon (tk.Button) und Label hatten einen
-        # Klick-Handler, die umgebende Frame-/inner-Flaeche (der komplette
-        # Rand rund um Icon+Text, siehe inner.pack(expand=True) oben) blieb
-        # tot - auf einem Touchscreen muss aber die GESAMTE farbige Flaeche
-        # reagieren, nicht nur Icon und Textzeile selbst.
+        # No-Op-Swap oben. Auf einem Touchscreen muss die GESAMTE farbige
+        # Flaeche reagieren, nicht nur Icon (tk.Button) und Textzeile
+        # selbst - deshalb bindet auch die umgebende Frame-/inner-Flaeche
+        # (der komplette Rand rund um Icon+Text, siehe inner.pack(expand=True)
+        # oben) denselben Klick-Handler.
         for w in (frame, inner, label):
             w.bind('<Button-1>', lambda e: b.invoke())
 
@@ -579,11 +553,10 @@ class Window:
 
     def draw_image(self, frame):
         # PPM statt PNG: tk.PhotoImage(data=...) akzeptiert PPM-Bytes direkt,
-        # ohne Kompression - dieselbe Begruendung/Messung wie zuvor unter
-        # PySimpleGUI (das intern fuer Graph.draw_image() exakt denselben
-        # tk.PhotoImage(data=...)-Aufruf gemacht hat, siehe INTERNAL_NOTES
-        # Performance-Abschnitt). itemconfig() statt delete+neu erzeugen
-        # spart zusaetzlich die vorherige delete_figure-Buchhaltung.
+        # ohne Kompression - das entfaellt hier pro Frame, waehrend PNG bei
+        # jedem Frame neu komprimiert werden muesste. itemconfig() statt
+        # delete+neu erzeugen vermeidet zusaetzlich jede eigene Buchhaltung
+        # ueber das vorherige Canvas-Item.
         imgbytes = cv2.imencode('.ppm', frame)[1].tobytes()
         photo = tk.PhotoImage(data=imgbytes)
         self._video_image = photo
@@ -600,19 +573,17 @@ class Window:
         # Einheitlicher Aussenabstand auf allen 4 Seiten, aus config.yml
         # berechnet statt hartkodiert: die Bildhoehe (video.size.y) ist
         # praktisch immer der engste Faktor (bei 800px Bildschirmhoehe und
-        # 780px Bildhoehe bleiben nur 20px insgesamt, also 10px oben+unten -
-        # live am Test-Pi gemessen, urspruenglich 0px links vs. 60px rechts
-        # uebrig, deutlich asymmetrisch). Der ueberschuessige horizontale
-        # Platz landet nicht als reiner rechter Rand, sondern sichtbar als
-        # Luecke zwischen Button-Spalte und Video (siehe spacer unten) -
-        # dadurch bleibt der Aussenrand auf allen 4 Seiten exakt gleich.
+        # 780px Bildhoehe bleiben nur 20px insgesamt, also 10px oben+unten).
+        # Der ueberschuessige horizontale Platz landet nicht als reiner
+        # rechter Rand, sondern sichtbar als Luecke zwischen Button-Spalte
+        # und Video (siehe spacer unten) - dadurch bleibt der Aussenrand auf
+        # allen 4 Seiten exakt gleich.
         margin = max(0, (self.screen_size[1] - self.video_size[1]) // 2)
 
-        # Feste 450px-Breite (statt wie zuvor inhaltsbestimmt) - exakt der
-        # Wert aus den mit dem Nutzer abgestimmten Design-Canvas-Mockups
-        # (Design-Runden 1-4). pack_propagate(False) erzwingt das hart, die
-        # drei Button-Reihen darunter teilen sich diese Breite ueber
-        # fill='both'+expand=True gleichmaessig auf (siehe pack_equal()) -
+        # Feste 450px-Breite (statt inhaltsbestimmt). pack_propagate(False)
+        # erzwingt das hart, die drei Button-Reihen darunter teilen sich
+        # diese Breite ueber fill='both'+expand=True gleichmaessig auf
+        # (siehe pack_equal()) -
         # das Tk-Aequivalent zu "grid-template-columns: repeat(3, 1fr)" im
         # Mockup, da Tk kein CSS-Grid kennt.
         left = tk.Frame(page, bg=BG, width=450)
@@ -629,23 +600,21 @@ class Window:
         self.video_canvas = video_canvas
 
         # -- Header: Standname links, zwei kleine neutrale Icon-Buttons
-        # rechts (Video aus, Settings mit Schloss-Badge) - bewusst NICHT
-        # mehr so prominent wie die vorherigen breiten Textbuttons
-        # (Nutzer-Feedback Design-Runde 3: "Settings-Zugang muss nicht so
-        # prominent sein"). Restart ist ausschliesslich ueber Settings ->
-        # Menue erreichbar (siehe _build_menu_view/run_settings_flow),
-        # kein eigener Button mehr auf der Hauptseite.
+        # rechts (Video aus, Settings mit Schloss-Badge) - bewusst zurueck-
+        # haltend statt prominenter Textbuttons. Restart ist ausschliesslich
+        # ueber Settings -> Menue erreichbar (siehe
+        # _build_menu_view/run_settings_flow), kein eigener Button mehr auf
+        # der Hauptseite.
         header = tk.Frame(left, bg=BG)
         header.pack(side='top', fill='x', pady=(0, 18))
 
-        # sg.Text(size=...) allein reicht NICHT: das ist bei Tk nur eine
-        # Mindestbreite in Zeichen, kein Maximum - bei fetter/grosser Schrift
-        # wird das Element trotzdem breiter als size= wenn der Inhalt es
-        # verlangt. Der Standname kommt seit der Mehr-Stand-Faehigkeit aus
-        # der frei editierbaren targetdisplay-stands.json, nicht mehr aus
-        # einer kurzen, kontrollierten Ansible-Variable - ein zu langer Name
-        # hat live am Test-Pi das ganze Layout auseinandergedrueckt. Ein
-        # Frame mit fester width/height + pack_propagate(False) erzwingt
+        # Eine Tk-Breitenangabe in Zeichen (width=...) reicht NICHT: das ist
+        # nur eine Mindestbreite, kein Maximum - bei fetter/grosser Schrift
+        # wird das Element trotzdem breiter als width= wenn der Inhalt es
+        # verlangt. Der Standname kommt aus der frei editierbaren
+        # targetdisplay-stands.json, ist also nicht laengenbeschraenkt - ein
+        # zu langer Name wuerde sonst das ganze Layout auseinanderdruecken.
+        # Ein Frame mit fester width/height + pack_propagate(False) erzwingt
         # dagegen eine wirklich harte Breite - ueberstehender Inhalt wird
         # abgeschnitten statt den Frame zu vergroessern.
         name_frame = tk.Frame(header, width=330, height=38, bg=BG)
@@ -683,10 +652,9 @@ class Window:
         # BTN_GAP: sichtbarer Abstand zwischen benachbarten Touch-Buttons
         # (Finger sind ungenauer als ein Mauszeiger - direkt aneinander-
         # stossende Buttons riskieren Fehltreffer auf den Nachbar-Button).
-        # GROUP_GAP: Abstand zwischen den drei Funktionsgruppen. Die
-        # frueheren tk.LabelFrame-Rahmen ("Zoom"/"Blinken"/"Timer") sind
-        # durch eine schlichte Grossbuchstaben-Caption in der jeweiligen
-        # Akzentfarbe ersetzt (Design-Runde 2/3) - kein Rahmen mehr noetig,
+        # GROUP_GAP: Abstand zwischen den drei Funktionsgruppen. Jede Gruppe
+        # ("Zoom"/"Blinken"/"Timer") traegt statt eines Rahmens nur eine
+        # schlichte Grossbuchstaben-Caption in der jeweiligen Akzentfarbe -
         # die Farbe der Buttons selbst uebernimmt die Gruppierung.
         BTN_GAP = 10
         GROUP_GAP = 20
@@ -704,18 +672,14 @@ class Window:
             # NICHT gleich breit - Tk vergibt jedem Button zunaechst seine
             # eigene, inhaltsabhaengige "natuerliche" Breite (laengerer Text
             # = mehr Platz) und verteilt nur den DANACH uebrigen Leerraum
-            # gleichmaessig, siehe Tk-Doku zu pack(). Live gemessen: bei
-            # "Ganze Scheibe/Innen Scheibe/Reset" kam so 151/151/128px heraus,
-            # bei "Start/Referenz/Stop" sogar 130/175/125px - Nutzer-Feedback
-            # zu Recht "immer noch nicht gleich breit". grid() mit
-            # uniform= erzwingt dagegen ECHTE Gleichverteilung: alle Spalten
-            # einer uniform-Gruppe bekommen exakt dieselbe Breite, unabhaengig
-            # vom Inhalt. Der Zwischenraum wird bewusst als EIGENE, schmale
+            # gleichmaessig, siehe Tk-Doku zu pack(). grid() mit uniform=
+            # erzwingt dagegen ECHTE Gleichverteilung: alle Spalten einer
+            # uniform-Gruppe bekommen exakt dieselbe Breite, unabhaengig vom
+            # Inhalt. Der Zwischenraum wird bewusst als EIGENE, schmale
             # Spacer-Spalte (fixe minsize=gap, weight=0, NICHT Teil der
             # uniform-Gruppe) zwischen die Button-Spalten gesetzt, statt als
             # padx AM Button - sonst faellt der Randbutton (kein padx an der
-            # Aussenseite) breiter aus als die beiden mit Gap-padx (live
-            # gemessen: 140/140/150px statt wirklich identisch).
+            # Aussenseite) breiter aus als die beiden mit Gap-padx.
             parent = buttons[0].master
             col = 0
             for i, b in enumerate(buttons):
@@ -794,8 +758,8 @@ class Window:
         # Ohne image= interpretiert Tk width/height eines Buttons als
         # Text-ZEILEN/-ZEICHEN, nicht als Pixel (anders als bei den Icon-
         # Buttons oben) - "Timer Stop" hat bewusst kein Icon (reiner Text-
-        # Button, siehe Design-Runde 2/3). Fuer eine exakte Pixelhoehe daher
-        # derselbe Kniff wie bei name_frame oben: feste Frame-Hoehe +
+        # Button). Fuer eine exakte Pixelhoehe daher derselbe Kniff wie bei
+        # name_frame oben: feste Frame-Hoehe +
         # pack_propagate(False), der Button selbst fuellt sie per fill='both'.
         row2 = tk.Frame(timer_group, bg=BG, height=46)
         row2.pack(side='top', fill='x', pady=(BTN_GAP, 0))
@@ -805,17 +769,14 @@ class Window:
                                              start_enabled=False, font=('Helvetica', 14, 'bold'))
         stop_btn.pack(side='left', fill='both', expand=True)
 
-        # -- Footer (Design-Runde 4, Variante B). Kein Sidebar-Logo mehr
-        # (Nutzer-Feedback Design-Runde 5: das kleine Logo wirkte neben der
-        # jetzt grossen Uhrzeit verloren/"ueberdeckt") - das Vereinswappen
-        # bleibt ausschliesslich dem Blank-Screen-Wasserzeichen vorbehalten
-        # (siehe blend_logo_centered() bei '-TOGGLEVIDEO-' in main()). Ab
-        # hier (unterhalb von Timer Stop) war Anordnung/Groesse laut
-        # Nutzer-Vorgabe bewusst frei. side='bottom' in dieser Reihenfolge
-        # gepackt: die zuerst gepackte Version/FPS-Zeile landet ganz unten,
-        # die Datum/Uhrzeit-Flaeche darueber - macht zusammen mit dem
-        # zwischen Buttons und Footer liegenden, nicht explizit gepackten
-        # Rest-Platz denselben VPush()-Effekt wie im PySimpleGUI-Original.
+        # -- Footer. Kein Sidebar-Logo: das Vereinswappen bleibt
+        # ausschliesslich dem Blank-Screen-Wasserzeichen vorbehalten (siehe
+        # blend_logo_centered() bei '-TOGGLEVIDEO-' in main()). side='bottom'
+        # in dieser Reihenfolge gepackt: die zuerst gepackte Version/FPS-Zeile
+        # landet ganz unten, die Datum/Uhrzeit-Flaeche darueber - macht
+        # zusammen mit dem zwischen Buttons und Footer liegenden, nicht
+        # explizit gepackten Rest-Platz einen Spacer-Effekt, der den Footer
+        # unten haelt statt direkt unter den Buttons.
         version_row = tk.Frame(left, bg=BG)
         version_row.pack(side='bottom', fill='x')
         tk.Label(version_row, text='V: ' + version, font=('Helvetica', 11),
@@ -846,16 +807,13 @@ class Window:
 
         # Titeltext wechselt zur Laufzeit zwischen kurzen ("PIN eingeben")
         # und langen Varianten ("Neuen PIN eingeben (4-6 Ziffern)", "PINs
-        # stimmen nicht überein") - lag der Titel im selben grid() wie das
-        # Tastenfeld, hat ein langer Titel (mit columnspan=3) live am
-        # Test-Pi die drei Tastenfeld-Spalten gleichmaessig auseinander-
-        # gedrueckt (Tk verteilt fehlende Breite eines spannenden Widgets
-        # per Default auf die ueberspannten Spalten). Fix: Tastenfeld in
-        # eine EIGENE Frame mit eigenem grid() ausgelagert, dadurch komplett
-        # unabhaengig von der Breite des (separat gepackten) Titels - genau
-        # das Verhalten, das PySimpleGUIs zeilenbasiertes Layout hier von
-        # Haus aus hatte (dort nie ein gemeinsames grid() zwischen Titel und
-        # Tastenfeld).
+        # stimmen nicht überein"). Ein gemeinsames grid() von Titel und
+        # Tastenfeld wuerde bei einem langen Titel (mit columnspan=3) die
+        # drei Tastenfeld-Spalten gleichmaessig auseinanderdruecken (Tk
+        # verteilt fehlende Breite eines spannenden Widgets per Default auf
+        # die ueberspannten Spalten). Das Tastenfeld liegt deshalb in einer
+        # EIGENEN Frame mit eigenem grid(), dadurch komplett unabhaengig von
+        # der Breite des (separat gepackten) Titels.
         title = tk.Label(content, text='PIN eingeben', font=('Helvetica', 30), bg=BG, fg=FG_DARK)
         title.pack(padx=30, pady=(20, 10))
         self._reg('-PIN_TITLE-', title)
@@ -912,10 +870,10 @@ class Window:
                   command=lambda: self.post('-MENU_STAND-')).pack(pady=5)
         tk.Button(content, text='PIN ändern', width=24, height=3,
                   command=lambda: self.post('-MENU_PIN-')).pack(pady=5)
-        # Restart lebt seit dem Header-Redesign (Design-Runde 3) hier statt
-        # als eigener Button auf der Hauptseite - der PIN-Schutz besteht
-        # weiterhin unveraendert ueber den Settings-Zugang selbst (siehe
-        # '-SETTINGS-'-Handler in main()), keine zweite PIN-Abfrage noetig.
+        # Restart lebt bewusst nur hier im Menue statt als eigener Button auf
+        # der Hauptseite - der PIN-Schutz besteht ueber den Settings-Zugang
+        # selbst (siehe '-SETTINGS-'-Handler in main()), eine zweite
+        # PIN-Abfrage ist hier nicht noetig.
         tk.Button(content, text='Neu starten', width=24, height=3,
                   command=lambda: self.post('-MENU_RESTART-')).pack(pady=5)
         tk.Button(content, text='Zurück', width=24, height=2,
@@ -972,12 +930,11 @@ class Window:
                                 command=lambda: self.post('-STAND_SELECT-'))
         select_btn.pack(side='left', padx=10)
         self._reg('-STAND_SELECT-', select_btn)
-        # Heisst bewusst "Abbrechen": dieser Button ist nur sichtbar, wenn
-        # forced=False ist (freiwilliger Stand-Wechsel ueber das Settings-
-        # Menue - im erzwungenen Ersteinrichtungs-Assistenten bleibt er
-        # per visible=not forced versteckt) - "Zurück" war hier
-        # irrefuehrend, siehe Nutzer-Feedback: sollte wie die anderen
-        # Settings-Unteraktionen "Abbrechen" heissen.
+        # Heisst bewusst "Abbrechen" wie die anderen Settings-Unteraktionen,
+        # nicht "Zurück": dieser Button ist nur sichtbar, wenn forced=False
+        # ist (freiwilliger Stand-Wechsel ueber das Settings-Menue - im
+        # erzwungenen Ersteinrichtungs-Assistenten bleibt er per
+        # visible=not forced versteckt).
         back_btn = tk.Button(btnrow, text='Abbrechen', width=20, height=2,
                               command=lambda: self.post('-STAND_BACK-'))
         back_btn.pack(side='left', padx=10)
@@ -1069,11 +1026,10 @@ def check_pin(correct_pin):
 
 
 def confirm_reboot():
-    # Navigiert bewusst NICHT selbst weiter (frueher immer zu '-MAINVIEW-',
-    # unabhaengig von Bestaetigen/Abbrechen) - das entscheidet der Aufrufer,
+    # Navigiert bewusst NICHT selbst weiter - das entscheidet der Aufrufer,
     # der je nach Kontext nach einem Abbruch zurueck zum Settings-Menue statt
-    # zur Hauptseite will (siehe run_settings_flow(), Nutzer-Feedback: "Zurück
-    # geht nur einen Schritt zurück").
+    # zur Hauptseite will (siehe run_settings_flow(): Abbrechen geht dort nur
+    # einen Schritt zurueck, nicht bis zur Hauptseite).
     _show_page('-CONFIRMVIEW-')
     event, _ = window.read()
     return event == '-CONFIRM_YES-'
@@ -1205,9 +1161,9 @@ def edit_section_points(region_label, cap, points, other_points=None, allow_canc
     # dem Speichern IMMER per sys.exit(0) (Restart=always startet mit den
     # neuen Werten neu), der erzwungene Ersteinrichtungs-Assistent dagegen
     # laeuft nach dem Speichern eines einzelnen Ausschnitts einfach im selben
-    # Prozess weiter (siehe main()) - ohne diese Unterscheidung war "Speichern"
-    # im Settings-Kontext irrefuehrend, weil das Geraet danach unvermittelt
-    # kurz schwarz wird und neu startet (Nutzer-Feedback: "verwirrt extrem").
+    # Prozess weiter (siehe main()) - ohne diese Unterscheidung waere
+    # "Speichern" im Settings-Kontext irrefuehrend, weil das Geraet danach
+    # unvermittelt kurz schwarz wird und neu startet.
     frame = cap.getFrame(full=True)
     if frame is None:
         popup('Kein Kamerabild verfügbar - bitte später erneut versuchen.')
@@ -1224,8 +1180,8 @@ def edit_section_points(region_label, cap, points, other_points=None, allow_canc
     # das Layout wird nur einmal beim Programmstart gebaut), das
     # tatsaechliche Kamerabild passt je nach Seitenverhaeltnis meist nicht
     # exakt hinein. off_x/off_y zentrieren das skalierte Bild in diesem
-    # Canvas, statt es oben links kleben zu lassen (das erzeugte vorher
-    # einen einseitigen schwarzen Rand rechts).
+    # Canvas, statt es oben links kleben zu lassen (das wuerde sonst einen
+    # einseitigen schwarzen Rand rechts erzeugen).
     off_x, off_y = (EDITOR_MAX_W - disp_w) // 2, (EDITOR_MAX_H - disp_h) // 2
 
     HIT_RADIUS = 35   # grosszuegiger Trefferbereich fuer Finger, in Display-Pixeln
@@ -1254,7 +1210,7 @@ def edit_section_points(region_label, cap, points, other_points=None, allow_canc
     window['-EDITOR_TITLE-'].update(f'{region_label}: Eckpunkte anpassen')
     window['-EDIT_CANCEL-'].update(visible=allow_cancel)
     # Zweizeilig statt eine lange Zeile - "Speichern und neu starten" in
-    # einer Zeile hat den Button unschoen breit gemacht (Nutzer-Feedback).
+    # einer Zeile wuerde den Button unschoen breit machen.
     window['-EDIT_SAVE-'].update('Speichern und\nneu starten' if will_restart else 'Speichern')
     graph = window.editor_canvas
 
@@ -1290,13 +1246,11 @@ def edit_section_points(region_label, cap, points, other_points=None, allow_canc
         magbytes = cv2.imencode('.ppm', mag)[1].tobytes()
         # In der Canvas-Ecke verankert, die vom gerade gezogenen Punkt am
         # weitesten entfernt ist (nicht am Bild, damit die Position
-        # unabhaengig von Bildgroesse/Zentrierung vorhersehbar bleibt) -
-        # Bug gefunden durch den Nutzer: bei fest oben-rechts verankerter
-        # Lupe liess sich ein Punkt in dieser Ecke nicht mehr sinnvoll
-        # platzieren/verschieben, weil die Lupe selbst genau dort im Weg
-        # war. Springt jetzt in die jeweils gegenueberliegende Ecke, sobald
-        # der Punkt die Bildschirm-Mittellinie in X- oder Y-Richtung
-        # ueberquert.
+        # unabhaengig von Bildgroesse/Zentrierung vorhersehbar bleibt): eine
+        # fest verankerte Lupe wuerde in ihrer eigenen Ecke liegende Punkte
+        # beim Platzieren/Verschieben verdecken. Die Lupe springt deshalb in
+        # die jeweils gegenueberliegende Ecke, sobald der Punkt die
+        # Bildschirm-Mittellinie in X- oder Y-Richtung ueberquert.
         mag_margin = 10
         mag_x = mag_margin if center_disp[0] >= EDITOR_MAX_W / 2 else EDITOR_MAX_W - MAG_SIZE - mag_margin
         mag_y = mag_margin if center_disp[1] >= EDITOR_MAX_H / 2 else EDITOR_MAX_H - MAG_SIZE - mag_margin
@@ -1310,8 +1264,8 @@ def edit_section_points(region_label, cap, points, other_points=None, allow_canc
         # keiner festen Umlauf-Konvention (nicht zwingend im/gegen den
         # Uhrzeigersinn) - ein direktes Verbinden 1-2-3-4-1 in dieser
         # Reihenfolge kann daher ein sich selbst ueberschneidendes Viereck
-        # ("Bowtie") ergeben, live am Test-Pi beobachtet. Fuer den
-        # Verbindungs-Umriss werden die Punkte deshalb separat nach Winkel
+        # ("Bowtie") ergeben. Fuer den Verbindungs-Umriss werden die Punkte
+        # deshalb separat nach Winkel
         # um ihren Mittelpunkt sortiert (reiner Anzeige-Zweck) - die
         # Nummerierung/Zuordnung 1-4 der Punkte selbst bleibt unveraendert.
         cx = sum(p[0] for p in poly_pts) / 4
@@ -1394,10 +1348,10 @@ def run_settings_flow(cap, section_full, section_detail, stands, current_pin):
     # ist weniger fehleranfaellig als eine zweite, live-aktualisierte
     # Variable an mehreren Stellen mitzupflegen.
     # Jede Unteraktion (Ausschnitte/Stand/PIN/Restart) kehrt bei Abbruch oder
-    # einem Fehlschlag per "continue" zurueck zum Settings-Menue (statt bis
-    # zur Hauptseite durchzureichen) - Nutzer-Feedback: "Zurück geht nur
-    # einen Schritt zurück, ich lande sonst auf der Hauptseite statt im
-    # Settings-Menue". Nur ein tatsaechlicher '-MENU_BACK-' auf dieser Seite
+    # einem Fehlschlag per "continue" zurueck zum Settings-Menue, statt bis
+    # zur Hauptseite durchzureichen - ein Abbruch soll nur einen Schritt
+    # zurueckgehen, nicht bis zur Hauptseite springen. Nur ein tatsaechlicher
+    # '-MENU_BACK-' auf dieser Seite
     # selbst, oder eine ERFOLGREICH gespeicherte Aenderung (die ohnehin einen
     # Neustart ausloest, siehe Aufrufer), verlaesst die Schleife.
     while True:
@@ -1436,7 +1390,7 @@ def run_settings_flow(cap, section_full, section_detail, stands, current_pin):
             _show_page('-MAINVIEW-')
             return True
         elif event == '-MENU_RESTART-':
-            # Restart lebt seit dem Header-Redesign hier statt als eigener
+            # Restart lebt bewusst hier im Menue statt als eigener
             # Hauptbildschirm-Button (siehe _build_menu_view) - der Zugang
             # ist bereits durch den vorgelagerten check_pin() in main()s
             # '-SETTINGS-'-Handler geschuetzt, keine zweite PIN-Abfrage noetig.
@@ -1482,12 +1436,11 @@ def zoom_disabled(disable):
 
 def _sync_reset_button(zoom_level, zoom_center, globally_disabled=False):
   # Reset ist nur dann sinnvoll klickbar, wenn der Zoom vom Standard
-  # abweicht (nicht "Ganze Scheibe" und/oder ein manueller Pan aktiv) - Bug
-  # gefunden durch den Nutzer: vorher blieb der Button dauerhaft deaktiviert,
-  # unabhaengig vom Zoom-Zustand, und "Reset" selbst hat nur den Pan
-  # zurueckgesetzt, nicht aber einen aktiven "Innen Scheibe"-Zoom. Beides ist
-  # jetzt behoben, siehe die vier Aufrufstellen unten (Full/Detail/Video-Pan/
-  # Reset selbst) sowie an jeder zoom_disabled()-Stelle im Hauptloop.
+  # abweicht (nicht "Ganze Scheibe" und/oder ein manueller Pan aktiv).
+  # "Reset" selbst muss dabei sowohl einen aktiven manuellen Pan als auch
+  # einen aktiven "Innen Scheibe"-Zoom zuruecksetzen - siehe die vier
+  # Aufrufstellen unten (Full/Detail/Video-Pan/Reset selbst) sowie an jeder
+  # zoom_disabled()-Stelle im Hauptloop.
   enabled = (not globally_disabled) and (zoom_level != 'full' or bool(zoom_center))
   _set_icon_buttons(('-RESETZOOM-',), enabled)
 
@@ -1532,8 +1485,7 @@ def blend_logo_centered(canvas, logo_rgba, margin_ratio=0.05):
     return canvas
 
 def draw_timer_countdown(frame, seconds_left):
-    # Zentriert statt am unteren Rand, etwas groesser als die vorherige
-    # Bottom-Left-Platzierung (Nutzer-Wunsch). getTextSize() liefert die
+    # Zentriert und gross dargestellt. getTextSize() liefert die
     # tatsaechliche Breite/Hoehe des gerenderten Textes, dadurch klappt die
     # Zentrierung unabhaengig von Ziffernanzahl (1 vs. 2-stellig).
     text = str(seconds_left)
@@ -1574,14 +1526,15 @@ def main():
     window_fps = window['-FPS-']
 
     _show_page('-MAINVIEW-')
-    # ressources/logo.png ist bewusst NICHT Teil des Repos (siehe README) -
-    # jede Installation legt dort ihr eigenes Logo ab. Fehlt die Datei,
-    # bleibt das Blank-Screen-Wasserzeichen einfach leer statt abzustuerzen.
-    # Seit Design-Runde 5 gibt es KEIN eigenes Sidebar-Logo mehr (wirkte
-    # neben der grossen Uhrzeit im Footer verloren/"ueberdeckt", Nutzer-
-    # Feedback) - das Logo bleibt ausschliesslich dem Blank-Screen
-    # vorbehalten ("Video aus", siehe blend_logo_centered() unten), deshalb
-    # wird hier nur noch die unskalierte blank_logo-Variante gebraucht.
+    # ressources/logo.png ist im Repo nur ein generisches Platzhalter-Logo
+    # (siehe README) - Ansible ueberschreibt es optional mit einem eigenen
+    # Vereinslogo (ansible/files/logo.png, gitignored, siehe .gitignore).
+    # Fehlt die Datei dennoch, bleibt das Blank-Screen-Wasserzeichen einfach
+    # leer statt abzustuerzen.
+    # Es gibt KEIN eigenes Sidebar-Logo - das Logo bleibt ausschliesslich dem
+    # Blank-Screen vorbehalten ("Video aus", siehe blend_logo_centered()
+    # unten), deshalb wird hier nur die unskalierte blank_logo-Variante
+    # gebraucht.
     blank_logo = cv2.imread('ressources/logo.png', cv2.IMREAD_UNCHANGED)
     if blank_logo is None:
         print("ressources/logo.png nicht gefunden - Blank-Screen-Wasserzeichen bleibt leer.", file=sys.stderr)
@@ -1767,19 +1720,17 @@ def main():
           _sync_reset_button(zoom_level, zoom_center)
         elif event == '-RESETZOOM-':
           # Setzt nicht nur den manuellen Pan zurueck, sondern auch den
-          # Zoom-Modus auf "Ganze Scheibe" - Bug gefunden durch den Nutzer:
-          # vorher blieb ein aktiver "Innen Scheibe"-Zoom nach Reset bestehen.
+          # Zoom-Modus auf "Ganze Scheibe" - sonst wuerde ein aktiver "Innen
+          # Scheibe"-Zoom nach Reset bestehen bleiben.
           zoom_level = 'full'
           zoom_center = []
           _sync_reset_button(zoom_level, zoom_center)
         elif event == '-BLINK_START-':
           # Zoom (Buttons, Klick-Pan UND Reset) bleibt waehrend Blinken
-          # bewusst nutzbar - Nutzer-Feedback: der Klick-Pan war ohnehin nie
-          # wirklich gesperrt (nur die beiden Buttons) und funktioniert
-          # einwandfrei waehrend des Blinkens (Crop wird pro Frame nach der
-          # Referenz/Live-Auswahl angewendet, betrifft also beide gleich) -
-          # auf Wunsch deshalb jetzt fuer alle drei Zoom-Bedienwege einheitlich
-          # erlaubt statt nur fuer den Klick.
+          # bewusst fuer alle drei Bedienwege einheitlich nutzbar: Crop wird
+          # pro Frame nach der Referenz/Live-Auswahl angewendet, betrifft
+          # also beide Zoom-Zustaende gleich, funktioniert also einwandfrei
+          # waehrend des Blinkens.
           timer_disabled(True)
           video_filter_disabled(True)
           _set_icon_buttons(('-BLINK_START-',), False)
@@ -1839,16 +1790,15 @@ def main():
             # warpPerspective() entzerrte Kamerabild fest, nicht das fertig
             # entzerrte - Ganze/Innen Scheibe sind zwei VERSCHIEDENE
             # Matrizen (M_full/M_detail) auf demselben Rohbild, keine
-            # ineinander verschachtelten Transformationen. Ein frueherer
-            # Versuch, stattdessen das schon entzerrte Bild einzufrieren,
-            # liess die Referenz nach einem Zoom-Stufen-Wechsel auf der
-            # alten Perspektive haengen, waehrend neue Live-Frames schon die
-            # neue zeigten - sichtbares Springen beim Blinken. Das ROHE Bild
-            # laesst sich dagegen bei JEDEM Zoom-Wechsel einfach mit der
-            # jeweils aktuellen Matrix neu entzerren, waehrend der
-            # tatsaechlich fotografierte Inhalt (und damit die
-            # Einschusslöcher zum Referenzzeitpunkt) unveraendert erhalten
-            # bleibt. WICHTIG: blink_ref wird NIE automatisch neu
+            # ineinander verschachtelten Transformationen. Ein bereits
+            # entzerrtes Referenzbild wuerde nach einem Zoom-Stufen-Wechsel
+            # auf der alten Perspektive haengen bleiben, waehrend neue
+            # Live-Frames schon die neue zeigen - sichtbares Springen beim
+            # Blinken. Das ROHE Bild laesst sich dagegen bei JEDEM
+            # Zoom-Wechsel einfach mit der jeweils aktuellen Matrix neu
+            # entzerren, waehrend der tatsaechlich fotografierte Inhalt (und
+            # damit die Einschusslöcher zum Referenzzeitpunkt) unveraendert
+            # erhalten bleibt. WICHTIG: blink_ref wird NIE automatisch neu
             # aufgenommen, nur bei explizitem -BLINK_START-/-BLINK_REF- -
             # eine automatische Neuaufnahme (z.B. bei jedem Zoom-Wechsel)
             # wuerde die eigentliche Referenz-Funktion (alte vs. neue
@@ -1877,12 +1827,9 @@ def main():
             except ZeroDivisionError:
               pass
         elif displayTimer:
-          # Bugfix: (Breite, Hoehe) statt der von numpy erwarteten
-          # (Hoehe, Breite) Reihenfolge - fiel bisher nicht auf, weil
-          # video.size in der Praxis immer quadratisch war (600x600/780x780).
-          # Der Blank-Screen-Handler oben (-TOGGLEVIDEO-) macht es bereits
-          # richtig herum, hier war es offenbar abgeschrieben und dabei
-          # vertauscht worden.
+          # VideoSize ist (Breite, Hoehe), numpy-Arrays erwarten
+          # (Hoehe, Breite, Kanaele) - deshalb hier bewusst vertauscht,
+          # analog zum Blank-Screen-Handler oben (-TOGGLEVIDEO-).
           frame = np.zeros((VideoSize[1],VideoSize[0],3), np.uint8)
           tmpTimerSecs = (datetime.now()-timerStart).seconds
 

@@ -3,10 +3,10 @@
 # raspi-config Overlay/Bootro. Schuetzt vor Datenverlust/Korruption durch
 # harte Stromabschaltung ohne sauberes Herunterfahren.
 #
-# Ersetzt ein aelteres, manuelles fstab-basiertes Verfahren (eigenes
-# mount-Modul + eigene partuuid-Ermittlung) durch den offiziell
-# unterstuetzten raspi-config-Mechanismus - identisches Vorgehen wie im
-# oeffentlichen CamDisplay-Repo: https://github.com/SGTittmoning/CamDisplay
+# Nutzt den offiziell unterstuetzten raspi-config-Mechanismus statt eines
+# eigenen, manuellen fstab-basierten Verfahrens (eigenes mount-Modul + eigene
+# partuuid-Ermittlung) - identisches Vorgehen wie im oeffentlichen
+# CamDisplay-Repo: https://github.com/SGTittmoning/CamDisplay
 #
 # WICHTIGE REIHENFOLGE: raspi-configs enable_bootro() verweigert die Arbeit,
 # wenn das Overlay bereits aktiv ist ("Overlay in use; cannot update fstab") -
@@ -30,14 +30,11 @@
 # wurden, hat das overlayroot-Paket weiterhin installiert, aber
 # get_overlay_now meldet danach korrekt "1" (inaktiv) - das reine
 # Paketstatus-Signal wuerde diesen Fall faelschlich als "schon erledigt"
-# uebergehen und enable_overlayfs NIE mehr aufrufen (live am Test-Pi
-# reproduziert: nach einem rw/ro-Test blieb "-e ...enable_overlay=true"
-# bei einem erneuten Lauf wirkungslos). Umgekehrt kann auf einem frischen
-# Image die Cmdline schon "overlayroot=tmpfs" enthalten OHNE dass das Paket
-# installiert ist (siehe CamDisplay-Testlauf 2026-08-21) - dort meldete
-# get_overlay_now faelschlich "aktiv", obwohl noch gar nichts wirkt. Beide
-# Signale zusammen (aktivieren wenn EINES der beiden noch fehlt) decken
-# beide Faelle ab.
+# uebergehen und enable_overlayfs NIE mehr aufrufen. Umgekehrt kann auf
+# einem frischen Image die Cmdline schon "overlayroot=tmpfs" enthalten OHNE
+# dass das Paket installiert ist - dort meldet get_overlay_now faelschlich
+# "aktiv", obwohl noch gar nichts wirkt. Beide Signale zusammen (aktivieren
+# wenn EINES der beiden noch fehlt) decken beide Faelle ab.
 
 - name: overlayroot Paketstatus ermitteln
   command: dpkg-query -W -f='${Status}' overlayroot

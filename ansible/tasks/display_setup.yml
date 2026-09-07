@@ -18,9 +18,8 @@
     insertafter: '^\[all\]'
   register: targetdisplay_hdmi_group
 
-# hdmi_mode=27 = DMT 1280x800@60Hz - verifiziert 2026-08-28 gegen die
-# tatsaechliche Boot-Config von Stand 1 (identischer Wert dort bereits
-# im produktiven Einsatz), nicht nur aus einer DMT-Tabelle nachgeschlagen.
+# hdmi_mode=27 = DMT 1280x800@60Hz - identisch zur Boot-Config, die auf
+# allen 5 produktiven Staenden bereits im Einsatz ist.
 - name: HDMI-Modus setzen (1280x800, wie alle 5 produktiven Staende)
   lineinfile:
     path: /boot/firmware/config.txt

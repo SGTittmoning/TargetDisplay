@@ -13,9 +13,7 @@ Conflicts=getty@tty1.service
 #
 # Ein Zyklus dauert ~10s Staleness-Timeout + RestartSec + X11-Neustart-
 # Overhead, grob 15s - 5 Zyklen also grob 75s. Intervall grosszuegig
-# bemessen, damit der 5. Fehlschlag sicher noch im gleitenden Fenster
-# liegt (siehe Lehre aus der ersten, zu knapp bemessenen Version, die
-# noch play_it's eigene Retry-Schleife einkalkulieren musste).
+# bemessen, damit der 5. Fehlschlag sicher noch im gleitenden Fenster liegt.
 StartLimitIntervalSec=180
 StartLimitBurst=5
 OnFailure=targetdisplay-reboot.service
@@ -24,23 +22,22 @@ OnFailure=targetdisplay-reboot.service
 Type=simple
 User={{ targetdisplay_service_user }}
 Group={{ targetdisplay_service_user }}
-# KEIN PAMName=login (mehr) - live gegen den Test-Pi verifiziert (2026-08-28):
-# PAMName= registriert eine eigene logind-Session, deren Prozesse (Xorg,
-# python3, matchbox) dadurch in einer SEPARATEN Cgroup
-# (/user.slice/user-*.slice/session-N.scope) laufen statt in der Cgroup
-# dieses Service (/system.slice/targetdisplay.service). systemds
-# KillMode=control-group (Default) signalisiert bei "systemctl stop/restart"
-# dadurch nur die (fast leere) Service-Cgroup - die eigentliche Last bekommt
-# nie ein SIGTERM, der Stop haengt bis TimeoutStopSec (90s) und wird dann per
-# SIGKILL erzwungen. Ein erzwungener Stop zaehlt fuer systemd als "Failed
-# with result 'timeout'" und loest SOFORT OnFailure=/den Reboot-Guard aus -
-# das war die Hauptursache der waehrend des Testings wiederholt beobachteten
-# Reboots, ausgeloest durch ganz normale "systemctl restart"-Aufrufe.
+# KEIN PAMName=login: PAMName= wuerde eine eigene logind-Session
+# registrieren, deren Prozesse (Xorg, python3, matchbox) dadurch in einer
+# SEPARATEN Cgroup (/user.slice/user-*.slice/session-N.scope) liefen statt
+# in der Cgroup dieses Service (/system.slice/targetdisplay.service).
+# systemds KillMode=control-group (Default) signalisiert bei "systemctl
+# stop/restart" dadurch nur die (fast leere) Service-Cgroup - die
+# eigentliche Last bekaeme nie ein SIGTERM, der Stop wuerde bis
+# TimeoutStopSec (90s) haengen und dann per SIGKILL erzwungen. Ein
+# erzwungener Stop zaehlt fuer systemd als "Failed with result 'timeout'"
+# und loest SOFORT OnFailure=/den Reboot-Guard aus - bei ganz normalen
+# "systemctl restart"-Aufrufen waeren das sonst spontane Reboots.
 #
-# Geraete-Zugriff (video/render/input) laeuft stattdessen ausschliesslich
-# ueber die Gruppenmitgliedschaften des Service-Users (siehe tasks/base.yml)
-# - das war ohnehin schon als Sicherheitsnetz vorgesehen, falls die PAM-
-# Session mal keine Seat-ACLs zieht, uebernimmt jetzt die alleinige Rolle.
+# Geraete-Zugriff (video/render/input) laeuft deshalb ausschliesslich ueber
+# die Gruppenmitgliedschaften des Service-Users (siehe tasks/base.yml) -
+# ohne eigene PAM-Session ist das die alleinige Quelle der noetigen
+# Seat-Berechtigungen.
 TTYPath=/dev/tty1
 StandardInput=tty
 StandardOutput=journal
@@ -49,13 +46,13 @@ UtmpIdentifier=tty1
 UtmpMode=user
 Environment=HOME=/home/{{ targetdisplay_service_user }}
 ExecStart=/usr/bin/startx /home/{{ targetdisplay_service_user }}/.xinitrc -- :0 vt1
-# Live verifiziert (2026-08-28): bei "systemctl stop/restart" bekommt xinit
-# (KillMode=control-group, Default) direkt selbst ein SIGTERM und wertet das
-# als "unexpected signal" - es beendet sich dabei zuverlaessig mit Exit-Code
-# 1, obwohl der Stop völlig regulaer war (kein Absturz). Ein eigenes
-# ExecStop, das gezielt nur main.py signalisiert, wurde ausprobiert, loest
-# das Problem aber NICHT: ExecStop ersetzt systemds eigene KillMode-Signale
-# nicht, sie laufen zusaetzlich/danach - xinit bekommt das SIGTERM so oder so.
+# Bei "systemctl stop/restart" bekommt xinit (KillMode=control-group,
+# Default) direkt selbst ein SIGTERM und wertet das als "unexpected signal" -
+# es beendet sich dabei zuverlaessig mit Exit-Code 1, obwohl der Stop völlig
+# regulaer ist (kein Absturz). Ein eigenes ExecStop, das gezielt nur main.py
+# signalisiert, wuerde das Problem nicht loesen: ExecStop ersetzt systemds
+# eigene KillMode-Signale nicht, sie laufen zusaetzlich/danach - xinit
+# bekommt das SIGTERM so oder so.
 #
 # Deshalb stattdessen: Exit-Code 1 pauschal als Erfolg werten. Sicher, weil
 # main.py bei einem echten Stream-Ausfall bewusst mit Exit-Code 2 beendet

@@ -57,8 +57,7 @@
     # App-Code, /root/bin/*, config.yml, ...). Ist das Root-Overlay auf
     # diesem Host bereits aktiv, landen diese Schreibvorgaenge NUR im
     # fluechtigen tmpfs-Layer und sind nach dem naechsten Reboot spurlos
-    # weg - ohne Fehlermeldung, ohne "changed"-Warnung. Uebernommen aus dem
-    # CamDisplay-Playbook, wo genau das am 2026-08-22 passiert ist.
+    # weg - ohne Fehlermeldung, ohne "changed"-Warnung.
     - name: Root-Overlay-Status ermitteln (Sicherheitscheck)
       command: raspi-config nonint get_overlay_now
       register: targetdisplay_preflight_overlay
@@ -96,6 +95,6 @@
 
     # Reihenfolge wichtig: alles was einen Reboot ausloesen kann MUSS vor
     # der Overlay-Aktivierung laufen, sonst startet die App noch in der
-    # alten Systemumgebung (siehe CamDisplay-Testlauf 2026-08-21).
+    # alten Systemumgebung.
     - import_tasks: tasks/overlay.yml
       when: targetdisplay_enable_overlay | bool

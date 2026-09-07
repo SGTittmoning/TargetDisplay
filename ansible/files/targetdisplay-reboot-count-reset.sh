@@ -12,8 +12,8 @@
 # WICHTIG: /boot/firmware kann per "bootro" read-only gemountet sein,
 # unabhaengig vom Root-Overlay - siehe targetdisplay-reboot-guard.sh.
 #
-# WICHTIG #2 (gefunden 2026-08-28, siehe targetdisplay-reboot-guard.sh fuer
-# Details): "[ cond ] && cmd" als letzte Anweisung des Skripts liefert unter
+# WICHTIG #2 (siehe targetdisplay-reboot-guard.sh fuer Details): "[ cond ]
+# && cmd" als letzte Anweisung des Skripts liefert unter
 # "set -e" bei falschem cond Exit-Code 1 - hier zwar ohne Folgeschaden
 # (nichts laeuft danach mehr), aber der Reset-Service wuerde dadurch bei
 # jedem Lauf faelschlich als "failed" erscheinen (systemd wertet den

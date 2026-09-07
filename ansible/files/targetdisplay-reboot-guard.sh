@@ -18,12 +18,12 @@
 # daher denselben remount-Tanz machen wie targetdisplay-update.sh/-writable.sh,
 # sonst schlaegt das Schreiben schlicht fehl, sobald "ro" aktiv ist.
 #
-# WICHTIG #2 (gefunden 2026-08-28 beim Live-Test gegen den Test-Pi): "[ cond ]
-# && cmd" als LETZTE Anweisung einer Funktion/des Skripts ist unter "set -e"
-# gefaehrlich - ist "cond" falsch (voellig normaler Fall, kein Fehler), liefert
-# das trotzdem Exit-Code 1, und set -e bricht die Funktion/das Skript sofort
-# ab, noch VOR dem eigentlichen reboot-Aufruf. Deshalb ueberall ein
-# abschliessendes "return 0"/"true", wo dieses Muster als letzte Zeile steht.
+# WICHTIG #2: "[ cond ] && cmd" als LETZTE Anweisung einer Funktion/des
+# Skripts ist unter "set -e" gefaehrlich - ist "cond" falsch (voellig
+# normaler Fall, kein Fehler), liefert das trotzdem Exit-Code 1, und set -e
+# bricht die Funktion/das Skript sofort ab, noch VOR dem eigentlichen
+# reboot-Aufruf. Deshalb ueberall ein abschliessendes "return 0"/"true", wo
+# dieses Muster als letzte Zeile steht.
 
 set -euo pipefail
 

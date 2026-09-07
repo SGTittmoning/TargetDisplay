@@ -10,11 +10,11 @@ Wissen zu jeder einzelnen Ansible-Rolle/Task) um eine konkrete, in der
 Reihenfolge abarbeitbare Checkliste für den Fall "Gerät ist komplett leer,
 ich fange bei null an".
 
-**Verifiziert end-to-end** (2026-09-06) gegen einen echten, frisch
-geflashten Pi (Raspberry Pi OS Lite, Debian 13/Trixie, aarch64):
-`ok=51 changed=35 failed=0`, Service `targetdisplay.service` aktiv,
-Ersteinrichtungs-Assistent zeigt korrekt alle konfigurierten Stände, echtes
-Vereinslogo per MD5-Abgleich bestätigt korrekt eingespielt.
+Diese Anleitung ist end-to-end gegen einen frisch geflashten Pi (Raspberry
+Pi OS Lite, Debian 13/Trixie, aarch64) lauffähig: Nach einem vollständigen
+Durchlauf ist `targetdisplay.service` aktiv, der Ersteinrichtungs-Assistent
+zeigt alle konfigurierten Stände korrekt an, und ein hinterlegtes
+Vereinslogo wird korrekt eingespielt.
 
 ## Voraussetzungen
 
