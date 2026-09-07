@@ -14,3 +14,4 @@ testdata/
 Obsolete/
 ressources/*.bak
 ansible/files/logo.png
+boot-overrides/
