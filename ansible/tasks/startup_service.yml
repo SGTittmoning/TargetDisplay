@@ -68,8 +68,9 @@
 # Unit-Datei unveraendert) landete unbemerkt auf der Boot-Partition/im
 # venv, der laufende targetdisplay.service lief aber unveraendert mit dem
 # alten main-Checkout weiter, bis ein manueller "systemctl restart" halt.
-# Fix: Neustart immer wenn IRGENDEINER der App-Deploy-Schritte (Checkout,
-# venv, config.yml, Logo) ODER die Unit-Datei/.xinitrc sich geaendert hat.
+# Live am Test-Pi reproduziert (2026-09-06). Fix: Neustart immer wenn
+# IRGENDEINER der App-Deploy-Schritte (Checkout, venv, config.yml, Logo)
+# ODER die Unit-Datei/.xinitrc sich geaendert hat.
 - name: targetdisplay.service aktivieren und (neu)starten
   systemd:
     name: targetdisplay.service

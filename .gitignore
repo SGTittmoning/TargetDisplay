@@ -11,7 +11,7 @@ configs_backup/
 ansible/inventory.yml
 deploy_logs/
 testdata/
+boot-overrides/
 Obsolete/
 ressources/*.bak
 ansible/files/logo.png
-boot-overrides/
