@@ -79,6 +79,8 @@
 
     - import_tasks: tasks/base.yml
 
+    - import_tasks: tasks/hardening.yml
+
     - import_tasks: tasks/maintenance_scripts.yml
 
     - import_tasks: tasks/settings_sudo.yml

@@ -1,0 +1,78 @@
+---
+# Zusaetzliche OS-Haertung ueber das in tasks/base.yml bereits Vorhandene
+# hinaus - siehe INTERNAL_NOTES.md Hardening-Analyse fuer den Hintergrund
+# jedes einzelnen Punkts.
+
+- name: nftables-Paket installieren
+  apt:
+    name: nftables
+    state: present
+
+# validate laesst Ansible die Regeldatei per "nft -c -f" gegenpruefen,
+# BEVOR sie nach /etc/nftables.conf uebernommen wird - ein Syntaxfehler
+# wuerde damit auffallen, ohne dass ein aktiver Lauf jemals eine kaputte
+# Regel scharf schaltet. SSH steht in der Regel selbst explizit auf
+# "accept", ein Aussperren beim Neustart des Dienstes ist damit
+# ausgeschlossen.
+- name: Minimales Firewall-Regelwerk einspielen (default-deny inbound, SSH erlaubt)
+  copy:
+    src: nftables.conf
+    dest: /etc/nftables.conf
+    owner: root
+    group: root
+    mode: "0640"
+    validate: "nft -c -f %s"
+  register: targetdisplay_nftables_conf
+
+- name: nftables aktivieren und starten
+  systemd:
+    name: nftables
+    enabled: yes
+    state: "{{ 'restarted' if targetdisplay_nftables_conf is changed else 'started' }}"
+
+# avahi-daemon (mDNS/.local-Namensaufloesung) wird nicht gebraucht - jedes
+# Geraet wird ausschliesslich per statischer IP angesprochen (siehe
+# inventory.yml.dist). Service UND Socket maskieren, nicht nur
+# deaktivieren: avahi-daemon.socket wuerde den Dienst sonst per
+# Socket-Aktivierung beim naechsten eingehenden mDNS-Paket wieder starten.
+- name: avahi-daemon.service stoppen, deaktivieren und maskieren
+  systemd:
+    name: avahi-daemon.service
+    state: stopped
+    enabled: no
+    masked: yes
+
+- name: avahi-daemon.socket stoppen, deaktivieren und maskieren
+  systemd:
+    name: avahi-daemon.socket
+    state: stopped
+    enabled: no
+    masked: yes
+
+# Bluetooth wird auf einem reinen Touch-Kiosk ohne BT-Peripherie nicht
+# gebraucht. Zusaetzlich zum Software-Stack auch das Funkmodul selbst per
+# dtoverlay abschalten - schliesst die Angriffsflaeche auf Hardware-Ebene,
+# nicht nur den Userspace-Dienst.
+- name: bluetooth.service stoppen, deaktivieren und maskieren
+  systemd:
+    name: bluetooth.service
+    state: stopped
+    enabled: no
+    masked: yes
+
+- name: Bluetooth-Funkmodul per dtoverlay deaktivieren
+  lineinfile:
+    path: /boot/firmware/config.txt
+    regexp: "^dtoverlay=disable-bt"
+    line: "dtoverlay=disable-bt"
+    insertafter: '^\[all\]'
+  register: targetdisplay_disable_bt
+
+# /boot/firmware/config.txt-Aenderungen wirken erst nach einem Reboot -
+# anders als z.B. ein Kernel-Update setzt das kein /var/run/reboot-required,
+# daher hier ein eigener, gezielter Reboot-Trigger (analog zu
+# tasks/display_setup.yml).
+- name: Reboot nach Bluetooth-Deaktivierung (config.txt)
+  reboot:
+    msg: "Reboot nach dtoverlay=disable-bt (config.txt)"
+  when: targetdisplay_disable_bt is changed
