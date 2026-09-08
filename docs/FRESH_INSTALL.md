@@ -155,8 +155,15 @@ Zeitzone/NTP, persistentes Journal-Logging, feste Display-Auflösung
 (1280×800), App-Checkout in eine venv, Rendern von `config.yml` +
 `targetdisplay-stands.json`, Logo-Overlay, systemd-Service für die X11-
 Session, eng gefasstes sudo für die drei PIN-geschützten Settings-Aktionen
-der App selbst, und den Reboot-Guard (Auto-Reboot nach wiederholtem
-Camera-Stream-Ausfall).
+der App selbst, den Reboot-Guard (Auto-Reboot nach wiederholtem
+Camera-Stream-Ausfall), sowie Basis-Hardening (Firewall, avahi/Bluetooth
+deaktiviert, SSH-Detailhärtung).
+
+**Hinweis zur SSH-Härtung:** Danach trennt der Pi eine idle SSH-Sitzung
+serverseitig nach 5 Minuten ohne Aktivität (`ClientAliveInterval`/
+`ClientAliveCountMax`) — bei einer laengeren interaktiven Sitzung direkt
+auf dem Geraet (z. B. manuelle Touch-Kalibrierung in Schritt 5) ggf. mit
+einer Zwischen-Eingabe wach halten oder bei Bedarf neu verbinden.
 
 Mehrere `reboot`-Schritte sind Teil des Playbooks (HDMI-Konfiguration,
 Kernel-Updates, journald-Umstellung) — Ansible wartet diese automatisch ab,
