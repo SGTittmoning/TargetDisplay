@@ -32,3 +32,12 @@ targetdisplay:
     # stand3.example.lan: ...
     # stand4.example.lan: ...
     # stand5.example.lan: ...
+    # Beispiel Test-/Entwicklungsgeraet in einem ANDEREN Netzsegment als die
+    # produktiven Staende (z.B. ohne Route zum Kamera-VLAN, in dem der
+    # gruppenweite "ntpserver" oben liegt) - eine Host-Variable ueberschreibt
+    # hier gezielt nur fuer dieses eine Geraet, ohne die anderen Hosts zu
+    # beeinflussen (Ansible-Variablenpraezedenz: host_vars schlagen group_vars).
+    # testpi.example.lan:
+    #   ansible_host: 192.0.2.99
+    #   ansible_user: pi
+    #   ntpserver: 192.0.2.1  # NTP-Quelle erreichbar aus DIESEM Netzsegment
