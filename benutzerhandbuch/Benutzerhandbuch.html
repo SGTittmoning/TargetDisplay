@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TargetDisplay Benutzerhandbuch</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Source+Serif+4:ital,wght@0,400;0,600;1,400&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#201c18; --paper:#f7f3ea; --paper-raised:#efe9db; --paper-raised-2:#e7dfca;
+  --line:#d9d0bc; --muted:#6b6355;
+  --accent-zoom:#2f6690; --accent-zoom-bg:#e2ecf2;
+  --accent-blink:#a85a15; --accent-blink-bg:#f2e6d6;
+  --accent-timer:#a3311f; --accent-timer-bg:#f2ddd8;
+  --accent-admin:#3c6e4a; --accent-admin-bg:#e1ebe2;
+  --info:#3c5a6e; --info-bg:#e2ecf2;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ink:#ece6d8; --paper:#1b1814; --paper-raised:#24201a; --paper-raised-2:#2c2721;
+    --line:#3a352c; --muted:#a89d87;
+    --accent-zoom:#7fb2da; --accent-zoom-bg:#213544;
+    --accent-blink:#e2a262; --accent-blink-bg:#3a2c1c;
+    --accent-timer:#e2857a; --accent-timer-bg:#3a231f;
+    --accent-admin:#82c993; --accent-admin-bg:#1f2f23;
+    --info:#8fb6cc; --info-bg:#213544;
+  }
+}
+:root[data-theme="dark"]{
+  --ink:#ece6d8; --paper:#1b1814; --paper-raised:#24201a; --paper-raised-2:#2c2721;
+  --line:#3a352c; --muted:#a89d87;
+  --accent-zoom:#7fb2da; --accent-zoom-bg:#213544;
+  --accent-blink:#e2a262; --accent-blink-bg:#3a2c1c;
+  --accent-timer:#e2857a; --accent-timer-bg:#3a231f;
+  --accent-admin:#82c993; --accent-admin-bg:#1f2f23;
+  --info:#8fb6cc; --info-bg:#213544;
+}
+
+@font-face{ /* not used, placeholder to keep structure obvious */ }
+
+*{box-sizing:border-box;}
+html{-webkit-text-size-adjust:100%;}
+body{
+  background:var(--paper); color:var(--ink);
+  font-family:"Source Serif 4", Georgia, "Times New Roman", serif;
+  line-height:1.65; font-size:17px;
+}
+h1,h2,h3,.label,.eyebrow,.legend-num,nav.toc,.chip,.caption-title{
+  font-family:"Barlow Condensed", "Arial Narrow", sans-serif;
+}
+.mono, .kbd, .fig-note, .footer-mono{
+  font-family:"IBM Plex Mono", "Courier New", monospace;
+}
+h1,h2,h3{ text-wrap:balance; font-weight:700; letter-spacing:.01em; }
+p{ text-wrap:pretty; }
+a{ color:var(--accent-zoom); }
+img{ display:block; max-width:100%; height:auto; }
+
+.page{
+  max-width:1180px; margin:0 auto; padding:0 clamp(18px,4vw,56px) 90px;
+}
+
+/* ---------- Masthead ---------- */
+.masthead{
+  padding:56px 0 34px; border-bottom:3px solid var(--ink);
+  display:flex; align-items:flex-end; justify-content:space-between; gap:24px; flex-wrap:wrap;
+}
+.masthead-marks{ position:relative; width:64px; height:64px; flex:none; }
+.corner{ position:absolute; width:18px; height:18px; border-color:var(--accent-zoom); }
+.corner.tl{ top:0; left:0; border-top:3px solid; border-left:3px solid; }
+.corner.tr{ top:0; right:0; border-top:3px solid; border-right:3px solid; }
+.corner.bl{ bottom:0; left:0; border-bottom:3px solid; border-left:3px solid; }
+.corner.br{ bottom:0; right:0; border-bottom:3px solid; border-right:3px solid; }
+.masthead-text{ flex:1; min-width:260px; }
+.eyebrow{
+  text-transform:uppercase; letter-spacing:.18em; font-size:13px; color:var(--muted);
+  font-weight:600; margin:0 0 6px;
+}
+h1.title{ font-size:clamp(34px,5vw,54px); line-height:1.02; margin:0; }
+.masthead-meta{
+  text-align:right; font-size:13px; color:var(--muted); font-family:"IBM Plex Mono",monospace;
+  line-height:1.7;
+}
+
+/* ---------- Layout: sidebar + content ---------- */
+.layout{ display:grid; grid-template-columns:220px minmax(0,1fr); gap:56px; margin-top:40px; }
+
+nav.toc{ position:sticky; top:24px; align-self:start; font-size:14px; max-height:calc(100vh - 48px); overflow-y:auto; }
+
+@media (max-width:880px){
+  .layout{ grid-template-columns:1fr; }
+  nav.toc{ position:static; max-height:none; overflow-y:visible; margin-bottom:12px; }
+  nav.toc ol{ columns:2; column-gap:24px; }
+  nav.toc li{ break-inside:avoid; }
+}
+nav.toc ol{ list-style:none; margin:0; padding:0; border-left:1px solid var(--line); }
+nav.toc li{ margin:0; }
+nav.toc a{
+  display:block; padding:7px 0 7px 16px; color:var(--ink); text-decoration:none;
+  border-left:2px solid transparent; margin-left:-1px;
+}
+nav.toc a:hover{ border-left-color:var(--accent-zoom); color:var(--accent-zoom); }
+nav.toc .toc-num{ color:var(--muted); margin-right:8px; }
+nav.toc .toc-sub{ padding-left:32px; font-size:13px; color:var(--muted); }
+nav.toc .toc-sub a{ padding-top:4px; padding-bottom:4px; }
+
+main{ min-width:0; }
+
+.intro{ font-size:19px; }
+.intro p{ margin:0 0 20px; }
+
+section.chapter{ margin-top:64px; padding-top:8px; border-top:1px solid var(--line); }
+section.chapter:first-of-type{ border-top:none; margin-top:44px; }
+.chapter-head{ display:flex; align-items:baseline; gap:16px; margin-bottom:18px; }
+.chapter-num{
+  font-family:"IBM Plex Mono",monospace; font-size:15px; color:var(--muted);
+  border:1px solid var(--line); border-radius:3px; padding:2px 8px; flex:none;
+}
+h2{ font-size:clamp(24px,3vw,32px); margin:0; }
+h3{ font-size:19px; margin:34px 0 10px; }
+
+/* ---------- Figure plates ---------- */
+figure.plate{
+  margin:26px 0 30px; background:var(--paper-raised); border:1px solid var(--line);
+  border-radius:2px; padding:14px; position:relative;
+}
+figure.plate::before, figure.plate::after{
+  content:""; position:absolute; width:12px; height:12px; border-color:var(--accent-zoom);
+  opacity:.65;
+}
+figure.plate::before{ top:6px; left:6px; border-top:2px solid; border-left:2px solid; }
+figure.plate::after{ bottom:6px; right:6px; border-bottom:2px solid; border-right:2px solid; }
+figure.plate img{ border-radius:1px; }
+figcaption.fig-note{
+  font-size:12.5px; color:var(--muted); margin-top:10px; padding-top:8px;
+  border-top:1px dashed var(--line);
+}
+.plate-pair{ display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+@media (max-width:620px){ .plate-pair{ grid-template-columns:1fr; } }
+.plate-pair figure.plate{ margin:0; }
+
+/* ---------- Legend list (numbered controls) ---------- */
+.legend{ list-style:none; margin:0 0 26px; padding:0; display:flex; flex-direction:column; gap:12px; }
+.legend > li{ display:grid; grid-template-columns:34px 1fr; gap:14px; align-items:start; }
+.legend-num{
+  width:34px; height:34px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+  font-weight:700; font-size:15px; color:var(--paper); background:var(--ink); flex:none;
+}
+.legend-num.zoom{ background:var(--accent-zoom); }
+.legend-num.blink{ background:var(--accent-blink); }
+.legend-num.timer{ background:var(--accent-timer); }
+.legend-num.admin{ background:var(--accent-admin); }
+.legend b{ font-family:"Barlow Condensed",sans-serif; font-weight:700; font-size:16.5px; }
+.legend p{ margin:2px 0 0; color:var(--ink); }
+
+.group-label{
+  display:inline-flex; align-items:center; gap:8px; text-transform:uppercase;
+  letter-spacing:.12em; font-size:12.5px; font-weight:600; margin:28px 0 12px;
+  color:var(--muted);
+}
+.group-label .swatch{ width:11px; height:11px; border-radius:2px; }
+.swatch.zoom{ background:var(--accent-zoom); }
+.swatch.blink{ background:var(--accent-blink); }
+.swatch.timer{ background:var(--accent-timer); }
+.swatch.admin{ background:var(--accent-admin); }
+
+.callout{
+  background:var(--info-bg); border-left:3px solid var(--info); border-radius:0 3px 3px 0;
+  padding:14px 18px; margin:22px 0; font-size:15.5px;
+}
+.callout p{ margin:0; }
+.callout + .callout{ margin-top:-10px; }
+
+/* ---------- Admin chapter (restricted styling) ---------- */
+section.restricted{
+  background:var(--accent-admin-bg); border:1px solid var(--accent-admin);
+  border-radius:6px; padding:32px clamp(18px,4vw,40px) 44px; margin-top:64px;
+}
+section.restricted h2{ color:var(--accent-admin); }
+section.restricted .chapter-num{ border-color:var(--accent-admin); color:var(--accent-admin); }
+section.restricted figure.plate::before, section.restricted figure.plate::after{ border-color:var(--accent-admin); }
+section.restricted .callout{ background:var(--paper-raised); border-left-color:var(--accent-admin); }
+.lock-badge{
+  display:inline-flex; align-items:center; gap:8px; background:var(--accent-admin);
+  color:var(--paper); padding:5px 12px 5px 9px; border-radius:20px; font-size:12.5px;
+  font-family:"Barlow Condensed",sans-serif; font-weight:600; letter-spacing:.06em;
+  text-transform:uppercase; margin-bottom:16px;
+}
+.lock-badge svg{ width:13px; height:13px; }
+
+.appendix{
+  margin-top:64px; padding-top:28px; border-top:3px double var(--line);
+}
+.appendix ol{ padding-left:22px; }
+.appendix li{ margin-bottom:10px; }
+
+footer{
+  margin-top:80px; padding-top:20px; border-top:1px solid var(--line);
+  display:flex; justify-content:space-between; flex-wrap:wrap; gap:10px;
+  font-size:12.5px; color:var(--muted);
+}
+
+/* ---------- Bei Problemen / Notizen (Schreiblinien fuer die spaetere PDF-Fassung) ---------- */
+.writeline{
+  border:none; border-bottom:1px solid var(--muted); margin:40px 8px 0;
+}
+.notes-page{ margin-top:20px; }
+.notes-page .writeline{ margin:34px 8px 0; }
+
+
+@media print {
+  @page { size: A4; margin: 18mm 15mm 20mm; }
+  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+  body { font-size: 12.5px; }
+  .layout { display: block; }
+  nav.toc { display: none; }
+  main { min-width: 0; }
+  .masthead { break-after: page; page-break-after: always; }
+  section.chapter, section.appendix, #bei-problemen, #notizen {
+    break-before: page; page-break-before: always;
+  }
+  section.chapter:first-of-type { break-before: auto; page-break-before: auto; }
+  h1, h2, h3 { break-after: avoid; page-break-after: avoid; }
+  .chapter-head { break-after: avoid; page-break-after: avoid; }
+  .group-label { break-after: avoid; page-break-after: avoid; break-inside: avoid; page-break-inside: avoid; }
+  figure.plate { break-inside: avoid; page-break-inside: avoid; }
+  .plate-pair { break-inside: avoid; page-break-inside: avoid; }
+  /* display:flex/grid im Druck-Renderer (aeltere WebKit-Engine) haelt
+     page-break-inside:avoid nicht zuverlaessig ein, auch nicht mit
+     display:table - selbst einzelne umgebrochene Textzeilen wurden mitten
+     im Absatz von der Seite getrennt. Float-Layout (Block-Boxen) ist das
+     einzige Muster, das diese Engine beim Seitenumbruch zuverlaessig als
+     zusammenhaengende Einheit behandelt.  */
+  .legend { display: block; }
+  .legend > li {
+    display: block; overflow: hidden; /* Clearfix fuers Float */
+    break-inside: avoid; page-break-inside: avoid; margin-bottom: 14px;
+  }
+  .legend > li > .legend-num {
+    float: left; width: 26px; height: 26px; line-height: 26px;
+    text-align: center; border-radius: 50%; margin-right: 14px;
+  }
+  .legend > li > div { overflow: hidden; } /* eigener Block-Formatierungskontext neben dem Float */
+  .plate-pair { display: block; break-inside: avoid; page-break-inside: avoid; }
+  .plate-pair figure.plate { float: left; width: 48%; }
+  .plate-pair figure.plate + figure.plate { float: right; }
+  .plate-pair::after { content: ""; display: block; clear: both; }
+  .callout { break-inside: avoid; page-break-inside: avoid; }
+  .lock-badge { break-after: avoid; page-break-after: avoid; }
+  .notes-page .writeline { break-inside: avoid; page-break-inside: avoid; }
+  a { color: inherit; text-decoration: none; }
+  img { max-width: 100%; }
+}
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="masthead">
+    <div class="masthead-marks" aria-hidden="true">
+      <span class="corner tl"></span><span class="corner tr"></span>
+      <span class="corner bl"></span><span class="corner br"></span>
+    </div>
+    <div class="masthead-text">
+      <p class="eyebrow">Bedienungsanleitung &middot; Schießstand-Zielanzeige</p>
+      <h1 class="title">TargetDisplay</h1>
+    </div>
+    <div class="masthead-meta">
+      Handbuch&nbsp;&middot;&nbsp;September 2026<br>
+      Bezogen auf TargetDisplay&nbsp;v0.11.x
+    </div>
+  </div>
+
+  <div class="layout">
+    <nav class="toc" aria-label="Inhalt">
+      <ol>
+        <li><a href="#einleitung"><span class="toc-num">&mdash;</span>Einleitung</a></li>
+        <li><a href="#hauptbildschirm"><span class="toc-num">01</span>Hauptbildschirm</a></li>
+        <li class="toc-sub"><a href="#zoom-detail">Zoom im Detail</a></li>
+        <li class="toc-sub"><a href="#blinken">"Blinken"-Modus</a></li>
+        <li class="toc-sub"><a href="#timer">Wettkampf-Timer</a></li>
+        <li class="toc-sub"><a href="#video-aus">Video aus</a></li>
+        <li><a href="#admin"><span class="toc-num">02</span>Administrativ</a></li>
+        <li class="toc-sub"><a href="#pin-eingabe">PIN-Eingabe</a></li>
+        <li class="toc-sub"><a href="#einstellungen">Einstellungen-Menü</a></li>
+        <li class="toc-sub"><a href="#editor">Ausschnitte-Editor</a></li>
+        <li class="toc-sub"><a href="#stand-wechseln">Stand wechseln</a></li>
+        <li class="toc-sub"><a href="#pin-aendern">PIN ändern</a></li>
+        <li class="toc-sub"><a href="#neustart">Neu starten</a></li>
+        <li><a href="#assistent"><span class="toc-num">A</span>Ersteinrichtung</a></li>
+        <li><a href="#bei-problemen"><span class="toc-num">&mdash;</span>Bei Problemen</a></li>
+        <li><a href="#notizen"><span class="toc-num">&mdash;</span>Notizen</a></li>
+      </ol>
+    </nav>
+
+    <main>
+
+      <section class="intro" id="einleitung">
+        <p>TargetDisplay ist die Bildschirmanzeige an den Schießständen unseres Vereins. Eine Kamera blickt schräg auf die Zielscheibe, und die App rechnet dieses Bild automatisch so um, dass die Scheibe gerade von oben zu sehen ist &ndash; so, als würde man direkt davorstehen. Das Gerät läuft auf einem kleinen Touchscreen-Computer direkt am Stand und wird ausschließlich mit dem Finger bedient, eine Maus oder Tastatur wird nicht benötigt.</p>
+        <p>Neben der reinen Live-Ansicht bietet TargetDisplay zwei Zoomstufen, einen &bdquo;Blinken&ldquo;-Vergleichsmodus zum Erkennen neuer Einschusslöcher sowie mehrere eingebaute Wettkampf-Timer. Ein PIN-geschützter Einstellungsbereich erlaubt Standaufsichten außerdem, das Gerät direkt am Stand neu zu kalibrieren.</p>
+        <p>Kapitel 1 beschreibt die Bedienelemente für den täglichen Gebrauch. Kapitel 2, <em>Administrativer Bereich</em>, richtet sich an Standaufsichten.</p>
+      </section>
+
+      <!-- ================= KAPITEL 1 ================= -->
+      <section class="chapter" id="hauptbildschirm">
+        <div class="chapter-head"><span class="chapter-num">01</span><h2>Der Hauptbildschirm</h2></div>
+        <p>Der Hauptbildschirm ist die Ansicht, die nach dem Einschalten des Geräts dauerhaft zu sehen ist. Links liegen die Bedienelemente, rechts das entzerrte Kamerabild der Scheibe.</p>
+
+        <figure class="plate">
+          <img src="screenshots/01_hauptbildschirm.png" alt="Hauptbildschirm im Normalzustand">
+          <figcaption class="fig-note">Abb. 1 &ndash; Hauptbildschirm im Normalzustand.</figcaption>
+        </figure>
+
+        <p style="font-size:14px; color:var(--muted); margin:-8px 0 24px;">Die Nummerierung beginnt in jeder Gruppe neu bei 1 &ndash; gemeint ist die Position innerhalb dieser Gruppe, nicht eine durchlaufende Zählung über den ganzen Bildschirm.</p>
+
+        <p class="group-label"><span class="swatch" style="background:var(--ink)"></span>Kopfzeile</p>
+        <ol class="legend">
+          <li><span class="legend-num">1</span><div><b>Standname</b><p>Oben links, z.&nbsp;B. &bdquo;Stand 1&ldquo;. Zeigt den aktuell angezeigten Schießstand. Rein informativ, kein Bedienelement.</p></div></li>
+          <li><span class="legend-num">2</span><div><b>Video-aus-Symbol</b><p>Auge mit Schrägstrich, oben rechts (linkes der beiden Symbole). Blendet das Kamerabild aus und zeigt das Vereinswappen. Erneuter Klick schaltet zurück. Solange ausgeblendet, sind Zoom, Blinken und Timer gesperrt.</p></div></li>
+          <li><span class="legend-num">3</span><div><b>Einstellungen-Symbol</b><p>Zahnrad mit Schloss, oben rechts. Öffnet den PIN-geschützten Administrativen Bereich, siehe Kapitel 2.</p></div></li>
+        </ol>
+
+        <p class="group-label"><span class="swatch zoom"></span>Gruppe Zoom</p>
+        <ol class="legend">
+          <li><span class="legend-num zoom">1</span><div><b>Ganze Scheibe</b><p>Zeigt die komplette Zielscheibe in der Übersicht &ndash; die Standardansicht.</p></div></li>
+          <li><span class="legend-num zoom">2</span><div><b>Innen Scheibe</b><p>Vergrößert auf den inneren, hochwertigeren Bereich der Scheibe (eigener, separat kalibrierter Ausschnitt).</p></div></li>
+          <li><span class="legend-num zoom">3</span><div><b>Reset</b><p>Setzt Zoomstufe und eine manuelle Verschiebung (siehe Punkt&nbsp;4) auf &bdquo;Ganze Scheibe&ldquo; zurück. Nur aktiv, wenn es etwas zurückzusetzen gibt.</p></div></li>
+          <li><span class="legend-num zoom">4</span><div><b>Tippen auf das Kamerabild</b><p>Erster Tipp legt einen Ausschnitts-Mittelpunkt fest; Tippen nahe einem Bildrand verschiebt den sichtbaren Ausschnitt schrittweise dorthin. Über &bdquo;Reset&ldquo; (Punkt&nbsp;3) kommt man wieder zur zentrierten Ansicht zurück.</p></div></li>
+        </ol>
+
+        <p class="group-label"><span class="swatch blink"></span>Gruppe Blinken</p>
+        <ol class="legend">
+          <li><span class="legend-num blink">1</span><div><b>Start</b><p>Merkt sich das aktuelle Kamerabild als Referenz und beginnt das Blinken zwischen Referenz und Live-Bild.</p></div></li>
+          <li><span class="legend-num blink">2</span><div><b>Referenz</b><p>Nimmt eine neue Referenzaufnahme auf, ohne den Blinken-Modus zu verlassen.</p></div></li>
+          <li><span class="legend-num blink">3</span><div><b>Stop</b><p>Beendet das Blinken, es wird wieder ausschließlich das Live-Bild gezeigt.</p></div></li>
+        </ol>
+
+        <p class="group-label"><span class="swatch timer"></span>Gruppe Timer</p>
+        <ol class="legend">
+          <li><span class="legend-num timer">1</span><div><b>5&nbsp;&times;&nbsp;3&nbsp;Sek.</b><p>Fünf Durchgänge im Wechsel, Scheibe 3&nbsp;Sekunden sichtbar, 7&nbsp;Sekunden verdeckt.</p></div></li>
+          <li><span class="legend-num timer">2</span><div><b>20&nbsp;Sek.</b><p>Eine einzelne Zeitscheibe von 20 Sekunden.</p></div></li>
+          <li><span class="legend-num timer">3</span><div><b>10&nbsp;Sek.</b><p>Eine einzelne Zeitscheibe von 10 Sekunden.</p></div></li>
+          <li><span class="legend-num timer">4</span><div><b>Timer&nbsp;Stop</b><p>Bricht einen laufenden Timer vorzeitig ab. Nur während eines laufenden Timers farbig/aktiv.</p></div></li>
+        </ol>
+
+        <p class="group-label"><span class="swatch" style="background:var(--muted)"></span>Fußbereich</p>
+        <ol class="legend">
+          <li><span class="legend-num">1</span><div><b>Datum/Uhrzeit</b><p>Zeigt Uhrzeit groß, Datum darüber. Rein informativ.</p></div></li>
+          <li><span class="legend-num">2</span><div><b>Versions-/FPS-Anzeige</b><p>Unten links, kleine graue Schrift: installierte Version sowie laufende Bildwiederholrate/Bilderanzahl. Für die Fehlersuche, ohne Bedeutung im Normalbetrieb.</p></div></li>
+        </ol>
+
+        <h3 id="zoom-detail">Zoom im Detail</h3>
+        <p><b>Ganze Scheibe</b> und <b>Innen Scheibe</b> schließen sich in der Wirkung gegenseitig aus &ndash; immer ist genau eine Stufe tatsächlich aktiv. Das sieht man den Buttons farblich aber nicht an: Beide bleiben durchgehend kräftig blau, da sich jederzeit erneut zwischen ihnen wechseln lässt. Ist eine Zoomstufe aktiv und man tippt zusätzlich auf das Bild, verschiebt sich der Ausschnitt innerhalb dieser Stufe, ohne das Zoom-Verhältnis zu ändern. <b>Reset</b> bringt beides in einem Schritt zurück &ndash; und ist der einzige der drei Buttons, dessen Farbe den Zustand tatsächlich widerspiegelt (siehe Abb. 2).</p>
+        <figure class="plate">
+          <img src="screenshots/02_hauptbildschirm_innen_scheibe.png" alt="Zoomstufe Innen Scheibe aktiv">
+          <figcaption class="fig-note">Abb. 2 &ndash; Innen Scheibe ist aktiv (Ganze Scheibe bleibt ebenfalls blau) &ndash; erkennbar am jetzt nutzbaren Reset (blau statt blass).</figcaption>
+        </figure>
+
+        <h3 id="blinken">&bdquo;Blinken&ldquo;-Vergleichsmodus im Detail</h3>
+        <p>Das Bild wechselt sekündlich zwischen dem festgehaltenen Referenzbild und dem aktuellen Live-Bild. Löcher, die dabei &bdquo;aufblinken&ldquo;, sind neu &ndash; typischer Anwendungsfall: <b>Referenz</b> direkt nach einer geschossenen Serie erneut auslösen, um die nächste Serie einzeln sichtbar zu machen. Während des Blinkens sind die Timer-Buttons gesperrt und dabei sichtbar ausgegraut. Der Video-aus-Knopf ist ebenfalls gesperrt, ändert dabei aber äußerlich nicht sein Aussehen &ndash; er sieht weiterhin normal aus, reagiert aber nicht auf Tippen. Zoom bleibt weiterhin bedienbar. <b>Stop</b> gibt Timer und Video-aus-Knopf wieder frei.</p>
+        <figure class="plate">
+          <img src="screenshots/03_hauptbildschirm_blinken_aktiv.png" alt="Blinken-Modus aktiv">
+          <figcaption class="fig-note">Abb. 3 &ndash; Blinken aktiv: Start ausgegraut, Referenz/Stop aktiv &ndash; Zoom bleibt bedienbar, Timer gesperrt.</figcaption>
+        </figure>
+
+        <h3 id="timer">Wettkampf-Timer im Detail</h3>
+        <p><b>20&nbsp;Sek.</b> und <b>10&nbsp;Sek.</b> laufen nach demselben einfachen Muster ab: 7&nbsp;Sekunden roter Countdown zur Vorbereitung, dann grün für die Sichtzeit, anschließend kurz (3&nbsp;Sekunden) wieder rot als Stopp-Phase, danach automatisches Ende.</p>
+        <p><b>5&nbsp;&times;&nbsp;3&nbsp;Sek.</b> beginnt ebenfalls mit der 7-Sekunden-Vorbereitungszeit in Rot, wiederholt danach aber fünfmal denselben Wechsel: 3&nbsp;Sekunden grün (Scheibe sichtbar, mit Countdown und Durchgangszähler), gefolgt von 7&nbsp;Sekunden rot (Scheibe verdeckt, ebenfalls mit Countdown und Durchgangszähler). Nach dem fünften Durchgang folgt, genau wie bei den anderen beiden Varianten, dieselbe kurze (3 Sekunden) rote Stopp-Phase, danach schaltet der Timer automatisch ab.</p>
+        <p>Während eines laufenden Timers wird kein Kamerabild angezeigt und Zoom/Blinken/Video-aus sind gesperrt.</p>
+        <div class="plate-pair">
+          <figure class="plate"><img src="screenshots/04_timer_vorbereitung_rot.png" alt="Timer Vorbereitungsphase, rot"><figcaption class="fig-note">Abb. 4 &ndash; Vorbereitungsphase (rot)</figcaption></figure>
+          <figure class="plate"><img src="screenshots/05_timer_laeuft_gruen.png" alt="Timer läuft, grün"><figcaption class="fig-note">Abb. 5 &ndash; Sichtzeit läuft (grün)</figcaption></figure>
+        </div>
+
+        <h3 id="video-aus">&bdquo;Video aus&ldquo;</h3>
+        <p>Ein Klick auf das Augen-Symbol (Kopfzeile, Punkt 2) blendet das Kamerabild aus und zeigt das Vereinswappen auf schwarzem Grund &ndash; etwa wenn niemand am Stand ist. Uhrzeit/Datum laufen normal weiter. Das Symbol wechselt dabei auf ein Auge ohne Schrägstrich; ein erneuter Klick darauf schaltet das Live-Bild wieder ein.</p>
+        <figure class="plate">
+          <img src="screenshots/06_video_aus_logo.png" alt="Video aus, Vereinswappen als Wasserzeichen">
+          <figcaption class="fig-note">Abb. 6 &ndash; Video ausgeblendet, Vereinswappen als Wasserzeichen.</figcaption>
+        </figure>
+      </section>
+
+      <!-- ================= KAPITEL 2 (ADMIN) ================= -->
+      <section class="restricted chapter" id="admin">
+        <span class="lock-badge">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="9" rx="1.5"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+          PIN-geschützt
+        </span>
+        <div class="chapter-head"><span class="chapter-num">02</span><h2>Administrativer Bereich</h2></div>
+        <p><b>Dieser Abschnitt richtet sich an Standaufsichten</b>, nicht an normale Vereinsmitglieder. Alle Funktionen sind über das Zahnrad-Symbol (Kopfzeile, Punkt&nbsp;3) erreichbar und durch eine numerische PIN geschützt.</p>
+        <div class="callout"><p>Der PIN-Schutz ist bewusst kein Hochsicherheitsmechanismus (keine Kontosperre nach Fehlversuchen) &ndash; er soll lediglich zufälliges Herumtippen von Passanten verhindern.</p></div>
+
+        <h3 id="pin-eingabe">PIN-Eingabe</h3>
+        <p>Nach Klick auf das Zahnrad erscheint das PIN-Tastenfeld:</p>
+        <figure class="plate"><img src="screenshots/07_pin_eingabe.png" alt="PIN-Eingabe Tastenfeld"><figcaption class="fig-note">Abb. 7 &ndash; PIN-Tastenfeld.</figcaption></figure>
+        <ol class="legend">
+          <li><span class="legend-num admin">1</span><div><b>Ziffernblock 0&ndash;9</b><p>Eingabe der PIN (4&ndash;6-stellig). Ziffern werden als Sternchen dargestellt.</p></div></li>
+          <li><span class="legend-num admin">2</span><div><b>Löschen</b><p>Setzt die aktuelle Eingabe zurück auf leer.</p></div></li>
+          <li><span class="legend-num admin">3</span><div><b>OK</b><p>Bestätigt die Eingabe. Bei falscher PIN erscheint kurz &bdquo;falsch&ldquo; in Rot.</p></div></li>
+          <li><span class="legend-num admin">4</span><div><b>Abbrechen</b><p>Bricht ab, kehrt zum Hauptbildschirm zurück.</p></div></li>
+        </ol>
+
+        <h3 id="einstellungen">Einstellungen-Menü</h3>
+        <figure class="plate"><img src="screenshots/08_einstellungen_menue.png" alt="Einstellungen-Menü"><figcaption class="fig-note">Abb. 8 &ndash; Einstellungen-Menü.</figcaption></figure>
+        <ol class="legend">
+          <li><span class="legend-num admin">1</span><div><b>Ganze Scheibe</b><p>Öffnet den Ausschnitte-Editor zur Neukalibrierung dieses Ausschnitts.</p></div></li>
+          <li><span class="legend-num admin">2</span><div><b>Innen Scheibe</b><p>Öffnet denselben Editor für den Detailzoom-Ausschnitt.</p></div></li>
+          <li><span class="legend-num admin">3</span><div><b>Stand wechseln</b><p>Öffnet die Stand-Auswahl, um dieses Gerät auf einen anderen Schießstand umzustellen.</p></div></li>
+          <li><span class="legend-num admin">4</span><div><b>PIN ändern</b><p>Startet den Dialog zum Ändern der Einstellungs-PIN.</p></div></li>
+          <li><span class="legend-num admin">5</span><div><b>Neu starten</b><p>Öffnet die Neustart-Bestätigung.</p></div></li>
+          <li><span class="legend-num admin">6</span><div><b>Zurück</b><p>Verlässt das Menü ohne Änderung.</p></div></li>
+        </ol>
+        <div class="callout"><p><b>Wichtig:</b> Wird über &bdquo;Ganze/Innen Scheibe&ldquo;, &bdquo;Stand wechseln&ldquo; <b>oder &bdquo;PIN ändern&ldquo;</b> tatsächlich etwas gespeichert, startet das Gerät danach automatisch neu &ndash; einheitlich für alle vier Aktionen, auch wenn ein Neustart für die PIN-Änderung allein technisch nicht nötig wäre. Ein Abbruch in einem Unterdialog führt dagegen nur einen Schritt zurück zu diesem Menü.</p></div>
+
+        <h3 id="editor">Ausschnitte-Editor (Kalibrierung)</h3>
+        <p>Hier werden die vier Eckpunkte festgelegt, die den schrägen Kamerablick in ein gerades Top-down-Bild umrechnen &ndash; getrennt für &bdquo;Ganze Scheibe&ldquo; und &bdquo;Innen Scheibe&ldquo;. Nötig bei verschobener Kamera/Scheibe oder bei der Ersteinrichtung eines neuen Standes.</p>
+        <figure class="plate"><img src="screenshots/09_ausschnitte_editor_lupe.png" alt="Ausschnitte-Editor mit Lupe"><figcaption class="fig-note">Abb. 9 &ndash; Ausschnitte-Editor, Lupe beim Ziehen eines Eckpunkts eingeblendet.</figcaption></figure>
+        <ol class="legend">
+          <li><span class="legend-num admin">1</span><div><b>Titel</b><p>Zeigt an, welcher Ausschnitt bearbeitet wird.</p></div></li>
+          <li><span class="legend-num admin">2</span><div><b>Vier nummerierte Eckpunkte</b><p>Per Fingertipp greifbar und auf eine Scheibenecke ziehbar. Eine gelbe Linie verbindet sie zur Kontrolle; der jeweils andere, bereits kalibrierte Ausschnitt wird hellgrau zur Orientierung eingeblendet.</p></div></li>
+          <li><span class="legend-num admin">3</span><div><b>Lupe</b><p>Blendet beim Ziehen eines Punkts automatisch eine vergrößerte Detailansicht ein (springt in die gegenüberliegende Ecke, um den Punkt nie zu verdecken) &ndash; erleichtert millimetergenaue Platzierung.</p></div></li>
+          <li><span class="legend-num admin">4</span><div><b>Neues Bild</b><p>Holt ein frisches Kamerabild, ohne gesetzte Punkte zu verwerfen.</p></div></li>
+          <li><span class="legend-num admin">5</span><div><b>Speichern und neu starten</b><p>Übernimmt die neue Positionierung dauerhaft, startet das Gerät neu.</p></div></li>
+          <li><span class="legend-num admin">6</span><div><b>Abbrechen</b><p>Verwirft alle Änderungen, zurück zum Einstellungen-Menü.</p></div></li>
+        </ol>
+
+        <h3 id="stand-wechseln">Stand wechseln</h3>
+        <p>Erlaubt, ein Gerät auf einen anderen Schießstand (mit eigener Kamera) umzustellen. Die Standliste wird zentral gepflegt und ist auf allen Geräten identisch &ndash; welcher Stand angezeigt wird, wird pro Gerät einzeln hier gewählt.</p>
+        <figure class="plate"><img src="screenshots/10_stand_auswaehlen.png" alt="Stand auswählen"><figcaption class="fig-note">Abb. 10 &ndash; Stand-Auswahl.</figcaption></figure>
+        <ol class="legend">
+          <li><span class="legend-num admin">1</span><div><b>Liste der Stände</b><p>Ein Fingertipp markiert einen Eintrag.</p></div></li>
+          <li><span class="legend-num admin">2</span><div><b>Auswählen</b><p>Übernimmt den markierten Stand; Gerät verbindet sich mit dessen Kamera und startet neu.</p></div></li>
+          <li><span class="legend-num admin">3</span><div><b>Abbrechen</b><p>Zurück zum Einstellungen-Menü ohne Änderung.</p></div></li>
+        </ol>
+        <div class="callout"><p>Nach einem Stand-Wechsel muss in aller Regel auch die Kalibrierung (siehe oben) für den neuen Stand geprüft werden, da sich Kamerawinkel und -position je Stand unterscheiden.</p></div>
+
+        <h3 id="pin-aendern">PIN ändern</h3>
+        <p style="color:var(--muted); font-size:14.5px;">Anders als die übrigen Unterabschnitte hier ist dies kein einzelner Bildschirm mit festen Bedienelementen, sondern ein Ablauf über mehrere Schritte/Bildschirme hinweg:</p>
+        <ol style="padding-left:20px;">
+          <li style="margin-bottom:10px;">Zunächst muss die <b>aktuell gültige PIN</b> eingegeben werden (dasselbe Tastenfeld wie oben) &ndash; verhindert, dass jemand, der zufällig ans offene Menü gelangt, die PIN einfach überschreibt.</li>
+          <li style="margin-bottom:10px;">Danach erscheint das Tastenfeld erneut, Titel &bdquo;Neuen PIN eingeben (4-6 Ziffern)&ldquo;:</li>
+        </ol>
+        <figure class="plate"><img src="screenshots/11_neuen_pin_eingeben.png" alt="Neuen PIN eingeben"><figcaption class="fig-note">Abb. 11 &ndash; Neuen PIN eingeben.</figcaption></figure>
+        <ol start="3" style="padding-left:20px;">
+          <li style="margin-bottom:10px;">Die neue PIN muss zur Kontrolle ein zweites Mal eingegeben werden. Stimmen beide Eingaben nicht überein, erscheint kurz &bdquo;PINs stimmen nicht überein&ldquo;, und es geht zurück zur neuen-PIN-Eingabe &ndash; die bereits bestätigte aktuelle PIN muss dafür nicht erneut eingegeben werden.</li>
+          <li style="margin-bottom:10px;">Nach zweimal übereinstimmender Eingabe wird die neue PIN gespeichert. Genau wie bei den anderen Einstellungsänderungen startet das Gerät danach automatisch neu, damit der neue PIN sauber übernommen wird.</li>
+          <li><b>Abbrechen</b> ist in jedem Schritt möglich und verwirft die Änderung.</li>
+        </ol>
+
+        <h3 id="neustart">Gerät neu starten</h3>
+        <p>Über &bdquo;Neu starten&ldquo; im Einstellungen-Menü lässt sich das Gerät gezielt neu booten, z.&nbsp;B. wenn die Kamera-Verbindung dauerhaft hängt.</p>
+        <figure class="plate"><img src="screenshots/12_neustart_bestaetigen.png" alt="Neustart bestätigen"><figcaption class="fig-note">Abb. 12 &ndash; Neustart-Bestätigung.</figcaption></figure>
+        <ol class="legend">
+          <li><span class="legend-num admin">1</span><div><b>Ja, neu starten</b><p>Startet das Gerät sofort neu.</p></div></li>
+          <li><span class="legend-num admin">2</span><div><b>Abbrechen</b><p>Zurück zum Einstellungen-Menü ohne Neustart.</p></div></li>
+        </ol>
+      </section>
+
+      <!-- ================= ANHANG ================= -->
+      <section class="appendix" id="assistent">
+        <div class="chapter-head"><span class="chapter-num">A</span><h2>Kurzübersicht Ersteinrichtungs-Assistent</h2></div>
+        <p>Ein fabrikneues bzw. zurückgesetztes Gerät zeigt beim allerersten Start automatisch einen geführten Assistenten, bevor der normale Hauptbildschirm erreichbar ist. Er läuft in exakt dieser Reihenfolge ab und lässt sich nicht abbrechen:</p>
+        <ol>
+          <li><b>Stand auswählen</b> &ndash; identisch zum Dialog &bdquo;Stand wechseln&ldquo;, nur ohne Abbrechen-Button.</li>
+          <li><b>Ausschnitte kalibrieren</b> &ndash; zunächst &bdquo;Ganze Scheibe&ldquo;, danach &bdquo;Innen Scheibe&ldquo;, jeweils identisch zum Ausschnitte-Editor (ohne Abbrechen; der Speichern-Button heißt hier schlicht &bdquo;Speichern&ldquo;, da der Assistent ohne Neustart weiterläuft).</li>
+          <li><b>PIN festlegen</b> &ndash; identisch zum Dialog &bdquo;PIN ändern&ldquo;, nur ohne vorherige Abfrage einer alten PIN (die Werks-PIN muss zwingend geändert werden).</li>
+        </ol>
+        <p>Erst nach allen drei Schritten erscheint der normale Hauptbildschirm aus Kapitel 1.</p>
+      </section>
+
+      <section class="chapter" id="bei-problemen">
+        <div class="chapter-head"><h2>Bei Problemen</h2></div>
+        <p>Lässt sich ein Problem nicht durch einen einfachen Geräteneustart beheben (siehe Abschnitt &bdquo;Gerät neu starten&ldquo;), wenden Sie sich bitte an:</p>
+        <hr class="writeline">
+        <hr class="writeline">
+      </section>
+
+      <section class="chapter notes-page" id="notizen">
+        <div class="chapter-head"><h2>Notizen</h2></div>
+        <hr class="writeline"><hr class="writeline"><hr class="writeline"><hr class="writeline">
+        <hr class="writeline"><hr class="writeline"><hr class="writeline"><hr class="writeline">
+        <hr class="writeline"><hr class="writeline"><hr class="writeline"><hr class="writeline">
+        <hr class="writeline"><hr class="writeline"><hr class="writeline">
+      </section>
+
+      <footer>
+        <span>TargetDisplay &middot; internes Vereinshandbuch</span>
+        <span class="footer-mono">Stand: September 2026</span>
+      </footer>
+
+    </main>
+  </div>
+</div>
+
+</body>
+</html>
