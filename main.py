@@ -1855,6 +1855,12 @@ def main():
               frame[:] = (0, 0, 255)
               cv2.putText(frame, str(timerCurrentLoop +1), (20,130), cv2.FONT_HERSHEY_SIMPLEX, 5, (0, 0, 0), 10, cv2.LINE_AA)
               draw_timer_countdown(frame, baseTime + showTime + hideTime - tmpTimerSecs)
+            elif (timerCurrentLoop >= loopCounter - 1) and ((tmpTimerSecs - baseTime - showTime - hideTime) < stopTime):
+              # Zusaetzliche rote Stopp-Phase nach dem letzten Durchgang, analog
+              # zu -TIMER_20-/-TIMER_10- (dieselbe stopTime) - ohne das wuerde
+              # der Timer direkt aus der letzten Verdeckt-Phase heraus enden,
+              # ohne die kurze Pause, die die beiden anderen Varianten haben.
+              frame[:] = (0, 0, 255)
             else:
               #red
               if (timerCurrentLoop < loopCounter -1):
