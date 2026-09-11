@@ -25,7 +25,7 @@ Die Nummerierung startet in jeder Gruppe neu bei 1 – gemeint ist immer die Pos
 **Kopfzeile (oben)**
 
 1. **Standname** (oben links, z. B. „Stand 1“) – zeigt an, welcher Schießstand gerade angezeigt wird. Rein informativ, kein Bedienelement.
-2. **Video-aus-Symbol** (Auge mit Schrägstrich, oben rechts, linkes der beiden kleinen Symbole) – blendet das Kamerabild aus und zeigt stattdessen das Vereinswappen auf schwarzem Grund (siehe Abschnitt „Video aus“ unten). Ein erneuter Klick schaltet das Bild wieder ein. Solange das Bild ausgeblendet ist, sind Zoom, Blinken und Timer nicht bedienbar.
+2. **Video-aus-Symbol** (Auge mit Schrägstrich, oben rechts, linkes der beiden kleinen Symbole) – blendet das Kamerabild aus und zeigt stattdessen das Vereinswappen auf schwarzem Grund (siehe Abschnitt „Video aus“ im Detail unten). Ein erneuter Klick schaltet das Bild wieder ein. Solange das Bild ausgeblendet ist, sind Zoom, Blinken und Timer nicht bedienbar.
 3. **Einstellungen-Symbol** (Zahnrad mit Schloss, oben rechts, rechtes der beiden kleinen Symbole) – öffnet den PIN-geschützten Administrativen Bereich, siehe Kapitel 3.
 
 **Gruppe „Zoom“ (blau)**
@@ -87,7 +87,7 @@ Während eines laufenden Timers wird kein Kamerabild angezeigt und Zoom/Blinken/
 
 **Abb. 5:** Sichtzeit läuft (grün).
 
-### 2.4 „Video aus“
+### 2.4 „Video aus“ im Detail
 
 Ein Klick auf das Augen-Symbol in der Kopfzeile (Punkt 2) blendet das Kamerabild aus und zeigt stattdessen das Vereinswappen auf schwarzem Grund – etwa wenn zwischen zwei Trainingseinheiten niemand am Stand ist. Die Uhrzeit/Datumsanzeige läuft normal weiter. Das Symbol wechselt dabei auf ein Auge ohne Schrägstrich; ein erneuter Klick darauf schaltet das Live-Bild wieder ein.
 
@@ -196,7 +196,7 @@ Ein fabrikneues bzw. zurückgesetztes Gerät zeigt beim allerersten Start automa
 
 1. **Stand auswählen** – identisch zum Dialog in Abschnitt 3.4, nur ohne „Abbrechen“-Button.
 2. **Ausschnitte kalibrieren** – zunächst „Ganze Scheibe“, danach „Innen Scheibe“, jeweils identisch zum Editor in Abschnitt 3.3 (nur ohne „Abbrechen“, und der Speichern-Button heißt hier schlicht „Speichern“, da der Assistent nach jedem Einzelschritt ohne Neustart weiterläuft).
-3. **PIN festlegen** – identisch zum Dialog in Abschnitt 3.5, nur ohne vorherige Abfrage einer „alten“ PIN (die eingebaute Werks-PIN muss zwingend geändert werden, bevor das Gerät in Betrieb geht).
+3. **PIN festlegen** – identisch zum Dialog in Abschnitt 3.5, nur ohne vorherige Abfrage einer aktuellen PIN: Das Gerät startet mit dem eingebauten Standard-PIN „1234“, den der Assistent an dieser Stelle zwingend durch einen selbst gewählten PIN ersetzen lässt.
 
 Erst wenn alle drei Schritte abgeschlossen sind, erscheint der normale Hauptbildschirm aus Kapitel 2.
 
