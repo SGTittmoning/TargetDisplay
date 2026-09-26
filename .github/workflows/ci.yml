@@ -53,9 +53,11 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install test dependencies
-        run: pip install pytest numpy opencv-python-headless av config-with-yaml
-      - name: pytest (Timer, Watchdog, PIN-Wartezeit, Perspektive, ...)
-        run: python -m pytest -q tests
+        run: |
+          sudo apt-get update && sudo apt-get install -y xvfb
+          pip install pytest numpy opencv-python-headless av config-with-yaml
+      - name: pytest (Timer, Watchdog, PIN-Wartezeit, Perspektive, Rauchtest der Oberflaeche unter Xvfb, ...)
+        run: xvfb-run -a python -m pytest -q tests
       - name: Regression tests for the maintenance scripts (stubbed system commands, no hardware)
         run: tests/run-script-tests.sh
 

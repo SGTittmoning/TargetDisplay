@@ -1,6 +1,7 @@
 import cv2
 import numpy as np
 
+
 def compute_perspective_matrix(pts, dsize):
   # Liefert die 3x3-Homographie-Matrix, die das per pts definierte Viereck
   # (perspektivische Ansicht der flachen Scheibe) auf ein dsize-grosses
@@ -88,3 +89,25 @@ def crop(cv2Object, zoomSize, center):
     # upscaling the whole frame first and immediately discarding most of it
     cv2Object = cv2.resize(cv2Object, (width, height))
     return cv2Object
+
+# Zoomfaktor fuer den manuellen Pan-per-Klick im Videobild (tl.crop() weiter
+# unten) - als Konstante herausgezogen, damit dieselbe Zahl auch fuer die
+# Grenzen von zoom_center (Prozent-Koordinaten) verwendet werden kann, siehe
+# clamp_zoom_center().
+VIDEO_ZOOM_FACTOR = 3
+
+
+def clamp_zoom_center(center, zoom_factor=VIDEO_ZOOM_FACTOR):
+    # zoom_center lebt in main() als (x%, y%) und muss hier explizit geclampt
+    # werden: tl.crop() clampt nur seine EIGENE, rein lokale Kopie in
+    # Pixelkoordinaten fuers Anzeigen, gibt den geclampten Wert aber nie an
+    # zoom_center in main() zurueck - ohne diesen Clamp koennte der Wert bei
+    # wiederholten Rand-Klicks beliebig weit ueber 100/unter 0 hinauswandern,
+    # sodass mehrere Klicks in die Gegenrichtung noetig waeren, bevor sich
+    # wieder sichtbar etwas bewegt. Die Grenze haengt nur von zoom_factor ab
+    # (nicht von der tatsaechlichen Bildgroesse: offset/width ist immer
+    # 1/(2*zoom_factor)), kann hier also unabhaengig von tl.crop() berechnet
+    # werden.
+    lo = 100 / (2 * zoom_factor)
+    hi = 100 - lo
+    return (min(max(center[0], lo), hi), min(max(center[1], lo), hi))

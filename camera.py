@@ -1,8 +1,10 @@
 import sys
 import threading
-from threading import Lock
 import time
+from threading import Lock
+
 import av
+
 from logutil import mask_credentials
 
 # Timeouts fuer av.open() in Sekunden (Verbindungsaufbau, Lesen). Ein
@@ -13,6 +15,21 @@ from logutil import mask_credentials
 OPEN_TIMEOUT_SEC = 20
 READ_TIMEOUT_SEC = 5
 
+# Kein neuer Frame seit so vielen Sekunden -> Prozess beendet sich selbst
+# (play_it/systemd uebernehmen den Neustart/die Eskalation, siehe README).
+# camera.py haengt bei dauerhaftem Verbindungsverlust selbst nie (dessen
+# eigene Retry-Schleife laeuft endlos weiter) - main.py braucht dieses
+# eigene Signal, um ueberhaupt jemals aufzugeben.
+STREAM_STALE_TIMEOUT_SEC = 10
+
+
+# Eigene, grosszuegigere Gnadenfrist NUR fuer den allerersten Verbindungsaufbau
+# nach dem App-Start (siehe camera.py::is_stale) - ein frischer Connect kann
+# (Timeouts siehe camera.py) mehrere Versuche brauchen, ohne dass camera.py
+# haengt. STREAM_STALE_TIMEOUT_SEC bleibt bewusst knapp fuer
+# einen Ausfall WAEHREND eines bereits laufenden Streams.
+STREAM_STARTUP_TIMEOUT_SEC = 30
+
 class Camera:
     def __init__(self, rtsp_link, reconnect_delay=2, crop_region=None):
         self.rtsp_link = rtsp_link
@@ -20,7 +37,7 @@ class Camera:
         self.crop_region = crop_region
         self.last_frame = None
         # Unbeschnittene Variante desselben Frames, ausschliesslich fuer den
-        # Settings-Punkte-Editor (main.py::edit_section_points) - der
+        # Settings-Punkte-Editor (flows.py::edit_section_points) - der
         # normale Anzeige-/Warp-Pfad braucht nur den ohnehin schon eng um
         # section_full/section_detail zugeschnittenen last_frame, der
         # Editor zum NEU-Setzen der Ausschnitte muss aber das komplette
