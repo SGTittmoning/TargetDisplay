@@ -50,7 +50,7 @@ save_boot_json() {
     echo "Eingabe ist groesser als $MAX_BYTES Bytes - abgebrochen." >&2
     exit 1
   fi
-  if ! python3 -c 'import json, sys; json.load(open(sys.argv[1]))' "$_save_payload"; then
+  if ! python3 -c 'import json, sys; json.load(open(sys.argv[1]))' "$_save_payload" 2>/dev/null; then
     echo "Eingabe ist kein gueltiges JSON - abgebrochen." >&2
     exit 1
   fi
