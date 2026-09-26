@@ -11,6 +11,7 @@ import tkinter as tk
 import tkinter.font as tkfont
 import numpy as np
 import transformlib as tl
+from watchdog import stale_check_due
 import config_with_yaml as config
 from camera import Camera
 from datetime import datetime
@@ -1515,6 +1516,7 @@ def main():
     timerCurrentLoop = 0
     timerStart = datetime.now()
     timerType = ""
+    video_resumed_at = time.monotonic()
     blink = False
     blink_ref = []
     zoom_center = []
@@ -1643,7 +1645,12 @@ def main():
     _show_page('-MAINVIEW-')
 
     while True:
-        if cap.is_stale(STREAM_STALE_TIMEOUT_SEC, STREAM_STARTUP_TIMEOUT_SEC):
+        # Nur pruefen, solange das Kamerabild angezeigt wird: Timer-Serien und
+        # der Blank-Screen brauchen die Kamera nicht, ein Stream-Ausfall darf
+        # sie nicht durch einen Prozess-Neustart unterbrechen. camera.py
+        # verbindet sich im Hintergrund selbststaendig neu.
+        if (stale_check_due(displayVideo, displayTimer, time.monotonic(), video_resumed_at, STREAM_STALE_TIMEOUT_SEC)
+                and cap.is_stale(STREAM_STALE_TIMEOUT_SEC, STREAM_STARTUP_TIMEOUT_SEC)):
             if cap.frame_id == 0:
                 print(f"Kein Kamera-Frame innerhalb der Startup-Frist von {STREAM_STARTUP_TIMEOUT_SEC}s erhalten "
                       f"(seit Prozessstart: {time.time() - cap.start_time:.1f}s) - beende Prozess fuer Neustart.", file=sys.stderr)
@@ -1666,6 +1673,7 @@ def main():
         elif event == '-TOGGLEVIDEO-':
             displayVideo = not displayVideo
             if displayVideo:
+              video_resumed_at = time.monotonic()
               window['-TOGGLEVIDEO-'].widget.config(image=window._icon('eye_slash_neutral'))
               # frame_count/frame_timestamps bewusst NICHT zurueckgesetzt - Video
               # aus/ein soll die FPS/Frame-Anzeige nur pausieren (sie friert waehrend
@@ -1777,6 +1785,7 @@ def main():
           video_filter_disabled(False)
           displayTimer = False
           displayVideo = True
+          video_resumed_at = time.monotonic()
           _set_icon_buttons(('-TIMER_5_3_7-', '-TIMER_20-', '-TIMER_10-'), True)
           _set_icon_buttons(('-TIMER_STOP-',), False)
 
