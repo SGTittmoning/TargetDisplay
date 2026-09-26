@@ -43,6 +43,22 @@ jobs:
       - name: Compile check
         run: python -m py_compile main.py camera.py transformlib.py
 
+  tests:
+    if: github.event.repository.private == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install test dependencies
+        run: pip install pytest numpy opencv-python-headless av config-with-yaml
+      - name: pytest (Timer, Watchdog, PIN-Wartezeit, Perspektive, ...)
+        run: python -m pytest -q tests
+      - name: Regression tests for the maintenance scripts (stubbed system commands, no hardware)
+        run: tests/run-script-tests.sh
+
   ansible:
     if: github.event.repository.private == false
     runs-on: ubuntu-latest
