@@ -11,6 +11,7 @@ import tkinter as tk
 import tkinter.font as tkfont
 import numpy as np
 import transformlib as tl
+import timerlib
 from watchdog import stale_check_due
 import config_with_yaml as config
 from camera import Camera
@@ -1513,8 +1514,7 @@ def main():
     FPS_WINDOW_SECONDS = 60
     displayVideo = True
     displayTimer = False
-    timerCurrentLoop = 0
-    timerStart = datetime.now()
+    timerStart = time.monotonic()
     timerType = ""
     video_resumed_at = time.monotonic()
     blink = False
@@ -1762,11 +1762,7 @@ def main():
           blink = False
         elif event in ('-TIMER_5_3_7-', '-TIMER_20-', '-TIMER_10-'):
           # Alle drei Timer-Varianten starten identisch - nur timerType
-          # (=event) unterscheidet, welcher Countdown weiter unten
-          # gerendert wird. timerCurrentLoop wird auch fuer -TIMER_20-/
-          # -TIMER_10- zurueckgesetzt, obwohl nur die 5x3/7-Variante es
-          # liest - unschaedlich, vermeidet aber eine dritte fast
-          # identische Kopie dieses Blocks.
+          # (=event) unterscheidet, welcher Ablauf (timerlib) gerendert wird.
           zoom_disabled(True)
           _sync_reset_button(zoom_level, zoom_center, globally_disabled=True)
           blink_disabled(True)
@@ -1776,8 +1772,7 @@ def main():
           _set_icon_buttons(('-TIMER_STOP-',), True)
           displayVideo = False
           timerType = event
-          timerStart = datetime.now()
-          timerCurrentLoop = 0
+          timerStart = time.monotonic()
         elif event == '-TIMER_STOP-':
           zoom_disabled(False)
           _sync_reset_button(zoom_level, zoom_center)
@@ -1821,7 +1816,7 @@ def main():
             if blink and len(blink_ref) == 0:
               blink_ref = frame
             M_current = M_full if not zoom_level == 'detail' else M_detail
-            if blink and (datetime.now().second % 2) == 1:
+            if blink and int(time.monotonic()) % 2 == 1:
               display_frame = cv2.warpPerspective(blink_ref, M_current, VideoSize)
             else:
               display_frame = cv2.warpPerspective(frame, M_current, VideoSize)
@@ -1831,12 +1826,12 @@ def main():
 
             window.draw_image(display_frame)
             frame_count += 1
-            now = datetime.now()
+            now = time.monotonic()
             frame_timestamps.append(now)
-            while frame_timestamps and (now - frame_timestamps[0]).total_seconds() > FPS_WINDOW_SECONDS:
+            while frame_timestamps and (now - frame_timestamps[0]) > FPS_WINDOW_SECONDS:
               frame_timestamps.popleft()
             try:
-              window_span = (now - frame_timestamps[0]).total_seconds()
+              window_span = now - frame_timestamps[0]
               fps = len(frame_timestamps) / window_span
               window_fps.update(f'FPS: {str(round(fps,1)) } - Frame { str(frame_count) }')
             except ZeroDivisionError:
@@ -1846,62 +1841,14 @@ def main():
           # (Hoehe, Breite, Kanaele) - deshalb hier bewusst vertauscht,
           # analog zum Blank-Screen-Handler oben (-TOGGLEVIDEO-).
           frame = np.zeros((VideoSize[1],VideoSize[0],3), np.uint8)
-          tmpTimerSecs = (datetime.now()-timerStart).seconds
-
-          prepTime = 7
-          stopTime = 3
-
-          if timerType == "-TIMER_5_3_7-":
-            showTime = 3
-            hideTime = 7
-            loopCounter = 5
-            baseTime = (timerCurrentLoop * (showTime + hideTime)) + prepTime
-            if (tmpTimerSecs < prepTime):
-              #red
-              frame[:] = (0, 0, 255)
-              draw_timer_countdown(frame, prepTime - tmpTimerSecs)
-            elif ((tmpTimerSecs - baseTime) < showTime):
-              #green
-              frame[:] = (0, 255, 0)
-              cv2.putText(frame, str(timerCurrentLoop + 1), (20,130), cv2.FONT_HERSHEY_SIMPLEX, 5, (0, 0, 0), 10, cv2.LINE_AA)
-              draw_timer_countdown(frame, baseTime + showTime - tmpTimerSecs)
-            elif((tmpTimerSecs - baseTime - showTime) < hideTime):
-              #red
-              frame[:] = (0, 0, 255)
-              cv2.putText(frame, str(timerCurrentLoop +1), (20,130), cv2.FONT_HERSHEY_SIMPLEX, 5, (0, 0, 0), 10, cv2.LINE_AA)
-              draw_timer_countdown(frame, baseTime + showTime + hideTime - tmpTimerSecs)
-            elif (timerCurrentLoop >= loopCounter - 1) and ((tmpTimerSecs - baseTime - showTime - hideTime) < stopTime):
-              # Zusaetzliche rote Stopp-Phase nach dem letzten Durchgang, analog
-              # zu -TIMER_20-/-TIMER_10- (dieselbe stopTime) - ohne das wuerde
-              # der Timer direkt aus der letzten Verdeckt-Phase heraus enden,
-              # ohne die kurze Pause, die die beiden anderen Varianten haben.
-              frame[:] = (0, 0, 255)
-            else:
-              #red
-              if (timerCurrentLoop < loopCounter -1):
-                timerCurrentLoop += 1
-              else:
-                window.post('-TIMER_STOP-')
-              frame[:] = (0, 0, 255)
-          elif timerType in ("-TIMER_20-", "-TIMER_10-"):
-            # -TIMER_20-/-TIMER_10- unterscheiden sich nur in showTime -
-            # derselbe einfache Rot-Vorbereitung/Gruen-Countdown/Rot-Stop-
-            # Ablauf wie oben, nur ohne die Mehrfach-Wiederholung von
-            # -TIMER_5_3_7-.
-            showTime = 20 if timerType == "-TIMER_20-" else 10
-            if tmpTimerSecs < prepTime:
-              #red
-              frame[:] = (0, 0, 255)
-              draw_timer_countdown(frame, prepTime - tmpTimerSecs)
-            elif tmpTimerSecs < (prepTime + showTime):
-              #green
-              frame[:] = (0, 255, 0)
-              draw_timer_countdown(frame, prepTime + showTime - tmpTimerSecs)
-            elif tmpTimerSecs < (prepTime + showTime + stopTime):
-              #red
-              frame[:] = (0, 0, 255)
-            else:
-              window.post('-TIMER_STOP-')
+          state = timerlib.timer_state(timerType, time.monotonic() - timerStart)
+          frame[:] = (0, 255, 0) if state.color == 'green' else (0, 0, 255)
+          if state.number is not None:
+            cv2.putText(frame, str(state.number), (20,130), cv2.FONT_HERSHEY_SIMPLEX, 5, (0, 0, 0), 10, cv2.LINE_AA)
+          if state.countdown is not None:
+            draw_timer_countdown(frame, state.countdown)
+          if state.finished:
+            window.post('-TIMER_STOP-')
           window.draw_image(frame)
           window_fps.update('')
 
