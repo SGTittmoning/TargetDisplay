@@ -59,11 +59,11 @@ def _handle_sigterm(signum, frame):
 
 signal.signal(signal.SIGTERM, _handle_sigterm)
 
-# Unbehandelte Exception -> Traceback ins Journal und Exit-Code 3. Python
-# selbst wuerde mit Exit-Code 1 enden, den targetdisplay.service
-# (SuccessExitStatus=1) als regulaeren Stop wertet - ein Absturz waere dann
-# nicht von einem "systemctl stop" zu unterscheiden. os._exit, weil ein
-# Exit-Code aus dem excepthook heraus sonst nicht durchschlaegt.
+# Unbehandelte Exception -> Traceback ins Journal und Exit-Code 3, damit der
+# Absturz in der Zeile "TargetDisplay beendet (exit N)" (play_it) von einem
+# regulaeren Ende (0) und einem Stream-Ausfall (2) unterscheidbar ist.
+# os._exit, weil ein Exit-Code aus dem excepthook heraus sonst nicht
+# durchschlaegt.
 def _handle_uncaught(exc_type, exc_value, exc_tb):
     traceback.print_exception(exc_type, exc_value, exc_tb)
     sys.stderr.flush()
@@ -232,12 +232,8 @@ def main():
             else:
                 print(f"Kein neuer Kamera-Frame seit {time.monotonic() - cap.last_frame_time:.1f}s "
                       f"(Schwelle {STREAM_STALE_TIMEOUT_SEC}s, zuletzt frame_id={cap.frame_id}) - beende Prozess fuer Neustart.", file=sys.stderr)
-            # Exit-Code 2, NICHT 1: xinit gibt bei einem direkt an sich selbst
-            # gerichteten SIGTERM (z.B. "systemctl stop/restart") selbst
-            # Exit-Code 1 zurueck ("unexpected signal", siehe
-            # targetdisplay.service.j2::SuccessExitStatus) - ein echter
-            # Stream-Ausfall braucht einen eigenen, davon unterscheidbaren
-            # Code (Python-Abstuerze enden mit 3, siehe _handle_uncaught).
+            # Eigener Exit-Code 2 (Stream-Ausfall), im Journal als
+            # "TargetDisplay beendet (exit 2)" von play_it sichtbar.
             sys.exit(2)
 
         event, values = window.read(timeout=MAIN_LOOP_TICK_MS)

@@ -14,11 +14,12 @@ echo "Starting up TargetDisplay..."
 # Bewusst nur EIN Versuch hier, keine eigene Retry-Schleife mehr - das
 # Zaehlen/Eskalieren passiert komplett auf systemd-Ebene
 # (targetdisplay.service: Restart=always + StartLimitBurst, siehe
-# templates/targetdisplay.service.j2). Ein Scheitern hier beendet play_it
-# (letzter Befehl in .xinitrc) -> die X11-Session endet -> der Service
-# scheitert -> systemd startet automatisch neu. Nach der konfigurierten
-# Anzahl Fehlschlaege in Folge greift dessen OnFailure= (Pi-Reboot mit
-# persistentem Zaehler, siehe tasks/reboot_guard.yml).
+# templates/targetdisplay.service.j2). Ein Ende von main.py beendet play_it
+# (letzter Befehl in .xinitrc) -> die X11-Session endet -> systemd startet den
+# Dienst automatisch neu. Nach der konfigurierten Anzahl Starts innerhalb des
+# Intervalls greift dessen OnFailure= (Pi-Reboot mit persistentem Zaehler,
+# siehe tasks/reboot_guard.yml). Der Exit-Code von main.py steht nur in der
+# Journal-Zeile unten: xinit reicht ihn nicht an systemd weiter.
 .venv/bin/python3 ./main.py
 RET=$?
 

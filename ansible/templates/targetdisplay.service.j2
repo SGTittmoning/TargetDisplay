@@ -2,14 +2,16 @@
 Description=TargetDisplay X11 Kiosk-Session
 After=systemd-user-sessions.service getty@tty1.service network.target
 Conflicts=getty@tty1.service
-# Scheitert main.py (z.B. Kamera-Stream seit STREAM_STALE_TIMEOUT_SEC/10s
-# ohne neuen Frame, siehe camera.py::is_stale/main.py), beendet sich
-# play_it (letzter Befehl in .xinitrc) mit main.py's Exit-Code -> die
-# X11-Session endet -> dieser Service scheitert -> Restart=always startet
-# sie neu. play_it zaehlt selbst NICHT mehr mit (siehe play_it) - das
-# Zaehlen passiert ausschliesslich hier, ueber StartLimitBurst. Nach 5
-# Fehlschlaegen in Folge gibt systemd auf und ruft OnFailure= auf -
-# naechste Eskalationsstufe: Pi-Reboot mit persistenter Obergrenze.
+# Beendet sich main.py (z.B. weil der Kamera-Stream seit STREAM_STALE_TIMEOUT_SEC
+# ohne neuen Frame ist, siehe camera.py::is_stale/main.py), endet play_it
+# (letzter Befehl in .xinitrc) -> die X11-Session endet -> Restart=always
+# startet den Dienst neu. Gezaehlt werden dabei die Starts, nicht die
+# Exit-Codes (siehe SuccessExitStatus unten): nach StartLimitBurst Starts
+# innerhalb von StartLimitIntervalSec gibt systemd auf und ruft OnFailure=
+# auf - naechste Eskalationsstufe: Pi-Reboot mit persistenter Obergrenze.
+# play_it zaehlt selbst nicht mit (siehe play_it). Auch manuelle Neustarts
+# (systemctl restart) und der Neustart nach dem Speichern der Einstellungen
+# zaehlen als Start.
 #
 # Bei ausbleibendem Stream dauert ein Zyklus rund 36 s: 30 s Startup-Frist
 # (STREAM_STARTUP_TIMEOUT_SEC - der neu gestartete Prozess hat noch keinen
@@ -56,11 +58,13 @@ ExecStart=/usr/bin/startx /home/{{ targetdisplay_service_user }}/.xinitrc -- :0 
 # eigene KillMode-Signale nicht, sie laufen zusaetzlich/danach - xinit
 # bekommt das SIGTERM so oder so.
 #
-# Deshalb stattdessen: Exit-Code 1 pauschal als Erfolg werten. Sicher, weil
-# main.py bei einem echten Stream-Ausfall mit Exit-Code 2 und bei einer
-# unbehandelten Exception mit Exit-Code 3 endet (siehe main.py,
-# sys.exit(2) und _handle_uncaught) - der einzige andere Weg zu Exit-Code 1
-# ist genau dieser xinit-Sonderfall.
+# Deshalb stattdessen: Exit-Code 1 pauschal als Erfolg werten. Der Exit-Code
+# von main.py erreicht systemd nicht: xinit beendet sich nach dem Ende des
+# Clients immer mit 0, auch wenn main.py mit 2 (Stream-Ausfall) oder 3
+# (unbehandelte Exception) endet. Dass der Dienst dann neu startet, liegt an
+# Restart=always, und die Eskalation zaehlt Starts (StartLimit*), nicht
+# Fehlercodes. Den Exit-Code von main.py protokolliert play_it im Journal
+# ("TargetDisplay beendet (exit N)").
 SuccessExitStatus=1
 Restart=always
 RestartSec=2
