@@ -58,7 +58,7 @@ chmod +x "$STUBS"/*
 # Testkopien der Skripte mit umgebogenem Boot-Pfad
 BIN="$WORK/bin"; BOOT="$WORK/boot"; mkdir -p "$BIN" "$BOOT"
 for f in "$FILES"/*.sh; do
-  sed "s#/boot/firmware#$BOOT#g" "$f" > "$BIN/$(basename "$f")"
+  sed -e "s#/boot/firmware#$BOOT#g" -e "s#/proc/uptime#$WORK/uptime#g" "$f" > "$BIN/$(basename "$f")"
   chmod +x "$BIN/$(basename "$f")"
 done
 
@@ -114,6 +114,51 @@ fi
 reset; echo '{"pin": "1"}' | BOOTRO=0 FAIL_MOUNT_RW=1 "$BIN/targetdisplay-save-pin.sh" 2>/dev/null; rc=$?
 check "remount rw scheitert: Exit != 0" 1 "$([ "$rc" -ne 0 ] && echo 1 || echo 0)"
 check "remount rw scheitert: Partition wird read-only gehalten" 1 "$(calls 'remount,ro')"
+
+# ============================================== reboot-count-reset.sh
+echo "reboot-count-reset.sh"
+COUNT="$BOOT/.targetdisplay-reboot-count"
+# reset() raeumt auch die STUB_*-Variablen ab; die fuer diesen Lauf gesetzten
+# Werte werden deshalb vorher gesichert und danach wieder gesetzt.
+run_reset() {
+  local ro="${BOOTRO:-}" inactive="${STUB_INACTIVE:-}" restarts="${STUB_NRESTARTS:-}" enter="${STUB_ACTIVE_ENTER_US:-}" up="${UPTIME_S:-400}"
+  reset
+  [ -z "$ro" ] || export BOOTRO="$ro"
+  [ -z "$inactive" ] || export STUB_INACTIVE="$inactive"
+  [ -z "$restarts" ] || export STUB_NRESTARTS="$restarts"
+  [ -z "$enter" ] || export STUB_ACTIVE_ENTER_US="$enter"
+  echo 3 > "$COUNT"
+  echo "$up.00 1234.00" > "$WORK/uptime"
+  "$BIN/targetdisplay-reboot-count-reset.sh"
+}
+
+# Uptime 400 s, Dienst seit 100 s (= 100000000 us) aktiv -> 300 s stabil
+UPTIME_S=400 STUB_ACTIVE_ENTER_US=100000000 STUB_NRESTARTS=0 run_reset; rc=$?
+check "stabil: Exit 0" 0 "$rc"
+check "stabil: Zaehler geloescht" "" "$(ls -A "$BOOT" | grep reboot-count || true)"
+
+STUB_ACTIVE_ENTER_US=100000000 STUB_NRESTARTS=2 run_reset
+check "2 Neustarts (< 3): Zaehler geloescht" "" "$(ls -A "$BOOT" | grep reboot-count || true)"
+
+STUB_ACTIVE_ENTER_US=100000000 STUB_NRESTARTS=8 run_reset; rc=$?
+check "Neustart-Zyklus: Exit 0" 0 "$rc"
+check "Neustart-Zyklus: Zaehler bleibt" 3 "$(cat "$COUNT")"
+check "Neustart-Zyklus: Grund im Log" 1 "$(calls 'logger.*automatisch neu gestartet')"
+
+STUB_INACTIVE=3 STUB_ACTIVE_ENTER_US=100000000 run_reset; rc=$?
+check "Dienst inaktiv: Exit 0" 0 "$rc"
+check "Dienst inaktiv: Zaehler bleibt" 3 "$(cat "$COUNT")"
+
+# Dienst erst seit 350 s aktiv bei Uptime 400 s -> nur 50 s stabil
+STUB_ACTIVE_ENTER_US=350000000 STUB_NRESTARTS=0 run_reset
+check "erst 50 s aktiv: Zaehler bleibt" 3 "$(cat "$COUNT")"
+
+reset; "$BIN/targetdisplay-reboot-count-reset.sh"; rc=$?
+check "ohne Zaehlerdatei: Exit 0" 0 "$rc"
+
+BOOTRO=0 STUB_ACTIVE_ENTER_US=100000000 run_reset
+check "ro-Boot: remount rw" 1 "$(calls 'remount,rw')"
+check "ro-Boot: remount ro" 1 "$(calls 'remount,ro')"
 
 echo
 echo "Ergebnis: $pass ok, $fail Fehler"
