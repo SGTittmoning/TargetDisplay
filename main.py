@@ -12,6 +12,7 @@ import tkinter.font as tkfont
 import numpy as np
 import transformlib as tl
 import timerlib
+from pinlock import PinLimiter
 from watchdog import stale_check_due
 import config_with_yaml as config
 from camera import Camera
@@ -970,6 +971,23 @@ def _set_stand_name(name):
     window.set_stand_name(name or '')
 
 
+def _wait_after_error(error_text, wait_s):
+    # Zeigt error_text rot und wartet wait_s Sekunden, ohne die Oberflaeche
+    # einzufrieren. Tastendruecke waehrend der Wartezeit werden verworfen.
+    # Liefert False, wenn waehrenddessen abgebrochen wurde (Abbrechen/Fenster
+    # zu), sonst True.
+    end = time.monotonic() + wait_s
+    while True:
+        remaining = end - time.monotonic()
+        if remaining <= 0:
+            return True
+        text = error_text if wait_s < 2 else f'{error_text} ({math.ceil(remaining)} s)'
+        window['-PINDISPLAY-'].update(text, text_color='red')
+        event, _ = window.read(timeout=200)
+        if event in (WIN_CLOSED, '-PIN_CANCEL-'):
+            return False
+
+
 def _run_pin_keypad(title, show_cancel, validate):
     # Gemeinsames Tastenfeld-Grundgeruest fuer check_pin() und
     # _enter_new_pin() - beide sammeln Ziffern/-PIN_CLEAR- identisch und
@@ -977,8 +995,9 @@ def _run_pin_keypad(title, show_cancel, validate):
     # und was bei Erfolg zurueckgegeben wird. validate(entered) liefert
     # (True, ergebnis) bei Erfolg (Schleife endet), sonst
     # (False, (fehlertext, sekunden)) - zeigt den Fehlertext rot fuer die
-    # angegebene Dauer, dann geht die Eingabe leer weiter. Liefert das
-    # Erfolgsergebnis, oder None bei Abbrechen/Fenster zu.
+    # angegebene Dauer (ab 2 s mit Restzeit; Eingaben waehrenddessen werden
+    # verworfen, Abbrechen bleibt moeglich), dann geht die Eingabe leer
+    # weiter. Liefert das Erfolgsergebnis, oder None bei Abbrechen/Fenster zu.
     window['-PIN_TITLE-'].update(title)
     window['-PIN_CANCEL-'].update(visible=show_cancel)
     _show_page('-PINVIEW-')
@@ -999,9 +1018,8 @@ def _run_pin_keypad(title, show_cancel, validate):
             else:
                 error_text, sleep_s = value
                 entered = ''
-                window['-PINDISPLAY-'].update(error_text, text_color='red')
-                window.refresh()
-                time.sleep(sleep_s)
+                if not _wait_after_error(error_text, sleep_s):
+                    break
         elif event in '0123456789':
             if len(entered) < 6:
                 entered += event
@@ -1009,19 +1027,23 @@ def _run_pin_keypad(title, show_cancel, validate):
     return result
 
 
+PIN_LIMITER = PinLimiter()
+
+
 def check_pin(correct_pin):
     # Generische PIN-Abfrage, schuetzt sowohl Settings als auch Restart.
-    # Bewusst keine Sperre nach Fehlversuchen (Nutzer-Entscheidung) - das
-    # Bedrohungsmodell ist "zufaelliges Herumtippen vor Ort abschrecken",
-    # keine gezielte Brute-Force-Absicherung.
+    # Keine Sperre, aber nach jedem Fehlversuch eine laenger werdende Pause
+    # (siehe pinlock.py) - das Bedrohungsmodell ist "zufaelliges Herumtippen
+    # vor Ort abschrecken", keine gezielte Brute-Force-Absicherung.
     # Titel/Abbrechen-Sichtbarkeit werden von _run_pin_keypad() explizit
     # auf 'PIN eingeben'/sichtbar zurueckgesetzt - _enter_new_pin()
     # (PIN-Aenderung) aendert beides auf derselben Seite, eine vorherige
     # Aenderung darf hier nicht durchschlagen.
     def validate(entered):
         if entered == str(correct_pin):
+            PIN_LIMITER.register_success()
             return True, True
-        return False, ('falsch', 0.6)
+        return False, ('falsch', PIN_LIMITER.register_failure())
     result = _run_pin_keypad('PIN eingeben', True, validate)
     _show_page('-MAINVIEW-')
     return bool(result)
