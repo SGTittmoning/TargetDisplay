@@ -6,6 +6,7 @@ import os
 import math
 import queue
 import subprocess
+import traceback
 import cv2
 import tkinter as tk
 import tkinter.font as tkfont
@@ -30,6 +31,19 @@ def _handle_sigterm(signum, frame):
     sys.exit(0)
 
 signal.signal(signal.SIGTERM, _handle_sigterm)
+
+
+# Unbehandelte Exception -> Traceback ins Journal und Exit-Code 3. Python
+# selbst wuerde mit Exit-Code 1 enden, den targetdisplay.service
+# (SuccessExitStatus=1) als regulaeren Stop wertet - ein Absturz waere dann
+# nicht von einem "systemctl stop" zu unterscheiden. os._exit, weil ein
+# Exit-Code aus dem excepthook heraus sonst nicht durchschlaegt.
+def _handle_uncaught(exc_type, exc_value, exc_tb):
+    traceback.print_exception(exc_type, exc_value, exc_tb)
+    sys.stderr.flush()
+    os._exit(3)
+
+sys.excepthook = _handle_uncaught
 
 # Kein neuer Frame seit so vielen Sekunden -> Prozess beendet sich selbst
 # (play_it/systemd uebernehmen den Neustart/die Eskalation, siehe README).
@@ -1684,8 +1698,7 @@ def main():
             # Exit-Code 1 zurueck ("unexpected signal", siehe
             # targetdisplay.service.j2::SuccessExitStatus) - ein echter
             # Stream-Ausfall braucht einen eigenen, davon unterscheidbaren
-            # Code, sonst wuerde SuccessExitStatus=1 auch echte Ausfaelle
-            # faelschlich als Erfolg werten.
+            # Code (Python-Abstuerze enden mit 3, siehe _handle_uncaught).
             sys.exit(2)
 
         event, values = window.read(timeout=10)

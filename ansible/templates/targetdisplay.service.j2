@@ -57,12 +57,10 @@ ExecStart=/usr/bin/startx /home/{{ targetdisplay_service_user }}/.xinitrc -- :0 
 # bekommt das SIGTERM so oder so.
 #
 # Deshalb stattdessen: Exit-Code 1 pauschal als Erfolg werten. Sicher, weil
-# main.py bei einem echten Stream-Ausfall bewusst mit Exit-Code 2 beendet
-# (siehe main.py, Kommentar bei "sys.exit(2)") - der einzige andere Weg zu
-# Exit-Code 1 ist genau dieser xinit-Sonderfall. Ein Python-Absturz mit
-# unbehandelter Exception liefert ueblicherweise ebenfalls exit 1 - dieser
-# (seltene) Fall wuerde dadurch nicht als Fehler gezaehlt; akzeptiert, da der
-# haeufige/erwartete Fall (regulaerer Stop) klar ueberwiegt.
+# main.py bei einem echten Stream-Ausfall mit Exit-Code 2 und bei einer
+# unbehandelten Exception mit Exit-Code 3 endet (siehe main.py,
+# sys.exit(2) und _handle_uncaught) - der einzige andere Weg zu Exit-Code 1
+# ist genau dieser xinit-Sonderfall.
 SuccessExitStatus=1
 Restart=always
 RestartSec=2
