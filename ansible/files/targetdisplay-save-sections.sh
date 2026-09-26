@@ -16,35 +16,15 @@
 # auch mit aktivem Overlay, ganz ohne dessen Reboot-Tanz.
 #
 # Nimmt das neue JSON auf STDIN entgegen (main.py schreibt es dorthin) und
-# schreibt es unveraendert nach $TARGET. Bewusst kein Parsing/Validieren
-# hier - main.py validiert vor dem Aufruf, dieses Skript soll so simpel
-# wie moeglich bleiben (kleinere Angriffsflaeche fuer das sudoers-Recht).
-#
-# Schreibt atomar (temp-Datei + mv statt direktem "cat >"): "mv" innerhalb
-# derselben Partition ist ein einzelner, unteilbarer Verzeichnis-Eintrag-
-# Wechsel - ein Stromausfall waehrend main.py hier hineinschreibt trifft so
-# entweder die alte, vollstaendige Datei oder gar keine, nie eine
-# angebrochene/kaputte.
-#
-# WICHTIG: "[ cond ] && cmd" als LETZTE Anweisung einer Funktion ist unter
-# "set -e" gefaehrlich (siehe targetdisplay-reboot-guard.sh fuer die
-# ausfuehrliche Erklaerung) - deshalb ueberall ein abschliessendes
-# "return 0"/"exit 0".
+# legt es unveraendert auf der Boot-Partition ab. Inhaltlich (Format, Werte)
+# validiert main.py vor dem Aufruf; hier wird nur geprueft, dass die Eingabe
+# klein genug und gueltiges JSON ist. Ablauf (Groessenlimit, JSON-Pruefung,
+# atomares Schreiben, Remount) steht in targetdisplay-save-lib.sh.
 
 set -euo pipefail
 
-BOOT_DIR="/boot/firmware"
-TARGET="$BOOT_DIR/targetdisplay-sections.json"
-TMP="$TARGET.tmp"
+# shellcheck source=targetdisplay-save-lib.sh
+. "$(dirname "$(readlink -f "$0")")/targetdisplay-save-lib.sh"
 
-bootro_now() { raspi-config nonint get_bootro_now; }   # 0=aktiv (ro), 1=inaktiv (rw)
-
-was_ro=0
-[ "$(bootro_now)" -eq 0 ] && was_ro=1
-[ "$was_ro" -eq 1 ] && mount -o remount,rw "$BOOT_DIR"
-
-cat > "$TMP"
-mv "$TMP" "$TARGET"
-
-[ "$was_ro" -eq 1 ] && mount -o remount,ro "$BOOT_DIR"
+save_boot_json "targetdisplay-sections.json"
 exit 0
