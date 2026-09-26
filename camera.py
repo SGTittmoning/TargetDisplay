@@ -3,6 +3,7 @@ import threading
 from threading import Lock
 import time
 import av
+from logutil import mask_credentials
 
 class Camera:
     def __init__(self, rtsp_link, reconnect_delay=2, crop_region=None):
@@ -85,7 +86,9 @@ class Camera:
                 # journald), sonst gibt es keinerlei Anhaltspunkt, ob/wie
                 # oft/warum Verbindungsversuche scheitern - relevant u.a. fuer
                 # die Fehlersuche bei Reboot-Guard-Fehlausloesungen.
-                print(f"camera.py: Verbindungs-/Decode-Fehler ({type(e).__name__}: {e}), naechster Versuch in {self.reconnect_delay}s", file=sys.stderr)
+                # PyAV nimmt die URL in die Fehlermeldung auf; Zugangsdaten
+                # duerfen nicht im Journal landen.
+                print(f"camera.py: Verbindungs-/Decode-Fehler ({type(e).__name__}: {mask_credentials(e)}), naechster Versuch in {self.reconnect_delay}s", file=sys.stderr)
                 if container is not None:
                     container.close()
                 container = None
