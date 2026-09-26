@@ -1,5 +1,8 @@
 # TargetDisplay
 
+![Built with AI](https://img.shields.io/badge/Built_with-AI-success)
+[![CI](https://github.com/SGTittmoning/TargetDisplay/actions/workflows/ci.yml/badge.svg)](https://github.com/SGTittmoning/TargetDisplay/actions/workflows/ci.yml)
+
 Fullscreen kiosk display for a shooting-range target camera. Straightens out the camera's oblique viewing angle into a top-down view of the target, and gives range officers a set of on-screen tools during training and competition.
 
 ![TargetDisplay main screen](docs/screenshot.png)
