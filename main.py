@@ -995,7 +995,7 @@ def _wait_after_error(error_text, wait_s):
         remaining = end - time.monotonic()
         if remaining <= 0:
             return True
-        text = error_text if wait_s < 2 else f'{error_text} ({math.ceil(remaining)} s)'
+        text = error_text if wait_s < 2 else f'{error_text} {math.ceil(remaining)}s'
         window['-PINDISPLAY-'].update(text, text_color='red')
         event, _ = window.read(timeout=200)
         if event in (WIN_CLOSED, '-PIN_CANCEL-'):
