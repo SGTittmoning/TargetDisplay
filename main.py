@@ -8,6 +8,7 @@ import queue
 import subprocess
 import traceback
 import cv2
+import _tkinter
 import tkinter as tk
 import tkinter.font as tkfont
 import numpy as np
@@ -51,6 +52,12 @@ sys.excepthook = _handle_uncaught
 # eigene Retry-Schleife laeuft endlos weiter) - main.py braucht dieses
 # eigene Signal, um ueberhaupt jemals aufzugeben.
 STREAM_STALE_TIMEOUT_SEC = 10
+
+# Takt der Hauptschleife (Neuzeichnen, Timer, Uhr). Tasteneingaben wecken
+# window.read() sofort, der Takt bestimmt nur, wie schnell ein neuer
+# Kamera-Frame (ca. 6 pro Sekunde) oder ein Timer-Schritt auf dem Bildschirm
+# erscheint.
+MAIN_LOOP_TICK_MS = 33
 
 # Eigene, grosszuegigere Gnadenfrist NUR fuer den allerersten Verbindungsaufbau
 # nach dem App-Start (siehe camera.py::is_stale) - ein frischer Connect kann
@@ -351,9 +358,10 @@ class Window:
     # (siehe _PAGE_KEYS), zwischen denen per Frame.tkraise() umgeschaltet
     # wird (siehe show_page). read()/post() bilden ein synchrones,
     # blockierendes Event-Read ueber dem eigentlich asynchronen Tk-Eventloop:
-    # jedes Button-Kommando legt sein Event in eine Queue, read() pumpt den
-    # Tk-Eventloop per periodischem root.update() und liefert das naechste
-    # Event (oder nach Ablauf von timeout ein TIMEOUT_EVENT) - dadurch bleibt
+    # jedes Button-Kommando legt sein Event in eine Queue, read() wartet im
+    # Tk-Eventloop auf das naechste Tk-Ereignis (schlaeft dabei, statt zu
+    # pollen) und liefert das naechste Event (oder nach Ablauf von timeout
+    # ein TIMEOUT_EVENT) - dadurch bleibt
     # der Rest der Datei (State-Machine, Event-Handling) eine einfache
     # sequenzielle Schleife statt callback-getriebenem Code.
     def __init__(self, cfg, video_size):
@@ -525,10 +533,19 @@ class Window:
                 return self._queue.get_nowait()
             except queue.Empty:
                 pass
-            self.root.update()
-            if deadline is not None and time.monotonic() >= deadline:
-                return (TIMEOUT_EVENT, {})
-            time.sleep(0.005)
+            wake_id = None
+            if deadline is not None:
+                remaining_ms = math.ceil((deadline - time.monotonic()) * 1000)
+                if remaining_ms <= 0:
+                    self.root.update()
+                    return (TIMEOUT_EVENT, {})
+                # Weckt dooneevent() spaetestens zum Ablauf von timeout auf.
+                wake_id = self.root.after(remaining_ms, lambda: None)
+            # Blockiert, bis Tk ein Ereignis (Eingabe, Timer, Neuzeichnen)
+            # abgearbeitet hat - ohne Wachphasen dazwischen.
+            self.root.tk.dooneevent(_tkinter.ALL_EVENTS)
+            if wake_id is not None:
+                self.root.after_cancel(wake_id)
 
     def refresh(self):
         self.root.update()
@@ -1551,6 +1568,7 @@ def main():
     displayVideo = True
     displayTimer = False
     timerStart = time.monotonic()
+    last_timer_state = None
     timerType = ""
     video_resumed_at = time.monotonic()
     blink = False
@@ -1701,7 +1719,7 @@ def main():
             # Code (Python-Abstuerze enden mit 3, siehe _handle_uncaught).
             sys.exit(2)
 
-        event, values = window.read(timeout=10)
+        event, values = window.read(timeout=MAIN_LOOP_TICK_MS)
         ### Button handling
         if event == WIN_CLOSED:
             break
@@ -1808,6 +1826,7 @@ def main():
           displayVideo = False
           timerType = event
           timerStart = time.monotonic()
+          last_timer_state = None
         elif event == '-TIMER_STOP-':
           zoom_disabled(False)
           _sync_reset_button(zoom_level, zoom_center)
@@ -1875,17 +1894,22 @@ def main():
           # VideoSize ist (Breite, Hoehe), numpy-Arrays erwarten
           # (Hoehe, Breite, Kanaele) - deshalb hier bewusst vertauscht,
           # analog zum Blank-Screen-Handler oben (-TOGGLEVIDEO-).
-          frame = np.zeros((VideoSize[1],VideoSize[0],3), np.uint8)
           state = timerlib.timer_state(timerType, time.monotonic() - timerStart)
-          frame[:] = (0, 255, 0) if state.color == 'green' else (0, 0, 255)
-          if state.number is not None:
-            cv2.putText(frame, str(state.number), (20,130), cv2.FONT_HERSHEY_SIMPLEX, 5, (0, 0, 0), 10, cv2.LINE_AA)
-          if state.countdown is not None:
-            draw_timer_countdown(frame, state.countdown)
+          # Nur neu zeichnen, wenn sich der Anzeigezustand aendert (hoechstens
+          # einmal pro Sekunde) - das Bild wird sonst in jedem Schleifendurchlauf
+          # identisch neu aufgebaut und an Tk uebergeben.
+          if state != last_timer_state:
+            last_timer_state = state
+            frame = np.zeros((VideoSize[1],VideoSize[0],3), np.uint8)
+            frame[:] = (0, 255, 0) if state.color == 'green' else (0, 0, 255)
+            if state.number is not None:
+              cv2.putText(frame, str(state.number), (20,130), cv2.FONT_HERSHEY_SIMPLEX, 5, (0, 0, 0), 10, cv2.LINE_AA)
+            if state.countdown is not None:
+              draw_timer_countdown(frame, state.countdown)
+            window.draw_image(frame)
+            window_fps.update('')
           if state.finished:
             window.post('-TIMER_STOP-')
-          window.draw_image(frame)
-          window_fps.update('')
 
         now = datetime.now()
         # Nur bei tatsaechlicher Aenderung neu zeichnen (Datum/Uhrzeit
