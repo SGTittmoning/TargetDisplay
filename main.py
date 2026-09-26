@@ -1306,7 +1306,13 @@ def edit_section_points(region_label, cap, points, other_points=None, allow_canc
                 disp_frame = to_display_frame(frame)
                 redraw()
         elif event == '-EDIT_SAVE-':
-            return [[(p[0] - off_x) / scale, (p[1] - off_y) / scale] for p in pts]
+            result = [[(p[0] - off_x) / scale, (p[1] - off_y) / scale] for p in pts]
+            # Ein ueberkreuztes, nicht konvexes oder zu kleines Viereck ergaebe
+            # eine unbrauchbare Perspektiv-Entzerrung (leeres/verzerrtes Bild).
+            if not tl.is_valid_quad(result):
+                popup('Die vier Punkte bilden kein gültiges Viereck.\nBitte die Ecken so setzen, dass ein Rechteck bzw. Trapez entsteht.')
+                continue
+            return result
         elif event == '-EDITGRAPH-':
             pos = values['-EDITGRAPH-']
             if pos is None:

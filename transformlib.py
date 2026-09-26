@@ -23,26 +23,35 @@ def compute_perspective_matrix(pts, dsize):
   return cv2.getPerspectiveTransform(rect, dst)
 
 def order_points(pts):
-  # initialzie a list of coordinates that will be ordered
-  # such that the first entry in the list is the top-left,
-  # the second entry is the top-right, the third is the
-  # bottom-right, and the fourth is the bottom-left
-  rect = np.zeros((4, 2), dtype = "float32")
-  # the top-left point will have the smallest sum, whereas
-  # the bottom-right point will have the largest sum
-  s = pts.sum(axis = 1)
-  rect[0] = pts[np.argmin(s)]
-  rect[2] = pts[np.argmax(s)]
-  # now, compute the difference between the points, the
-  # top-right point will have the smallest difference,
-  # whereas the bottom-left will have the largest difference
-  diff = np.diff(pts, axis = 1)
-  rect[1] = pts[np.argmin(diff)]
-  rect[3] = pts[np.argmax(diff)]
-  # return the ordered coordinates
-  return rect
+  # Sortiert vier Eckpunkte zu (oben links, oben rechts, unten rechts,
+  # unten links). Die Reihenfolge ergibt sich aus dem Winkel um den
+  # Schwerpunkt (in Bildkoordinaten, y nach unten, also im Uhrzeigersinn);
+  # als erster Punkt gilt der mit der kleinsten Koordinatensumme x+y. Anders
+  # als die verbreitete Summen-/Differenz-Heuristik liefert das auch bei um
+  # ca. 45 Grad gedrehtem Viereck vier verschiedene Punkte.
+  pts = np.asarray(pts, dtype = "float32")
+  center = pts.mean(axis = 0)
+  angles = np.arctan2(pts[:, 1] - center[1], pts[:, 0] - center[0])
+  clockwise = pts[np.argsort(angles)]
+  start = int(np.argmin(clockwise.sum(axis = 1)))
+  return np.roll(clockwise, -start, axis = 0)
 
-  
+def is_valid_quad(pts, min_area = 100.0):
+  # True, wenn die vier Punkte ein konvexes Viereck mit mindestens min_area
+  # Flaeche (Pixel^2) bilden - nur dann liefert getPerspectiveTransform eine
+  # brauchbare Entzerrung (keine Ueberkreuzung, keine drei Punkte auf einer
+  # Linie, keine doppelten Punkte).
+  pts = np.asarray(pts, dtype = "float64")
+  if pts.shape != (4, 2):
+    return False
+  rect = order_points(pts).astype("float64")
+  edges = np.roll(rect, -1, axis = 0) - rect
+  cross = edges[:, 0] * np.roll(edges, -1, axis = 0)[:, 1] - edges[:, 1] * np.roll(edges, -1, axis = 0)[:, 0]
+  if not (np.all(cross > 0)):
+    return False
+  area = 0.5 * abs(np.sum(rect[:, 0] * np.roll(rect[:, 1], -1) - np.roll(rect[:, 0], -1) * rect[:, 1]))
+  return area >= min_area
+
 def crop_bounds(point_sets, margin):
   # point_sets: Liste von Nx2-Punkt-Arrays (z.B. [pts_full, pts_detail])
   # liefert (x0, y0, x1, y1) - x0/y0 nach unten auf 0 geclamped,
