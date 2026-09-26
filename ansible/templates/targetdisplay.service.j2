@@ -11,10 +11,12 @@ Conflicts=getty@tty1.service
 # Fehlschlaegen in Folge gibt systemd auf und ruft OnFailure= auf -
 # naechste Eskalationsstufe: Pi-Reboot mit persistenter Obergrenze.
 #
-# Ein Zyklus dauert ~10s Staleness-Timeout + RestartSec + X11-Neustart-
-# Overhead, grob 15s - 5 Zyklen also grob 75s. Intervall grosszuegig
-# bemessen, damit der 5. Fehlschlag sicher noch im gleitenden Fenster liegt.
-StartLimitIntervalSec=180
+# Bei ausbleibendem Stream dauert ein Zyklus rund 36 s: 30 s Startup-Frist
+# (STREAM_STARTUP_TIMEOUT_SEC - der neu gestartete Prozess hat noch keinen
+# Frame) + RestartSec + X11-Start. 5 Zyklen brauchen damit rund 180 s. Das
+# Intervall liegt deutlich darueber, damit die Eskalation nicht von wenigen
+# Sekunden Streuung abhaengt.
+StartLimitIntervalSec=300
 StartLimitBurst=5
 OnFailure=targetdisplay-reboot.service
 
