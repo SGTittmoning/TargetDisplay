@@ -38,9 +38,9 @@ signal.signal(signal.SIGTERM, _handle_sigterm)
 STREAM_STALE_TIMEOUT_SEC = 10
 
 # Eigene, grosszuegigere Gnadenfrist NUR fuer den allerersten Verbindungsaufbau
-# nach dem App-Start (siehe camera.py::is_stale) - av.open() hat keinen
-# expliziten Timeout, ein frischer Connect kann vereinzelt 30s+ dauern, ohne
-# dass camera.py haengt. STREAM_STALE_TIMEOUT_SEC bleibt bewusst knapp fuer
+# nach dem App-Start (siehe camera.py::is_stale) - ein frischer Connect kann
+# (Timeouts siehe camera.py) mehrere Versuche brauchen, ohne dass camera.py
+# haengt. STREAM_STALE_TIMEOUT_SEC bleibt bewusst knapp fuer
 # einen Ausfall WAEHREND eines bereits laufenden Streams.
 STREAM_STARTUP_TIMEOUT_SEC = 30
 

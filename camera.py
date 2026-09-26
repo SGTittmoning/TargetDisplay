@@ -5,6 +5,14 @@ import time
 import av
 from logutil import mask_credentials
 
+# Timeouts fuer av.open() in Sekunden (Verbindungsaufbau, Lesen). Ein
+# aufgebauter RTMP-Stream mit 2560x1920 braucht bis zum ersten Frame
+# mehrere Sekunden; zwischen zwei Frames vergehen im Normalbetrieb dagegen
+# nur Bruchteile einer Sekunde. Ein Timeout bricht den blockierenden Aufruf
+# mit einem FFmpegError ab, _buffer_loop verbindet dann neu.
+OPEN_TIMEOUT_SEC = 20
+READ_TIMEOUT_SEC = 5
+
 class Camera:
     def __init__(self, rtsp_link, reconnect_delay=2, crop_region=None):
         self.rtsp_link = rtsp_link
@@ -52,7 +60,7 @@ class Camera:
         # options={"rtmp_live": "live"} bewusst weggelassen: fuehrt mit der auf
         # Stand 1 installierten ffmpeg-Version (4.3.9+rpt1) zu einem Segfault
         # in av.open() -- vermutlich ein Options-Dict-Bug in PyAV 10.0.0.
-        container = av.open(self.rtsp_link)
+        container = av.open(self.rtsp_link, timeout=(OPEN_TIMEOUT_SEC, READ_TIMEOUT_SEC))
         vstream = container.streams.video[0]
         # SLICE-Threading brachte im Vergleichstest den groessten CPU-Zeit-Gewinn
         # gegenueber cv2.VideoCapture (~10-13% weniger CPU-Zeit/Frame auf
@@ -134,9 +142,9 @@ class Camera:
         # aufzugeben und den Prozess zu beenden (siehe play_it/README)
         #
         # Vor dem allerersten Frame gilt ein eigener, grosszuegigerer
-        # "startup_timeout" statt "timeout": av.open() hat keinen expliziten
-        # Verbindungs-Timeout, ein frischer Verbindungsaufbau kann je nach
-        # Netzwerk/Server-Zustand vereinzelt 30s+ dauern, obwohl
+        # "startup_timeout" statt "timeout": ein frischer Verbindungsaufbau
+        # kann je nach Netzwerk/Server-Zustand mehrere Versuche mit je bis zu
+        # OPEN_TIMEOUT_SEC brauchen, obwohl
         # camera.py dabei keineswegs haengt - "timeout" ist dagegen bewusst
         # knapp bemessen fuer den Fall eines Ausfalls WAEHREND eines bereits
         # laufenden Streams. Ohne diese Unterscheidung wuerde ein einfach nur
