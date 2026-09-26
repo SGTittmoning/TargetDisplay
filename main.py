@@ -1153,13 +1153,13 @@ def _wait_for_camera_frame(cap, max_wait_sec=STREAM_STARTUP_TIMEOUT_SEC):
     _show_page('-CAMWAITVIEW-')
     window['-CAMWAIT_TEXT-'].update('Verbinde mit Kamera...')
     window.refresh()
-    deadline = time.time() + max_wait_sec
+    deadline = time.monotonic() + max_wait_sec
     timed_out = False
     while True:
         frame = cap.getFrame(full=True)
         if frame is not None:
             return frame
-        if not timed_out and time.time() >= deadline:
+        if not timed_out and time.monotonic() >= deadline:
             timed_out = True
             window['-CAMWAIT_TEXT-'].update('Kamera nicht erreichbar.\nBitte URL/Verkabelung prüfen.')
             window.refresh()
@@ -1675,9 +1675,9 @@ def main():
                 and cap.is_stale(STREAM_STALE_TIMEOUT_SEC, STREAM_STARTUP_TIMEOUT_SEC)):
             if cap.frame_id == 0:
                 print(f"Kein Kamera-Frame innerhalb der Startup-Frist von {STREAM_STARTUP_TIMEOUT_SEC}s erhalten "
-                      f"(seit Prozessstart: {time.time() - cap.start_time:.1f}s) - beende Prozess fuer Neustart.", file=sys.stderr)
+                      f"(seit Prozessstart: {time.monotonic() - cap.start_time:.1f}s) - beende Prozess fuer Neustart.", file=sys.stderr)
             else:
-                print(f"Kein neuer Kamera-Frame seit {time.time() - cap.last_frame_time:.1f}s "
+                print(f"Kein neuer Kamera-Frame seit {time.monotonic() - cap.last_frame_time:.1f}s "
                       f"(Schwelle {STREAM_STALE_TIMEOUT_SEC}s, zuletzt frame_id={cap.frame_id}) - beende Prozess fuer Neustart.", file=sys.stderr)
             # Exit-Code 2, NICHT 1: xinit gibt bei einem direkt an sich selbst
             # gerichteten SIGTERM (z.B. "systemctl stop/restart") selbst

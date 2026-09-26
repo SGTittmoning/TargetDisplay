@@ -28,8 +28,8 @@ class Camera:
         self.last_frame_full = None
         self.last_ready = None
         self.frame_id = 0
-        self.last_frame_time = time.time()
-        self.start_time = time.time()
+        self.last_frame_time = time.monotonic()
+        self.start_time = time.monotonic()
         self.lock = Lock()
         self._stop_event = threading.Event()
         self._container = None
@@ -75,12 +75,12 @@ class Camera:
         while not self._stop_event.is_set():
             try:
                 if container is None:
-                    connect_started = time.time()
+                    connect_started = time.monotonic()
                     container = self._open_container()
                     with self.lock:
                         self._container = container
                     frame_iter = container.decode(video=0)
-                    print(f"camera.py: Container geoeffnet nach {time.time() - connect_started:.1f}s", file=sys.stderr)
+                    print(f"camera.py: Container geoeffnet nach {time.monotonic() - connect_started:.1f}s", file=sys.stderr)
                 av_frame = next(frame_iter)
                 frame = av_frame.to_ndarray(format="bgr24")
             except (av.error.FFmpegError, StopIteration, OSError) as e:
@@ -114,7 +114,7 @@ class Camera:
                 self.last_ready, self.last_frame = True, frame
                 self.last_frame_full = full_frame
                 self.frame_id += 1
-                self.last_frame_time = time.time()
+                self.last_frame_time = time.monotonic()
 
         # Regulaeres Schleifenende ueber die while-Bedingung (stop() kam
         # zwischen zwei Frames, nicht waehrend eines blockierenden next()) -
@@ -154,5 +154,5 @@ class Camera:
         with self.lock:
             if self.frame_id == 0:
                 grace = startup_timeout if startup_timeout is not None else timeout
-                return (time.time() - self.start_time) > grace
-            return (time.time() - self.last_frame_time) > timeout
+                return (time.monotonic() - self.start_time) > grace
+            return (time.monotonic() - self.last_frame_time) > timeout
