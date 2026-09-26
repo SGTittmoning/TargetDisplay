@@ -54,6 +54,13 @@ jobs:
           python-version: "3.12"
       - name: Install ansible-lint
         run: pip install "ansible-lint==26.9.0"
+      # base.yml nutzt das Modul "timezone", das nicht in ansible-core steckt,
+      # sondern in community.general. Ohne die Collection scheitern lint und
+      # Syntax-Check. Die Collection hier zu installieren spiegelt den Stand
+      # eines Verwaltungsrechners mit vollem Ansible; sauberer waere, den Task
+      # ohne Zusatz-Collection umzusetzen (Ansible-Umbau, nicht Teil der CI).
+      - name: Install community.general
+        run: ansible-galaxy collection install "community.general:13.3.0"
       - name: ansible-lint
         run: ansible-lint ansible/install.yml ansible/maintain.yml
       - name: Syntax check
