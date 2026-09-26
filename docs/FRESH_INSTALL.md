@@ -121,7 +121,11 @@ Drei Dinge müssen rein:
    ohne erneuten Playbook-Lauf pro Gerät.
 
 3. **`targetdisplay_git_repo`** — die Repo-URL, aus der die App selbst
-   ausgecheckt wird (inkl. Zugangsdaten, falls privat).
+   ausgecheckt wird. Das Repo ist öffentlich, die URL braucht keine
+   Zugangsdaten. Bei einem privaten Fork eine SSH-URL mit einem reinen
+   Lese-Deploy-Key verwenden; Zugangsdaten in der URL (`user:passwort@`) lehnt
+   das Playbook ab, weil `git clone` sie in `.git/config` auf jedem Gerät
+   ablegt.
 
 `my_settings_pin` ist optional — fehlt sie, startet das Gerät mit dem
 eingebauten Standard-PIN `1234` und erzwingt eine PIN-Änderung im
