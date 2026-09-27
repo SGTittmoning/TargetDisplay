@@ -25,7 +25,7 @@ jobs:
       - name: shellcheck
         run: |
           command -v shellcheck || { sudo apt-get update && sudo apt-get install -y shellcheck; }
-          shellcheck -S warning ansible/files/*.sh
+          shellcheck -S warning ansible/files/*.sh play_it tests/run-script-tests.sh
 
   python:
     if: github.event.repository.private == false

@@ -74,7 +74,7 @@ reset
 printf '{"pin": "4711"}' | "$BIN/targetdisplay-save-pin.sh"; rc=$?
 check "pin: Exit 0" 0 "$rc"
 check "pin: Datei geschrieben" '{"pin": "4711"}' "$(cat "$BOOT/targetdisplay-pin.json")"
-check "pin: keine temp-Datei uebrig" "" "$(ls "$BOOT" | grep '\.tmp$' || true)"
+check "pin: keine temp-Datei uebrig" "" "$(find "$BOOT" -maxdepth 1 -name '*.tmp')"
 check "pin: Boot-Partition rw -> kein remount" 0 "$(calls mount)"
 
 reset
@@ -82,7 +82,7 @@ echo '{"id": "stand3"}' | "$BIN/targetdisplay-save-active-stand.sh"
 check "active-stand: schreibt eigene Datei" '{"id": "stand3"}' "$(cat "$BOOT/targetdisplay-active-stand.json")"
 reset
 echo '{"section_full": [[0,0],[1,0],[1,1],[0,1]]}' | "$BIN/targetdisplay-save-sections.sh"
-check "sections: schreibt eigene Datei" 1 "$(ls "$BOOT" | grep -c '^targetdisplay-sections.json$')"
+check "sections: schreibt eigene Datei" 1 "$([ -f "$BOOT/targetdisplay-sections.json" ] && echo 1 || echo 0)"
 
 reset; BOOTRO=0 bash -c "echo '{\"a\": 1}' | $BIN/targetdisplay-save-pin.sh"
 check "ro-Boot: remount rw" 1 "$(calls 'remount,rw')"
@@ -135,10 +135,10 @@ run_reset() {
 # Uptime 400 s, Dienst seit 100 s (= 100000000 us) aktiv -> 300 s stabil
 UPTIME_S=400 STUB_ACTIVE_ENTER_US=100000000 STUB_NRESTARTS=0 run_reset; rc=$?
 check "stabil: Exit 0" 0 "$rc"
-check "stabil: Zaehler geloescht" "" "$(ls -A "$BOOT" | grep reboot-count || true)"
+check "stabil: Zaehler geloescht" "" "$(find "$BOOT" -maxdepth 1 -name '*reboot-count*')"
 
 STUB_ACTIVE_ENTER_US=100000000 STUB_NRESTARTS=2 run_reset
-check "2 Neustarts (< 3): Zaehler geloescht" "" "$(ls -A "$BOOT" | grep reboot-count || true)"
+check "2 Neustarts (< 3): Zaehler geloescht" "" "$(find "$BOOT" -maxdepth 1 -name '*reboot-count*')"
 
 STUB_ACTIVE_ENTER_US=100000000 STUB_NRESTARTS=8 run_reset; rc=$?
 check "Neustart-Zyklus: Exit 0" 0 "$rc"
