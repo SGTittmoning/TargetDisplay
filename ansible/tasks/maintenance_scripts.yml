@@ -23,6 +23,7 @@
     - targetdisplay-writable.sh
     - targetdisplay-reboot-guard.sh
     - targetdisplay-reboot-count-reset.sh
+    - targetdisplay-save-lib.sh
     - targetdisplay-save-sections.sh
     - targetdisplay-save-active-stand.sh
     - targetdisplay-save-pin.sh

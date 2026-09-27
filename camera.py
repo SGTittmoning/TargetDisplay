@@ -1,8 +1,40 @@
 import sys
 import threading
-from threading import Lock
 import time
+from threading import Lock
+
 import av
+
+from logutil import mask_credentials
+
+# PyAV ist bewusst nicht auf eine feste Version gepinnt (siehe requirements.txt) -
+# welche Version tatsaechlich installiert ist, haengt vom Zielsystem ab. Ohne
+# diese Zeile waere das bei einer spaeteren Fehlersuche im Journal nicht mehr
+# nachvollziehbar.
+print(f"camera.py: PyAV {av.__version__}", file=sys.stderr)
+
+# Timeouts fuer av.open() in Sekunden (Verbindungsaufbau, Lesen). Ein
+# aufgebauter RTMP-Stream mit 2560x1920 braucht bis zum ersten Frame
+# mehrere Sekunden; zwischen zwei Frames vergehen im Normalbetrieb dagegen
+# nur Bruchteile einer Sekunde. Ein Timeout bricht den blockierenden Aufruf
+# mit einem FFmpegError ab, _buffer_loop verbindet dann neu.
+OPEN_TIMEOUT_SEC = 20
+READ_TIMEOUT_SEC = 5
+
+# Kein neuer Frame seit so vielen Sekunden -> Prozess beendet sich selbst
+# (play_it/systemd uebernehmen den Neustart/die Eskalation, siehe README).
+# camera.py haengt bei dauerhaftem Verbindungsverlust selbst nie (dessen
+# eigene Retry-Schleife laeuft endlos weiter) - main.py braucht dieses
+# eigene Signal, um ueberhaupt jemals aufzugeben.
+STREAM_STALE_TIMEOUT_SEC = 10
+
+
+# Eigene, grosszuegigere Gnadenfrist NUR fuer den allerersten Verbindungsaufbau
+# nach dem App-Start (siehe camera.py::is_stale) - ein frischer Connect kann
+# (Timeouts siehe camera.py) mehrere Versuche brauchen, ohne dass camera.py
+# haengt. STREAM_STALE_TIMEOUT_SEC bleibt bewusst knapp fuer
+# einen Ausfall WAEHREND eines bereits laufenden Streams.
+STREAM_STARTUP_TIMEOUT_SEC = 30
 
 class Camera:
     def __init__(self, rtsp_link, reconnect_delay=2, crop_region=None):
@@ -11,7 +43,7 @@ class Camera:
         self.crop_region = crop_region
         self.last_frame = None
         # Unbeschnittene Variante desselben Frames, ausschliesslich fuer den
-        # Settings-Punkte-Editor (main.py::edit_section_points) - der
+        # Settings-Punkte-Editor (flows.py::edit_section_points) - der
         # normale Anzeige-/Warp-Pfad braucht nur den ohnehin schon eng um
         # section_full/section_detail zugeschnittenen last_frame, der
         # Editor zum NEU-Setzen der Ausschnitte muss aber das komplette
@@ -19,8 +51,8 @@ class Camera:
         self.last_frame_full = None
         self.last_ready = None
         self.frame_id = 0
-        self.last_frame_time = time.time()
-        self.start_time = time.time()
+        self.last_frame_time = time.monotonic()
+        self.start_time = time.monotonic()
         self.lock = Lock()
         self._stop_event = threading.Event()
         self._container = None
@@ -51,7 +83,7 @@ class Camera:
         # options={"rtmp_live": "live"} bewusst weggelassen: fuehrt mit der auf
         # Stand 1 installierten ffmpeg-Version (4.3.9+rpt1) zu einem Segfault
         # in av.open() -- vermutlich ein Options-Dict-Bug in PyAV 10.0.0.
-        container = av.open(self.rtsp_link)
+        container = av.open(self.rtsp_link, timeout=(OPEN_TIMEOUT_SEC, READ_TIMEOUT_SEC))
         vstream = container.streams.video[0]
         # SLICE-Threading brachte im Vergleichstest den groessten CPU-Zeit-Gewinn
         # gegenueber cv2.VideoCapture (~10-13% weniger CPU-Zeit/Frame auf
@@ -66,12 +98,12 @@ class Camera:
         while not self._stop_event.is_set():
             try:
                 if container is None:
-                    connect_started = time.time()
+                    connect_started = time.monotonic()
                     container = self._open_container()
                     with self.lock:
                         self._container = container
                     frame_iter = container.decode(video=0)
-                    print(f"camera.py: Container geoeffnet nach {time.time() - connect_started:.1f}s", file=sys.stderr)
+                    print(f"camera.py: Container geoeffnet nach {time.monotonic() - connect_started:.1f}s", file=sys.stderr)
                 av_frame = next(frame_iter)
                 frame = av_frame.to_ndarray(format="bgr24")
             except (av.error.FFmpegError, StopIteration, OSError) as e:
@@ -85,7 +117,9 @@ class Camera:
                 # journald), sonst gibt es keinerlei Anhaltspunkt, ob/wie
                 # oft/warum Verbindungsversuche scheitern - relevant u.a. fuer
                 # die Fehlersuche bei Reboot-Guard-Fehlausloesungen.
-                print(f"camera.py: Verbindungs-/Decode-Fehler ({type(e).__name__}: {e}), naechster Versuch in {self.reconnect_delay}s", file=sys.stderr)
+                # PyAV nimmt die URL in die Fehlermeldung auf; Zugangsdaten
+                # duerfen nicht im Journal landen.
+                print(f"camera.py: Verbindungs-/Decode-Fehler ({type(e).__name__}: {mask_credentials(e)}), naechster Versuch in {self.reconnect_delay}s", file=sys.stderr)
                 if container is not None:
                     container.close()
                 container = None
@@ -103,7 +137,7 @@ class Camera:
                 self.last_ready, self.last_frame = True, frame
                 self.last_frame_full = full_frame
                 self.frame_id += 1
-                self.last_frame_time = time.time()
+                self.last_frame_time = time.monotonic()
 
         # Regulaeres Schleifenende ueber die while-Bedingung (stop() kam
         # zwischen zwei Frames, nicht waehrend eines blockierenden next()) -
@@ -131,9 +165,9 @@ class Camera:
         # aufzugeben und den Prozess zu beenden (siehe play_it/README)
         #
         # Vor dem allerersten Frame gilt ein eigener, grosszuegigerer
-        # "startup_timeout" statt "timeout": av.open() hat keinen expliziten
-        # Verbindungs-Timeout, ein frischer Verbindungsaufbau kann je nach
-        # Netzwerk/Server-Zustand vereinzelt 30s+ dauern, obwohl
+        # "startup_timeout" statt "timeout": ein frischer Verbindungsaufbau
+        # kann je nach Netzwerk/Server-Zustand mehrere Versuche mit je bis zu
+        # OPEN_TIMEOUT_SEC brauchen, obwohl
         # camera.py dabei keineswegs haengt - "timeout" ist dagegen bewusst
         # knapp bemessen fuer den Fall eines Ausfalls WAEHREND eines bereits
         # laufenden Streams. Ohne diese Unterscheidung wuerde ein einfach nur
@@ -143,5 +177,5 @@ class Camera:
         with self.lock:
             if self.frame_id == 0:
                 grace = startup_timeout if startup_timeout is not None else timeout
-                return (time.time() - self.start_time) > grace
-            return (time.time() - self.last_frame_time) > timeout
+                return (time.monotonic() - self.start_time) > grace
+            return (time.monotonic() - self.last_frame_time) > timeout

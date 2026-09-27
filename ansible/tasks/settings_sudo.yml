@@ -1,7 +1,7 @@
 ---
 # Eng gefasstes sudo-Recht fuer den unprivilegierten targetdisplay-User,
 # ausschliesslich fuer den PIN-geschuetzten Settings/Restart-Screen (und
-# den Ersteinrichtungs-Assistenten) in main.py: das Speichern von
+# den Ersteinrichtungs-Assistenten) in flows.py: das Speichern von
 # section_full/section_detail-Aenderungen (targetdisplay-save-sections.sh,
 # siehe dort fuer die Begruendung der Boot-Partition statt config.yml),
 # der Stand-Auswahl (targetdisplay-save-active-stand.sh), des PIN

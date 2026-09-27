@@ -53,6 +53,19 @@
           - targetdisplay_git_repo is defined
         fail_msg: "Bitte targetdisplay_stands (mind. ein Stand) und targetdisplay_git_repo in der Inventory oder per -e setzen"
 
+    # git clone speichert die Remote-URL samt Zugangsdaten in .git/config, also
+    # auf jedem Geraet und lesbar fuer den Service-User. Eine URL mit
+    # Benutzer:Passwort/Token wird deshalb abgelehnt; siehe inventory.yml.dist
+    # fuer die Alternativen (oeffentliche URL, SSH-URL mit Deploy-Key).
+    - name: targetdisplay_git_repo darf keine Zugangsdaten enthalten
+      assert:
+        that:
+          - targetdisplay_git_repo is not regex('^https?://[^/]*@')
+        fail_msg: >-
+          targetdisplay_git_repo enthaelt Zugangsdaten (https://user:passwort@... oder https://token@...).
+          Sie wuerden in .git/config auf jedem Geraet landen. Oeffentliche URL
+          ohne Zugangsdaten oder SSH-URL mit Deploy-Key verwenden.
+
     # Sicherheitscheck: alle folgenden Tasks schreiben Dateien (Pakete,
     # App-Code, /root/bin/*, config.yml, ...). Ist das Root-Overlay auf
     # diesem Host bereits aktiv, landen diese Schreibvorgaenge NUR im

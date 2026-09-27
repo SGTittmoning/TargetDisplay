@@ -11,37 +11,16 @@
 # Begruendung (Root-Overlay braeuchte sonst zwei Reboots statt eines
 # Remounts).
 #
-# Nimmt das neue JSON ({"id": "..."}) auf STDIN entgegen. Bewusst kein
-# Parsing/Validieren der Stand-ID gegen targetdisplay-stands.json hier -
-# main.py prueft das vor dem Aufruf, dieses Skript bleibt so simpel wie
-# moeglich (kleinere Angriffsflaeche fuer das sudoers-Recht).
-#
-# Schreibt atomar (temp-Datei + mv statt direktem "cat >"): "mv" innerhalb
-# derselben Partition ist ein einzelner, unteilbarer Verzeichnis-Eintrag-
-# Wechsel - ein Stromausfall waehrend main.py hier hineinschreibt trifft so
-# entweder die alte, vollstaendige Datei oder gar keine, nie eine
-# angebrochene/kaputte. Wichtig, weil main.py das Ergebnis direkt danach
-# ungeprueft parsen wuerde.
-#
-# WICHTIG: "[ cond ] && cmd" als LETZTE Anweisung einer Funktion ist unter
-# "set -e" gefaehrlich (siehe targetdisplay-reboot-guard.sh fuer die
-# ausfuehrliche Erklaerung) - deshalb ueberall ein abschliessendes
-# "return 0"/"exit 0".
+# Nimmt das neue JSON ({"id": "..."}) auf STDIN entgegen. Die Stand-ID gegen
+# targetdisplay-stands.json prueft main.py vor dem Aufruf; hier wird nur
+# geprueft, dass die Eingabe klein genug und gueltiges JSON ist. Ablauf
+# (Groessenlimit, JSON-Pruefung, atomares Schreiben, Remount) steht in
+# targetdisplay-save-lib.sh.
 
 set -euo pipefail
 
-BOOT_DIR="/boot/firmware"
-TARGET="$BOOT_DIR/targetdisplay-active-stand.json"
-TMP="$TARGET.tmp"
+# shellcheck source=targetdisplay-save-lib.sh
+. "$(dirname "$(readlink -f "$0")")/targetdisplay-save-lib.sh"
 
-bootro_now() { raspi-config nonint get_bootro_now; }   # 0=aktiv (ro), 1=inaktiv (rw)
-
-was_ro=0
-[ "$(bootro_now)" -eq 0 ] && was_ro=1
-[ "$was_ro" -eq 1 ] && mount -o remount,rw "$BOOT_DIR"
-
-cat > "$TMP"
-mv "$TMP" "$TARGET"
-
-[ "$was_ro" -eq 1 ] && mount -o remount,ro "$BOOT_DIR"
+save_boot_json "targetdisplay-active-stand.json"
 exit 0

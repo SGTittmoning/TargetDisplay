@@ -2,7 +2,12 @@ targetdisplay:
   vars:
     ansible_python_interpreter: /usr/bin/python3
     ntpserver: 192.0.2.1  # your local NTP source, if the stands have no internet access
-    targetdisplay_git_repo: "https://user:pass@your-git-host.example/path/TargetDisplay/"
+    # Quelle des App-Codes. Das Repo ist oeffentlich, die URL braucht keine
+    # Zugangsdaten. Bei einem privaten Fork stattdessen eine SSH-URL
+    # (git@host:org/TargetDisplay.git) mit einem reinen Lese-Deploy-Key fuer den
+    # Service-User verwenden: Zugangsdaten in der URL landen in .git/config
+    # auf jedem Geraet (siehe die Pruefung in install.yml).
+    targetdisplay_git_repo: "https://github.com/SGTittmoning/TargetDisplay.git"
     # Flottenweite Liste aller Staende - identisch an jeden Host in dieser
     # Gruppe ausgerollt (siehe tasks/stands.yml), landet als
     # targetdisplay-stands.json auf /boot/firmware. Welchen Stand ein

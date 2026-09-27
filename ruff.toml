@@ -1,0 +1,10 @@
+# ruff fuer den gesamten Code (main.py und die daraus ausgelagerten Module,
+# ansible-unabhaengige Hilfsmodule, tests/).
+#
+# Bewusst nur die Regelgruppen E9 (Syntaxfehler) und F (pyflakes: undefinierte
+# Namen, ungenutzte Importe/Variablen, ...): Sie finden echte Fehler. Stil-
+# Regeln (Import-Sortierung, Zeilenlaenge, Namenskonventionen) wuerden am
+# gewachsenen, auf Hardware getesteten Code nur Massen-Umbauten ohne
+# inhaltlichen Nutzen verlangen.
+[lint]
+select = ["E9", "F"]

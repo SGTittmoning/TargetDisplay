@@ -62,6 +62,8 @@
       - python3-opencv
       - python3-numpy
       - python3-tk
+      - python3-pil  # PIL.Image, fuer das Video-Frame-Rendering (ui.py::draw_image())
+      - python3-pil.imagetk  # PIL.ImageTk - auf Debian ein eigenes Paket, nicht in python3-pil enthalten
       - xdotool  # fuer ferngesteuerte UI-Tests (Button-Klicks per SSH), kein Laufzeit-Bedarf der App selbst
       - ffmpeg  # liefert die von PyAV (camera.py) benoetigten libav*-Laufzeitbibliotheken
                 # (u.a. libavdevice) in der zur jeweiligen OS-Generation passenden Version -

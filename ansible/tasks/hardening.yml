@@ -122,3 +122,59 @@
     targetdisplay_ssh_x11 is changed or
     targetdisplay_ssh_aliveinterval is changed or
     targetdisplay_ssh_alivecountmax is changed
+
+# SSH nur per Schluessel: Der Verwaltungs-User (Ansible) hat typischerweise
+# passwortloses sudo - ein erratenes oder wiederverwendetes Passwort waere
+# damit gleichbedeutend mit root auf dem Geraet. Die Einstellung kommt als
+# Drop-in "00-..." in /etc/ssh/sshd_config.d/: sshd wertet den ersten
+# gefundenen Wert einer Option, und die Include-Zeile steht am Anfang der
+# sshd_config - ein Drop-in mit niedrigem Praefix gewinnt daher zuverlaessig
+# gegen andere Drop-ins (z.B. 50-cloud-init.conf) und gegen die Hauptdatei.
+#
+# Aussperr-Schutz: Die Passwort-Anmeldung wird nur abgeschaltet, wenn der
+# Verwaltungs-User (ansible_user) eine nicht leere ~/.ssh/authorized_keys hat.
+# Andernfalls bleibt die Einstellung unveraendert und ein Hinweis erscheint.
+- name: Home-Verzeichnis des Verwaltungs-Users ermitteln
+  getent:
+    database: passwd
+    key: "{{ ansible_user }}"
+  when: ansible_user is defined
+
+- name: authorized_keys des Verwaltungs-Users pruefen
+  stat:
+    path: "{{ getent_passwd[ansible_user][4] }}/.ssh/authorized_keys"
+  register: targetdisplay_admin_authorized_keys
+  when: ansible_user is defined
+
+- name: Hinweis, falls die Passwort-Anmeldung nicht abgeschaltet werden kann
+  debug:
+    msg: >-
+      SSH-Passwort-Anmeldung bleibt unveraendert: fuer den Verwaltungs-User
+      hat das Geraet keine nicht leere authorized_keys (oder ansible_user ist
+      nicht gesetzt). Schluessel hinterlegen und das Playbook erneut ausfuehren.
+  when: >-
+    ansible_user is not defined or
+    not targetdisplay_admin_authorized_keys.stat.exists or
+    targetdisplay_admin_authorized_keys.stat.size == 0
+
+- name: "SSH: Passwort- und Tastatur-interaktive Anmeldung abschalten (nur Schluessel)"
+  copy:
+    dest: /etc/ssh/sshd_config.d/00-targetdisplay-auth.conf
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      PasswordAuthentication no
+      KbdInteractiveAuthentication no
+    validate: "sshd -T -f %s"
+  register: targetdisplay_ssh_keyonly
+  when:
+    - ansible_user is defined
+    - targetdisplay_admin_authorized_keys.stat.exists
+    - targetdisplay_admin_authorized_keys.stat.size > 0
+
+- name: sshd neu laden (nach Aenderung der Anmelde-Einstellungen)
+  systemd:
+    name: ssh
+    state: reloaded
+  when: targetdisplay_ssh_keyonly is changed

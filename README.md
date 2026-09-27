@@ -1,5 +1,8 @@
 # TargetDisplay
 
+![Built with AI](https://img.shields.io/badge/Built_with-AI-success)
+[![CI](https://github.com/SGTittmoning/TargetDisplay/actions/workflows/ci.yml/badge.svg)](https://github.com/SGTittmoning/TargetDisplay/actions/workflows/ci.yml)
+
 Fullscreen kiosk display for a shooting-range target camera. Straightens out the camera's oblique viewing angle into a top-down view of the target, and gives range officers a set of on-screen tools during training and competition.
 
 ![TargetDisplay main screen](docs/screenshot.png)
@@ -19,21 +22,23 @@ Fullscreen kiosk display for a shooting-range target camera. Straightens out the
 ## Requirements
 
 - Raspberry Pi (or similar Linux SBC) with an attached display (touchscreen recommended)
-- Python 3 with `opencv-python`, `numpy`, `config_with_yaml`, `av`, and `python3-tk` (the GUI is plain Tkinter — ships with CPython, no separate GUI package to install/pin)
+- Python 3 with `opencv-python`, `numpy`, `PyYAML`, `Pillow`, `av`, and `python3-tk` (the GUI is plain Tkinter — ships with CPython, no separate GUI package to install/pin)
 - An RTSP/RTMP camera feed
 
 In production this runs on a Raspberry Pi 4, Raspberry Pi OS Lite (64-bit), with a Joy-IT RB-LCD10-2 10.1" HDMI touchscreen.
 
+**Raspberry Pi 5 compatibility is not guaranteed and has not been tested.** The Pi 4 setup relies on the legacy `bcm2708_fb` framebuffer driver (`vc4-kms-v3d` disabled in `config.txt`, see `ansible/tasks/display_setup.yml`) — there is no `/dev/dri`, and X11 runs on `fbdev` instead of full KMS. A Pi 5 only supports the KMS graphics stack, so this exact configuration won't apply as-is. A working approach was verified on a test Pi 4 with `vc4-kms-v3d` enabled: add `video=HDMI-A-1:<width>x<height>@60D` to `cmdline.txt` and a `Monitor` section with `Option "PreferredMode" "<width>x<height>"` in an `xorg.conf.d` snippet to force the resolution (EDID-based auto-detection alone left the display at a fallback 1024x768). CPU usage was unchanged from the legacy setup (Tkinter renders in software either way). This hasn't been turned into an Ansible task yet — do that and test the touch input path before deploying to a Pi 5.
+
 ## Setup
 
 ```bash
-pip3 install -r requirements.txt opencv-python numpy
+pip3 install -r requirements.txt opencv-python numpy pyyaml pillow
 cp config.yml.dist config.yml
 # edit config.yml: camera URL, screen size, and the four-point regions for your camera angle
 python3 main.py
 ```
 
-`requirements.txt` pins the versions verified against production. On Debian/Raspberry Pi OS, prefer installing `opencv-python`/`numpy` via `apt` (`python3-opencv`, `python3-numpy`) instead of pip — see the comments in `requirements.txt` for why.
+On Debian/Raspberry Pi OS, prefer installing `opencv-python`/`numpy`/`PyYAML`/`Pillow` via `apt` (`python3-opencv`, `python3-numpy`, `python3-yaml`, `python3-pil`, `python3-pil.imagetk`) instead of pip — see the comments in `requirements.txt` for why.
 
 `ressources/logo.png` (RGBA) is shown centered as a watermark when the video feed is toggled off ("Video aus") — ships with a generic placeholder shield, swap in your own club/range logo there. The app runs fine without one too (missing file, not an error — the watermark just stays empty). It is not shown anywhere else on the main screen (an earlier small always-visible sidebar copy was removed — it got visually lost next to the large clock).
 

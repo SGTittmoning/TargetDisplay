@@ -452,7 +452,7 @@ footer{
         </span>
         <div class="chapter-head"><span class="chapter-num">02</span><h2>Administrativer Bereich</h2></div>
         <p><b>Dieser Abschnitt richtet sich an Standaufsichten</b>, nicht an normale Vereinsmitglieder. Alle Funktionen sind über das Zahnrad-Symbol (Kopfzeile, Punkt&nbsp;3) erreichbar und durch eine numerische PIN geschützt.</p>
-        <div class="callout"><p><b>Wichtig:</b> Der PIN-Schutz ist bewusst kein Hochsicherheitsmechanismus (keine Kontosperre nach Fehlversuchen) &ndash; er soll lediglich zufälliges Herumtippen von Passanten verhindern.</p></div>
+        <div class="callout"><p><b>Wichtig:</b> Der PIN-Schutz ist bewusst kein Hochsicherheitsmechanismus (keine dauerhafte Kontosperre) &ndash; er soll zufälliges Herumtippen von Passanten abschrecken. Nach jeder falschen Eingabe erzwingt das Gerät eine mit den Fehlversuchen wachsende Wartezeit (1&nbsp;s, 4&nbsp;s, 7&nbsp;s, &hellip; bis maximal 60&nbsp;s), bevor eine neue Eingabe möglich ist. Der Zähler setzt sich nach einer richtigen Eingabe oder nach 10 Minuten Ruhe zurück.</p></div>
 
         <div class="grp">
         <h3 id="pin-eingabe">PIN-Eingabe</h3>
@@ -462,7 +462,7 @@ footer{
         <ol class="legend">
           <li><span class="legend-num admin">1</span><div><b>Ziffernblock 0&ndash;9</b><p>Eingabe der PIN (4&ndash;6-stellig). Ziffern werden als Sternchen dargestellt.</p></div></li>
           <li><span class="legend-num admin">2</span><div><b>Löschen</b><p>Setzt die aktuelle Eingabe zurück auf leer.</p></div></li>
-          <li><span class="legend-num admin">3</span><div><b>OK</b><p>Bestätigt die Eingabe. Bei falscher PIN erscheint kurz &bdquo;falsch&ldquo; in Rot.</p></div></li>
+          <li><span class="legend-num admin">3</span><div><b>OK</b><p>Bestätigt die Eingabe. Bei falscher PIN erscheint &bdquo;falsch&ldquo; in Rot mit ablaufender Wartezeit in Sekunden (wird mit jedem weiteren Fehlversuch länger, siehe oben); erst danach ist eine neue Eingabe möglich.</p></div></li>
           <li><span class="legend-num admin">4</span><div><b>Abbrechen</b><p>Bricht ab, kehrt zum Hauptbildschirm zurück.</p></div></li>
         </ol>
 

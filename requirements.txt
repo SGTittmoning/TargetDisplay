@@ -1,4 +1,8 @@
-# Pinned to the versions verified running on the production Pis (stand1, 2026-08-21).
+# Diese Datei listet nur noch av (siehe Kommentar dort, bewusst ohne
+# Versionspin). PyYAML und Pillow sind ebenfalls echte Laufzeit-
+# Abhaengigkeiten, stehen aber bewusst NICHT hier, sondern kommen wie
+# opencv/numpy ueber apt (python3-yaml, python3-pil/-imagetk) - siehe
+# die jeweiligen Kommentare unten.
 # Install with: pip3 install -r requirements.txt
 
 # GUI is plain Tkinter (stdlib, via the python3-tk apt package) - no separate
@@ -8,7 +12,18 @@
 # independence from exactly that kind of third-party-package risk was the
 # reason for the Tkinter rewrite.
 
-config-with-yaml==0.1.0
+# PyYAML: yaml.safe_load() in yamlconfig.py. Kommt ueber apt als
+# python3-yaml, wie opencv/numpy unten - keine pip-Installation auf den
+# Pis noetig. Nur fuer eine lokale venv (z.B. macOS) separat per
+# "pip3 install pyyaml" installieren.
+
+# Pillow: PIL.ImageTk.PhotoImage in ui.py::draw_image() fuer das
+# Video-Frame-Rendering (ein einmalig angelegtes Tk-Bildobjekt wird pro
+# Frame per .paste() aktualisiert statt jedes Mal neu erzeugt zu werden).
+# Kommt ueber apt als python3-pil UND python3-pil.imagetk (auf Debian ein
+# separates Paket) - wie opencv/numpy unten keine pip-Installation auf den
+# Pis noetig. Nur fuer eine lokale venv separat per "pip3 install pillow"
+# installieren.
 
 av
 # Bewusst ohne Versionspin: welche av-Version ein fertiges Wheel hat, haengt

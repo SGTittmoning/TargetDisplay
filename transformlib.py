@@ -1,6 +1,7 @@
 import cv2
 import numpy as np
 
+
 def compute_perspective_matrix(pts, dsize):
   # Liefert die 3x3-Homographie-Matrix, die das per pts definierte Viereck
   # (perspektivische Ansicht der flachen Scheibe) auf ein dsize-grosses
@@ -23,26 +24,35 @@ def compute_perspective_matrix(pts, dsize):
   return cv2.getPerspectiveTransform(rect, dst)
 
 def order_points(pts):
-  # initialzie a list of coordinates that will be ordered
-  # such that the first entry in the list is the top-left,
-  # the second entry is the top-right, the third is the
-  # bottom-right, and the fourth is the bottom-left
-  rect = np.zeros((4, 2), dtype = "float32")
-  # the top-left point will have the smallest sum, whereas
-  # the bottom-right point will have the largest sum
-  s = pts.sum(axis = 1)
-  rect[0] = pts[np.argmin(s)]
-  rect[2] = pts[np.argmax(s)]
-  # now, compute the difference between the points, the
-  # top-right point will have the smallest difference,
-  # whereas the bottom-left will have the largest difference
-  diff = np.diff(pts, axis = 1)
-  rect[1] = pts[np.argmin(diff)]
-  rect[3] = pts[np.argmax(diff)]
-  # return the ordered coordinates
-  return rect
+  # Sortiert vier Eckpunkte zu (oben links, oben rechts, unten rechts,
+  # unten links). Die Reihenfolge ergibt sich aus dem Winkel um den
+  # Schwerpunkt (in Bildkoordinaten, y nach unten, also im Uhrzeigersinn);
+  # als erster Punkt gilt der mit der kleinsten Koordinatensumme x+y. Anders
+  # als die verbreitete Summen-/Differenz-Heuristik liefert das auch bei um
+  # ca. 45 Grad gedrehtem Viereck vier verschiedene Punkte.
+  pts = np.asarray(pts, dtype = "float32")
+  center = pts.mean(axis = 0)
+  angles = np.arctan2(pts[:, 1] - center[1], pts[:, 0] - center[0])
+  clockwise = pts[np.argsort(angles)]
+  start = int(np.argmin(clockwise.sum(axis = 1)))
+  return np.roll(clockwise, -start, axis = 0)
 
-  
+def is_valid_quad(pts, min_area = 100.0):
+  # True, wenn die vier Punkte ein konvexes Viereck mit mindestens min_area
+  # Flaeche (Pixel^2) bilden - nur dann liefert getPerspectiveTransform eine
+  # brauchbare Entzerrung (keine Ueberkreuzung, keine drei Punkte auf einer
+  # Linie, keine doppelten Punkte).
+  pts = np.asarray(pts, dtype = "float64")
+  if pts.shape != (4, 2):
+    return False
+  rect = order_points(pts).astype("float64")
+  edges = np.roll(rect, -1, axis = 0) - rect
+  cross = edges[:, 0] * np.roll(edges, -1, axis = 0)[:, 1] - edges[:, 1] * np.roll(edges, -1, axis = 0)[:, 0]
+  if not (np.all(cross > 0)):
+    return False
+  area = 0.5 * abs(np.sum(rect[:, 0] * np.roll(rect[:, 1], -1) - np.roll(rect[:, 0], -1) * rect[:, 1]))
+  return area >= min_area
+
 def crop_bounds(point_sets, margin):
   # point_sets: Liste von Nx2-Punkt-Arrays (z.B. [pts_full, pts_detail])
   # liefert (x0, y0, x1, y1) - x0/y0 nach unten auf 0 geclamped,
@@ -79,3 +89,25 @@ def crop(cv2Object, zoomSize, center):
     # upscaling the whole frame first and immediately discarding most of it
     cv2Object = cv2.resize(cv2Object, (width, height))
     return cv2Object
+
+# Zoomfaktor fuer den manuellen Pan-per-Klick im Videobild (tl.crop() weiter
+# unten) - als Konstante herausgezogen, damit dieselbe Zahl auch fuer die
+# Grenzen von zoom_center (Prozent-Koordinaten) verwendet werden kann, siehe
+# clamp_zoom_center().
+VIDEO_ZOOM_FACTOR = 3
+
+
+def clamp_zoom_center(center, zoom_factor=VIDEO_ZOOM_FACTOR):
+    # zoom_center lebt in main() als (x%, y%) und muss hier explizit geclampt
+    # werden: tl.crop() clampt nur seine EIGENE, rein lokale Kopie in
+    # Pixelkoordinaten fuers Anzeigen, gibt den geclampten Wert aber nie an
+    # zoom_center in main() zurueck - ohne diesen Clamp koennte der Wert bei
+    # wiederholten Rand-Klicks beliebig weit ueber 100/unter 0 hinauswandern,
+    # sodass mehrere Klicks in die Gegenrichtung noetig waeren, bevor sich
+    # wieder sichtbar etwas bewegt. Die Grenze haengt nur von zoom_factor ab
+    # (nicht von der tatsaechlichen Bildgroesse: offset/width ist immer
+    # 1/(2*zoom_factor)), kann hier also unabhaengig von tl.crop() berechnet
+    # werden.
+    lo = 100 / (2 * zoom_factor)
+    hi = 100 - lo
+    return (min(max(center[0], lo), hi), min(max(center[1], lo), hi))

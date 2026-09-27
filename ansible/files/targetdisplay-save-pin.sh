@@ -9,32 +9,16 @@
 # nie mehr als die eine Aktion ausloesen, fuer die gerade ein Aufruf
 # tatsaechlich noetig ist.
 #
-# Nimmt das neue JSON ({"pin": "..."}) auf STDIN entgegen. Bewusst kein
-# Parsing/Validieren hier - main.py validiert (Format, Laenge) vor dem
-# Aufruf, dieses Skript bleibt so simpel wie moeglich.
-#
-# Schreibt atomar (temp-Datei + mv statt direktem "cat >") - siehe
-# targetdisplay-save-active-stand.sh fuer die Begruendung.
-#
-# WICHTIG: "[ cond ] && cmd" als LETZTE Anweisung einer Funktion ist unter
-# "set -e" gefaehrlich (siehe targetdisplay-reboot-guard.sh fuer die
-# ausfuehrliche Erklaerung) - deshalb ueberall ein abschliessendes
-# "return 0"/"exit 0".
+# Nimmt das neue JSON ({"pin": "..."}) auf STDIN entgegen. Format und Laenge
+# des PIN validiert main.py vor dem Aufruf; hier wird nur geprueft, dass die
+# Eingabe klein genug und gueltiges JSON ist. Ablauf (Groessenlimit,
+# JSON-Pruefung, atomares Schreiben, Remount) steht in
+# targetdisplay-save-lib.sh.
 
 set -euo pipefail
 
-BOOT_DIR="/boot/firmware"
-TARGET="$BOOT_DIR/targetdisplay-pin.json"
-TMP="$TARGET.tmp"
+# shellcheck source=targetdisplay-save-lib.sh
+. "$(dirname "$(readlink -f "$0")")/targetdisplay-save-lib.sh"
 
-bootro_now() { raspi-config nonint get_bootro_now; }   # 0=aktiv (ro), 1=inaktiv (rw)
-
-was_ro=0
-[ "$(bootro_now)" -eq 0 ] && was_ro=1
-[ "$was_ro" -eq 1 ] && mount -o remount,rw "$BOOT_DIR"
-
-cat > "$TMP"
-mv "$TMP" "$TARGET"
-
-[ "$was_ro" -eq 1 ] && mount -o remount,ro "$BOOT_DIR"
+save_boot_json "targetdisplay-pin.json"
 exit 0
