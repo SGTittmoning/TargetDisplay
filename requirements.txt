@@ -13,6 +13,14 @@
 # Pis noetig. Nur fuer eine lokale venv (z.B. macOS) separat per
 # "pip3 install pyyaml" installieren.
 
+# Pillow: PIL.ImageTk.PhotoImage in ui.py::draw_image() fuer das
+# Video-Frame-Rendering (ein einmalig angelegtes Tk-Bildobjekt wird pro
+# Frame per .paste() aktualisiert statt jedes Mal neu erzeugt zu werden).
+# Kommt ueber apt als python3-pil UND python3-pil.imagetk (auf Debian ein
+# separates Paket) - wie opencv/numpy unten keine pip-Installation auf den
+# Pis noetig. Nur fuer eine lokale venv separat per "pip3 install pillow"
+# installieren.
+
 av
 # Bewusst ohne Versionspin: welche av-Version ein fertiges Wheel hat, haengt
 # stark von Python-Version/Architektur ab (z.B. Bullseye/Python 3.9/armv7l
