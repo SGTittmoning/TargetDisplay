@@ -22,10 +22,12 @@ Fullscreen kiosk display for a shooting-range target camera. Straightens out the
 ## Requirements
 
 - Raspberry Pi (or similar Linux SBC) with an attached display (touchscreen recommended)
-- Python 3 with `opencv-python`, `numpy`, `config_with_yaml`, `av`, and `python3-tk` (the GUI is plain Tkinter — ships with CPython, no separate GUI package to install/pin)
+- Python 3 with `opencv-python`, `numpy`, `PyYAML`, `av`, and `python3-tk` (the GUI is plain Tkinter — ships with CPython, no separate GUI package to install/pin)
 - An RTSP/RTMP camera feed
 
 In production this runs on a Raspberry Pi 4, Raspberry Pi OS Lite (64-bit), with a Joy-IT RB-LCD10-2 10.1" HDMI touchscreen.
+
+**Raspberry Pi 5 compatibility is not guaranteed and has not been tested.** The Pi 4 setup relies on the legacy `bcm2708_fb` framebuffer driver (`vc4-kms-v3d` disabled in `config.txt`, see `ansible/tasks/display_setup.yml`) — there is no `/dev/dri`, and X11 runs on `fbdev` instead of full KMS. A Pi 5 only supports the KMS graphics stack, so this exact configuration won't apply as-is. A working approach was verified on a test Pi 4 with `vc4-kms-v3d` enabled: add `video=HDMI-A-1:<width>x<height>@60D` to `cmdline.txt` and a `Monitor` section with `Option "PreferredMode" "<width>x<height>"` in an `xorg.conf.d` snippet to force the resolution (EDID-based auto-detection alone left the display at a fallback 1024x768). CPU usage was unchanged from the legacy setup (Tkinter renders in software either way). This hasn't been turned into an Ansible task yet — do that and test the touch input path before deploying to a Pi 5.
 
 ## Setup
 
