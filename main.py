@@ -206,7 +206,7 @@ def main():
     crop_x0, crop_y0, crop_x1, crop_y1 = tl.crop_bounds([pts_full, pts_detail], CROP_MARGIN)
     pts_full = pts_full - [crop_x0, crop_y0]
     pts_detail = pts_detail - [crop_x0, crop_y0]
-    cap.crop_region = (crop_x0, crop_y0, crop_x1, crop_y1)
+    cap.set_crop_region((crop_x0, crop_y0, crop_x1, crop_y1))
 
     # Perspektiv-Matrizen einmalig berechnen statt bei jedem Frame neu -
     # pts_full/pts_detail aendern sich zur Laufzeit nie (nur ein Neustart
@@ -226,12 +226,17 @@ def main():
         # verbindet sich im Hintergrund selbststaendig neu.
         if (stale_check_due(displayVideo, displayTimer, time.monotonic(), video_resumed_at, STREAM_STALE_TIMEOUT_SEC)
                 and cap.is_stale(STREAM_STALE_TIMEOUT_SEC, STREAM_STARTUP_TIMEOUT_SEC)):
-            if cap.frame_id == 0:
+            # snapshot() liefert frame_id/last_frame_time/start_time aus
+            # einem einzigen Lock-Zugriff, statt sie einzeln zu lesen - sonst
+            # koennten die beiden Werte in der Meldung unten aus zwei
+            # verschiedenen Momenten stammen.
+            frame_id, last_frame_time, start_time = cap.snapshot()
+            if frame_id == 0:
                 print(f"Kein Kamera-Frame innerhalb der Startup-Frist von {STREAM_STARTUP_TIMEOUT_SEC}s erhalten "
-                      f"(seit Prozessstart: {time.monotonic() - cap.start_time:.1f}s) - beende Prozess fuer Neustart.", file=sys.stderr)
+                      f"(seit Prozessstart: {time.monotonic() - start_time:.1f}s) - beende Prozess fuer Neustart.", file=sys.stderr)
             else:
-                print(f"Kein neuer Kamera-Frame seit {time.monotonic() - cap.last_frame_time:.1f}s "
-                      f"(Schwelle {STREAM_STALE_TIMEOUT_SEC}s, zuletzt frame_id={cap.frame_id}) - beende Prozess fuer Neustart.", file=sys.stderr)
+                print(f"Kein neuer Kamera-Frame seit {time.monotonic() - last_frame_time:.1f}s "
+                      f"(Schwelle {STREAM_STALE_TIMEOUT_SEC}s, zuletzt frame_id={frame_id}) - beende Prozess fuer Neustart.", file=sys.stderr)
             # Eigener Exit-Code 2 (Stream-Ausfall), im Journal als
             # "TargetDisplay beendet (exit 2)" von play_it sichtbar.
             sys.exit(2)
@@ -359,7 +364,7 @@ def main():
         ### Image handling
         if displayVideo:
           # skip reprocessing/redrawing if the camera hasn't delivered a new frame yet
-          current_frame_id = cap.frame_id
+          current_frame_id, _, _ = cap.snapshot()
           frame = cap.getFrame() if current_frame_id != last_frame_id else None
           if frame is not None:
             last_frame_id = current_frame_id

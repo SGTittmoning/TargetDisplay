@@ -49,6 +49,12 @@ class FakeCamera:
         self.last_frame_time = time.monotonic()
         return np.full((700, 700, 3), 90, np.uint8)
 
+    def snapshot(self):
+        return self.frame_id, self.last_frame_time, self.start_time
+
+    def set_crop_region(self, crop_region):
+        self.crop_region = crop_region
+
     def is_stale(self, timeout, startup_timeout=None):
         return False
 

@@ -42,6 +42,25 @@ def test_default_wird_bei_vorhandenem_wert_nicht_genutzt(cfg):
     assert cfg.getPropertyWithDefault('standName', 'Fallback') == 'Stand 1'
 
 
+def test_default_bei_kaputter_zwischenebene(tmp_path):
+    # "video: null" ist gueltiges YAML - node['video'] liefert erfolgreich
+    # None, der naechste Traversierungsschritt None['section_full'] wirft
+    # dann TypeError statt KeyError.
+    p = tmp_path / 'config.yml'
+    p.write_text("video: null\n")
+    cfg = yamlconfig.load(str(p))
+    assert cfg.getPropertyWithDefault('video.section_full', None) is None
+    with pytest.raises(TypeError):
+        cfg.getProperty('video.section_full')
+
+
+def test_default_bei_skalarer_zwischenebene(tmp_path):
+    p = tmp_path / 'config.yml'
+    p.write_text("video: 'nicht_verschachtelt'\n")
+    cfg = yamlconfig.load(str(p))
+    assert cfg.getPropertyWithDefault('video.section_full', 'X') == 'X'
+
+
 def test_leere_datei():
     import tempfile, os
     fd, path = tempfile.mkstemp()

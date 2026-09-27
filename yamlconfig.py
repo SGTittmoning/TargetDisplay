@@ -19,7 +19,12 @@ class Config:
     def getPropertyWithDefault(self, path, default):
         try:
             return self.getProperty(path)
-        except KeyError:
+        except (KeyError, TypeError):
+            # TypeError zusaetzlich zu KeyError: eine Zwischenebene kann in
+            # der YAML-Datei auch "null" oder ein Skalar statt eines
+            # Mappings sein (z.B. "video: null"), dann wirft node[part]
+            # TypeError statt KeyError. Beide Faelle sind fuer den Aufrufer
+            # gleichbedeutend mit "Wert nicht vorhanden".
             return default
 
 
