@@ -101,7 +101,7 @@ Ein Klick auf das Augen-Symbol in der Kopfzeile (Punkt 2) blendet das Kamerabild
 
 **Dieser Abschnitt richtet sich an Standaufsichten**, nicht an normale Vereinsmitglieder. Alle hier beschriebenen Funktionen sind über das Zahnrad-Symbol in der Kopfzeile (Punkt 3, oben) erreichbar und durch eine numerische PIN geschützt, damit nicht versehentlich (oder durch Unbefugte) Einstellungen verändert werden.
 
-Der PIN-Schutz ist bewusst kein Hochsicherheitsmechanismus gegen gezielte Angriffe (es gibt z. B. keine Kontosperre nach mehreren Fehlversuchen) – er soll lediglich zufälliges Herumtippen von Passanten am Gerät verhindern.
+Der PIN-Schutz ist bewusst kein Hochsicherheitsmechanismus gegen gezielte Angriffe (es gibt z. B. keine dauerhafte Kontosperre) – er soll zufälliges Herumtippen von Passanten am Gerät abschrecken. Nach jeder falschen Eingabe erzwingt das Gerät eine kurze, mit der Anzahl aufeinanderfolgender Fehlversuche wachsende Wartezeit (1 s, 4 s, 7 s, … bis maximal 60 s), bevor eine neue Eingabe möglich ist. Der Zähler setzt sich nach einer richtigen Eingabe oder nach 10 Minuten ohne weiteren Versuch zurück.
 
 ### 3.1 PIN-Eingabe
 
@@ -113,7 +113,7 @@ Nach Klick auf das Zahnrad-Symbol erscheint das PIN-Tastenfeld:
 
 1. **Ziffernblock 0–9** – Eingabe der PIN (4–6-stellig). Eingegebene Ziffern werden als Sternchen dargestellt.
 2. **Löschen** – setzt die aktuelle Eingabe zurück auf leer.
-3. **OK** (blau hervorgehoben) – bestätigt die Eingabe. Bei falscher PIN erscheint kurz „falsch“ in Rot, danach kann erneut eingegeben werden.
+3. **OK** (blau hervorgehoben) – bestätigt die Eingabe. Bei falscher PIN erscheint „falsch“ in Rot, dazu eine ablaufende Wartezeit in Sekunden (wird mit jedem weiteren Fehlversuch länger, siehe oben); erst danach ist eine neue Eingabe möglich.
 4. **Abbrechen** – bricht die PIN-Eingabe ab und kehrt zum Hauptbildschirm zurück.
 
 Nach korrekter Eingabe öffnet sich das Einstellungen-Menü.
