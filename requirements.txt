@@ -1,4 +1,8 @@
-# Pinned to the versions verified running on the production Pis (stand1, 2026-08-21).
+# Diese Datei listet nur noch av (siehe Kommentar dort, bewusst ohne
+# Versionspin). PyYAML und Pillow sind ebenfalls echte Laufzeit-
+# Abhaengigkeiten, stehen aber bewusst NICHT hier, sondern kommen wie
+# opencv/numpy ueber apt (python3-yaml, python3-pil/-imagetk) - siehe
+# die jeweiligen Kommentare unten.
 # Install with: pip3 install -r requirements.txt
 
 # GUI is plain Tkinter (stdlib, via the python3-tk apt package) - no separate

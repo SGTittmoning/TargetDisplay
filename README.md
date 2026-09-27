@@ -32,13 +32,13 @@ In production this runs on a Raspberry Pi 4, Raspberry Pi OS Lite (64-bit), with
 ## Setup
 
 ```bash
-pip3 install -r requirements.txt opencv-python numpy
+pip3 install -r requirements.txt opencv-python numpy pyyaml pillow
 cp config.yml.dist config.yml
 # edit config.yml: camera URL, screen size, and the four-point regions for your camera angle
 python3 main.py
 ```
 
-`requirements.txt` pins the versions verified against production. On Debian/Raspberry Pi OS, prefer installing `opencv-python`/`numpy`/`Pillow` via `apt` (`python3-opencv`, `python3-numpy`, `python3-pil`, `python3-pil.imagetk`) instead of pip — see the comments in `requirements.txt` for why.
+On Debian/Raspberry Pi OS, prefer installing `opencv-python`/`numpy`/`PyYAML`/`Pillow` via `apt` (`python3-opencv`, `python3-numpy`, `python3-yaml`, `python3-pil`, `python3-pil.imagetk`) instead of pip — see the comments in `requirements.txt` for why.
 
 `ressources/logo.png` (RGBA) is shown centered as a watermark when the video feed is toggled off ("Video aus") — ships with a generic placeholder shield, swap in your own club/range logo there. The app runs fine without one too (missing file, not an error — the watermark just stays empty). It is not shown anywhere else on the main screen (an earlier small always-visible sidebar copy was removed — it got visually lost next to the large clock).
 

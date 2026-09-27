@@ -242,7 +242,7 @@ nicht ersetzen:
   nach dem Flashen, vor dem Auswerfen der Karte). Der Assistent überspringt
   dann Stand-Auswahl und Eckpunkt-Kalibrierung automatisch und verlangt nur
   noch die einmalige PIN-Änderung direkt am Gerät (aus Sicherheitsgründen
-  bewusst nicht vorbelegbar, siehe `main.py::change_pin_flow`). Nützlich,
+  bewusst nicht vorbelegbar, siehe `flows.py::change_pin_flow`). Nützlich,
   wenn ein Gerät exakt dieselbe Position/Kameraausrichtung wie zuvor
   bekommt; bei jeder Abweichung lieber den Assistenten regulär durchlaufen
   lassen statt eine falsche Kalibrierung vorzubelegen.
