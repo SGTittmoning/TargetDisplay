@@ -6,7 +6,7 @@ import traceback
 from collections import deque
 from datetime import datetime
 
-import config_with_yaml as config
+import yamlconfig
 import cv2
 import numpy as np
 
@@ -79,7 +79,7 @@ MAIN_LOOP_TICK_MS = 33
 
 version = '0.11.2'
 
-cfg = config.load("config.yml")
+cfg = yamlconfig.load("config.yml")
 
 def main():
     VideoSize = (cfg.getProperty('video.size.x'), cfg.getProperty('video.size.y'))

@@ -7,6 +7,12 @@ import av
 
 from logutil import mask_credentials
 
+# PyAV ist bewusst nicht auf eine feste Version gepinnt (siehe requirements.txt) -
+# welche Version tatsaechlich installiert ist, haengt vom Zielsystem ab. Ohne
+# diese Zeile waere das bei einer spaeteren Fehlersuche im Journal nicht mehr
+# nachvollziehbar.
+print(f"camera.py: PyAV {av.__version__}", file=sys.stderr)
+
 # Timeouts fuer av.open() in Sekunden (Verbindungsaufbau, Lesen). Ein
 # aufgebauter RTMP-Stream mit 2560x1920 braucht bis zum ersten Frame
 # mehrere Sekunden; zwischen zwei Frames vergehen im Normalbetrieb dagegen
