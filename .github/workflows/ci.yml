@@ -16,6 +16,26 @@ permissions:
   contents: read
 
 jobs:
+  actionlint:
+    if: github.event.repository.private == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v6
+      # Prueft den Workflow selbst (Syntax, falsche Kontext-/Expression-
+      # Referenzen, unbekannte Action-Inputs) - ein Fehler hier wuerde sonst
+      # erst auffallen, wenn der eigentliche Job dadurch gar nicht erst
+      # anspringt.
+      - name: actionlint
+        env:
+          ACTIONLINT_VERSION: "1.7.12"
+          ACTIONLINT_SHA256: "8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8"
+        run: |
+          curl -sSfL -o actionlint.tgz "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
+          echo "${ACTIONLINT_SHA256}  actionlint.tgz" | sha256sum -c -
+          tar xzf actionlint.tgz actionlint
+          ./actionlint
+
   shellcheck:
     if: github.event.repository.private == false
     runs-on: ubuntu-latest
@@ -88,6 +108,44 @@ jobs:
           cp ansible/inventory.yml.dist "$RUNNER_TEMP/inventory.yml"
           ansible-playbook -i "$RUNNER_TEMP/inventory.yml" ansible/install.yml --syntax-check
           ansible-playbook -i "$RUNNER_TEMP/inventory.yml" ansible/maintain.yml --syntax-check
+
+  pip-audit:
+    if: github.event.repository.private == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      # Prueft die echten Laufzeit-Abhaengigkeiten (av, PyYAML, Pillow,
+      # opencv, numpy) gegen bekannte CVEs - auch die, die auf den Pis
+      # bewusst ueber apt statt pip installiert werden (siehe Kommentare in
+      # requirements.txt), damit z.B. eine Pillow-Sicherheitsluecke nicht
+      # unbemerkt bleibt, nur weil das Paket dort nicht in requirements.txt
+      # aufgelistet ist.
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip  # sonst meldet pip-audit pip selbst als veraltet
+          pip install -r requirements.txt opencv-python numpy pyyaml pillow
+      - name: pip-audit
+        run: |
+          pip install pip-audit
+          pip-audit
+
+  codeql:
+    if: github.event.repository.private == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v6
+      - uses: github/codeql-action/init@v3
+        with:
+          languages: python
+      - uses: github/codeql-action/analyze@v3
 
   gitleaks:
     if: github.event.repository.private == false
