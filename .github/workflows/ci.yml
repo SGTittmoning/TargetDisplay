@@ -55,7 +55,7 @@ jobs:
       - name: Install test dependencies
         run: |
           sudo apt-get update && sudo apt-get install -y xvfb
-          pip install pytest numpy opencv-python-headless av config-with-yaml
+          pip install pytest numpy opencv-python-headless av pyyaml pillow
       - name: pytest (Timer, Watchdog, PIN-Wartezeit, Perspektive, Rauchtest der Oberflaeche unter Xvfb, ...)
         run: xvfb-run -a python -m pytest -q tests
       - name: Regression tests for the maintenance scripts (stubbed system commands, no hardware)
