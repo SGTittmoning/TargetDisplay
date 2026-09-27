@@ -79,6 +79,23 @@ class Camera:
             except Exception:
                 pass
 
+    def set_crop_region(self, crop_region):
+        # Setzt crop_region unter demselben Lock, das _buffer_loop beim
+        # Lesen nutzt (siehe dort) - konsistent mit dem uebrigen Zugriff auf
+        # den von main.py und dem Hintergrund-Thread gemeinsam genutzten
+        # Zustand dieser Klasse.
+        with self.lock:
+            self.crop_region = crop_region
+
+    def snapshot(self):
+        # frame_id, last_frame_time und start_time als EINE konsistente
+        # Momentaufnahme, statt sie einzeln (und ohne Lock) zu lesen - sonst
+        # koennten z.B. frame_id und last_frame_time aus zwei verschiedenen
+        # Momenten stammen, wenn der Hintergrund-Thread dazwischen einen
+        # neuen Frame liefert.
+        with self.lock:
+            return self.frame_id, self.last_frame_time, self.start_time
+
     def _open_container(self):
         # options={"rtmp_live": "live"} bewusst weggelassen: fuehrt mit der auf
         # Stand 1 installierten ffmpeg-Version (4.3.9+rpt1) zu einem Segfault
@@ -130,8 +147,10 @@ class Camera:
                 continue
 
             full_frame = frame
-            if self.crop_region is not None:
-                x0, y0, x1, y1 = self.crop_region
+            with self.lock:
+                crop_region = self.crop_region
+            if crop_region is not None:
+                x0, y0, x1, y1 = crop_region
                 frame = frame[y0:min(y1, frame.shape[0]), x0:min(x1, frame.shape[1])]
             with self.lock:
                 self.last_ready, self.last_frame = True, frame

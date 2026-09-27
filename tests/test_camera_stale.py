@@ -30,6 +30,20 @@ def test_stale_nach_ausbleibendem_frame(monkeypatch):
     assert cam.is_stale(10, startup_timeout=30)
 
 
+def test_snapshot_liefert_frame_id_last_frame_time_start_time(monkeypatch):
+    cam, clock = make_camera(monkeypatch, 1000.0)
+    cam.frame_id = 5
+    cam.last_frame_time = 1004.0
+    assert cam.snapshot() == (5, 1004.0, 1000.0)
+
+
+def test_set_crop_region(monkeypatch):
+    cam, _ = make_camera(monkeypatch, 1000.0)
+    assert cam.crop_region is None
+    cam.set_crop_region((1, 2, 3, 4))
+    assert cam.crop_region == (1, 2, 3, 4)
+
+
 def test_zeitsprung_der_systemuhr_loest_kein_stale_aus(monkeypatch):
     # Die Systemuhr (time.time) springt um Wochen vor, z.B. bei der ersten
     # NTP-Synchronisation nach dem Boot - die monotone Uhr bleibt davon
