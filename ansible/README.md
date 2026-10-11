@@ -91,15 +91,20 @@ Two different kinds of update, two different playbooks:
 | What | How | Touches git? |
 |---|---|---|
 | **OS packages** (`apt full-upgrade`, autoremove, clean) | `maintain.yml` (via `targetdisplay-update.sh`, handles the read-only dance and the reboots itself) | no |
-| **App code** (a new commit on `main`, or another ref) | `install.yml` — the checkout uses `force: yes` and restarts `targetdisplay.service` when anything changed. Pin a ref with `-e targetdisplay_git_version=<branch\|tag\|commit>` | yes |
+| **App code** (a new commit on `main`, or another ref) | `update-app.yml` — checkout (`force: yes`), venv, `config.yml`, logo, restart when anything changed; lifts and restores the read-only state itself. Pin a ref with `-e targetdisplay_git_version=<branch\|tag\|commit>` | yes |
+| **Everything** (packages, hardening, scripts, units, app) | `install.yml` — refuses to run while the overlay is active (see below) | yes |
 
 `maintain.yml` does **not** deploy app code. To roll out a new app version:
 
 ```bash
-ansible-playbook -i inventory.yml install.yml --limit <host>
+ansible-playbook -i inventory.yml update-app.yml --limit <host>
 ```
 
-**With the overlay active**, `install.yml` aborts in its pre-flight check (writes would land in the volatile tmpfs layer and vanish at the next reboot). Lift the read-only state first, then re-lock it:
+`update-app.yml` handles one host at a time and stops at the first failure. With the overlay active it runs: `targetdisplay-writable.sh rw` (overlay off → reboot → boot partition writable), the app update, `targetdisplay-writable.sh ro` (boot-ro + overlay on → reboot), then verifies overlay, boot-ro and `targetdisplay.service`. On a host without overlay it only updates and restarts the service. Expect two reboots (about 3 minutes) per stand.
+
+A marker file `/boot/firmware/.targetdisplay-update-restore` records "lock read-only again afterwards". If a run aborts (network down, update task failed), the stand stays writable but keeps running normally; run the same command again and it continues and re-locks at the end. `-e update_restore_ro=auto|true|false` overrides the decision (default `auto`: restore when overlay/boot-ro were active at start or the marker exists).
+
+`update-app.yml` does not touch packages, hardening, `/root/bin/*` scripts, `targetdisplay_stands`, systemd units other than `targetdisplay.service` or the touch calibration. After changes there, run `install.yml` — with the overlay active this still needs the manual flow:
 
 ```bash
 # on the stand (ssh), may ask for an intermediate reboot - the script says so; call it again afterwards

@@ -229,16 +229,31 @@ Zwei verschiedene Dinge, zwei verschiedene Playbooks:
 | Was | Wie | Git-Zugriff? |
 |---|---|---|
 | **Betriebssystem** (`apt full-upgrade`) | `maintain.yml` (erledigt den read-only-Tanz und die Reboots selbst) | nein |
-| **App-Code** (neuer Commit auf `main` oder anderer Ref) | `install.yml` — `git` mit `force: yes`, Dienst-Neustart bei Änderung; Ref festlegen mit `-e targetdisplay_git_version=<branch\|tag\|commit>` | ja |
+| **App-Code** (neuer Commit auf `main` oder anderer Ref) | `update-app.yml` — `git` mit `force: yes`, venv, `config.yml`, Logo, Dienst-Neustart bei Änderung; hebt den Schreibschutz selbst auf und setzt ihn wieder. Ref festlegen mit `-e targetdisplay_git_version=<branch\|tag\|commit>` | ja |
+| **Alles** (Pakete, Härtung, Skripte, Units, App) | `install.yml` — bricht bei aktivem Overlay ab (siehe unten) | ja |
 
 `maintain.yml` spielt **keinen** App-Code ein. Ein App-Update läuft so:
 
 ```bash
-ansible-playbook -i inventory.yml install.yml --limit <host>
+ansible-playbook -i inventory.yml update-app.yml --limit <host>
 ```
 
-**Bei aktivem Overlay** bricht `install.yml` im Vorab-Check ab (Schreibvorgänge
-gingen nur in den flüchtigen tmpfs-Layer). Ablauf dann:
+`update-app.yml` bearbeitet immer nur einen Stand und stoppt beim ersten
+Fehler. Bei aktivem Overlay: Overlay aus → Reboot → Boot-Partition
+beschreibbar → App-Update → Boot-RO + Overlay an → Reboot → Prüfung von
+Overlay, Boot-RO und Dienst (rund 3 Minuten, zwei Reboots). Ohne Overlay
+aktualisiert es nur und startet den Dienst bei Bedarf neu.
+
+Bricht ein Lauf ab (Netz weg, Update-Task schlägt fehl), bleibt der Stand
+beschreibbar, läuft aber normal weiter. Derselbe Befehl nochmal setzt dank
+eines Markers (`/boot/firmware/.targetdisplay-update-restore`) fort und sperrt
+am Ende wieder. Mit `-e update_restore_ro=true|false` lässt sich das
+erzwingen bzw. unterdrücken.
+
+`update-app.yml` ändert keine Pakete, Härtung, `/root/bin`-Skripte,
+`targetdisplay_stands` oder Touch-Kalibrierung. Dafür `install.yml`; bei
+aktivem Overlay bricht es im Vorab-Check ab (Schreibvorgänge gingen nur in
+den flüchtigen tmpfs-Layer), der Ablauf ist dann:
 
 ```bash
 # auf dem Stand (ssh); fordert ggf. einen Zwischen-Reboot an - danach nochmal aufrufen
