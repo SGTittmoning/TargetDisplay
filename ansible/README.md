@@ -86,6 +86,8 @@ With it active, nothing on disk changes at runtime — updates need a small danc
 - `maintain.yml` does this automatically via `files/targetdisplay-update.sh`
 - `files/targetdisplay-writable.sh` (manual config edits, e.g. touch calibration) and `files/targetdisplay-update.sh` (apt upgrades) are also deployed to `/root/bin/` on the device itself, for when Ansible access isn't available
 
+`overlayroot=tmpfs` on the kernel command line alone does not make an overlay — the overlay mount is done by a script **inside the initramfs** that the firmware loads. If the `overlayroot` package gets installed while the boot partition is already read-only, apt builds a new initrd but cannot copy it to `/boot/firmware`; the firmware keeps loading the old one, `raspi-config nonint get_overlay_now` still says "active" (it only reads the command line), and the root filesystem stays plainly writable. `tasks/overlay_initramfs.yml` (used by `install.yml` when enabling the overlay and by `update-app.yml` before it re-enables it) therefore checks the initramfs files the firmware really loads and regenerates them if the hook is missing; `update-app.yml` finally asserts that `/` is really mounted as `overlay`.
+
 ## Updating a running stand
 
 Two different kinds of update, two different playbooks:
