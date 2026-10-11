@@ -1,6 +1,6 @@
 # TargetDisplay – Benutzerhandbuch
 
-*Version des Handbuchs: September 2026, bezogen auf TargetDisplay v0.12.x*
+*Version des Handbuchs: Oktober 2026, bezogen auf TargetDisplay v0.12.x*
 
 ## 1. Einleitung
 
@@ -113,7 +113,7 @@ Nach Klick auf das Zahnrad-Symbol erscheint das PIN-Tastenfeld:
 
 1. **Ziffernblock 0–9** – Eingabe der PIN (4–6-stellig). Eingegebene Ziffern werden als Sternchen dargestellt.
 2. **Löschen** – setzt die aktuelle Eingabe zurück auf leer.
-3. **OK** (blau hervorgehoben) – bestätigt die Eingabe. Bei falscher PIN erscheint „falsch“ in Rot, dazu eine ablaufende Wartezeit in Sekunden (wird mit jedem weiteren Fehlversuch länger, siehe oben); erst danach ist eine neue Eingabe möglich.
+3. **OK** (blau hervorgehoben) – bestätigt die Eingabe. Bei falscher PIN erscheint „falsch“ in Rot, dazu ab dem zweiten Fehlversuch eine ablaufende Wartezeit in Sekunden (wird mit jedem weiteren Fehlversuch länger, siehe oben); erst danach ist eine neue Eingabe möglich.
 4. **Abbrechen** – bricht die PIN-Eingabe ab und kehrt zum Hauptbildschirm zurück.
 
 Nach korrekter Eingabe öffnet sich das Einstellungen-Menü.
@@ -198,11 +198,15 @@ Ein fabrikneues bzw. zurückgesetztes Gerät zeigt beim allerersten Start automa
 2. **Ausschnitte kalibrieren** – zunächst „Ganze Scheibe“, danach „Innen Scheibe“, jeweils identisch zum Editor in Abschnitt 3.3 (nur ohne „Abbrechen“, und der Speichern-Button heißt hier schlicht „Speichern“, da der Assistent nach jedem Einzelschritt ohne Neustart weiterläuft).
 3. **PIN festlegen** – identisch zum Dialog in Abschnitt 3.5, nur ohne vorherige Abfrage einer aktuellen PIN: Das Gerät startet mit dem eingebauten Standard-PIN „1234“, den der Assistent an dieser Stelle zwingend durch einen selbst gewählten PIN ersetzen lässt.
 
+Ist die Kamera nicht erreichbar, zeigt der Assistent „Kamera nicht erreichbar“ mit den Schaltflächen „Erneut versuchen“ und „Zurück zur Stand-Auswahl“. Er wartet, bis die Kamera antwortet; der Wechsel zurück zur Stand-Auswahl ist die einzige Möglichkeit, hier herauszukommen.
+
 Erst wenn alle drei Schritte abgeschlossen sind, erscheint der normale Hauptbildschirm aus Kapitel 2.
 
 ---
 
 ## Bei Problemen
+
+Fällt das Kamerabild aus, startet sich das Gerät selbst neu und versucht es danach alle 10 Minuten erneut; ein manueller Neustart (siehe Abschnitt 3.6) beschleunigt das.
 
 Lässt sich ein Problem nicht durch einen einfachen Geräteneustart beheben (siehe Abschnitt 3.6), wenden Sie sich bitte an:
 
