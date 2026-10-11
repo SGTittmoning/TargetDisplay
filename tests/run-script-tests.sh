@@ -200,6 +200,21 @@ check "Dienst nicht failed: Exit 0" 0 "$rc"
 check "Dienst nicht failed: kein reset-failed" 0 "$(calls 'reset-failed')"
 check "Dienst nicht failed: kein start" 0 "$(calls 'systemctl start')"
 
+# ===================================================== nm-timesync.sh
+echo "nm-timesync.sh (NetworkManager-Dispatcher)"
+reset; "$BIN/targetdisplay-nm-timesync.sh" eth0 up; rc=$?
+check "eth0 up: Exit 0" 0 "$rc"
+check "eth0 up: timesyncd wird neu gestartet" 1 "$(calls 'systemctl try-restart systemd-timesyncd.service')"
+
+reset; "$BIN/targetdisplay-nm-timesync.sh" eth0 down
+check "eth0 down: nichts" 0 "$(calls 'systemctl')"
+
+reset; "$BIN/targetdisplay-nm-timesync.sh" lo up
+check "lo up: nichts" 0 "$(calls 'systemctl')"
+
+reset; "$BIN/targetdisplay-nm-timesync.sh" eth0 dhcp4-change
+check "dhcp4-change: nichts" 0 "$(calls 'systemctl')"
+
 echo
 echo "Ergebnis: $pass ok, $fail Fehler"
 [ "$fail" -eq 0 ]

@@ -1,0 +1,41 @@
+---
+# Zeitsynchronisation. Eigene Datei, weil install.yml (ueber base.yml) und
+# update-app.yml dieselben Tasks nutzen - so laesst sich auch ein bereits
+# eingerichteter Stand mit aktivem Overlay per update-app.yml nachziehen.
+
+# sntp gibt es auf aktuellem Raspberry Pi OS/Debian nicht mehr (Trixie:
+# "No package matching 'sntp' is available") - systemd-timesyncd laeuft
+# dort bereits standardmaessig aktiv und synchronisiert kontinuierlich,
+# ein einmaliger sntp-Sync ist nicht mehr noetig. Stattdessen den lokalen
+# NTP-Server (kein Internet-Pool - die Staende haben ggf. keinen Internet-
+# Zugang) als Zeitquelle fuer timesyncd konfigurieren.
+- name: Lokalen NTP-Server fuer systemd-timesyncd konfigurieren
+  lineinfile:
+    path: /etc/systemd/timesyncd.conf
+    regexp: '^#?\s*NTP='
+    line: "NTP={{ ntpserver }}"
+    insertafter: '^\[Time\]'
+  register: targetdisplay_timesyncd_conf
+
+- name: systemd-timesyncd neu starten (nach Konfigurationsaenderung)
+  systemd:
+    name: systemd-timesyncd
+    state: restarted
+  when: targetdisplay_timesyncd_conf is changed
+
+# Siehe Kopfkommentar in files/targetdisplay-nm-timesync.sh: ohne diesen Haken
+# wartet ein frisch gebooteter Stand rund 7,5 Minuten auf die erste
+# Synchronisation (kein RTC, die Uhr geht bis dahin falsch).
+- name: NetworkManager-Dispatcher-Verzeichnis vorhanden?
+  stat:
+    path: /etc/NetworkManager/dispatcher.d
+  register: targetdisplay_nm_dispatcher_dir
+
+- name: Dispatcher-Skript fuer sofortigen NTP-Sync nach Link-up installieren
+  copy:
+    src: targetdisplay-nm-timesync.sh
+    dest: /etc/NetworkManager/dispatcher.d/50-targetdisplay-timesync
+    owner: root
+    group: root
+    mode: "0755"
+  when: targetdisplay_nm_dispatcher_dir.stat.exists

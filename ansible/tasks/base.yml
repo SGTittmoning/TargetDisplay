@@ -100,25 +100,9 @@
   timezone:
     name: "{{ targetdisplay_timezone }}"
 
-# sntp gibt es auf aktuellem Raspberry Pi OS/Debian nicht mehr (Trixie:
-# "No package matching 'sntp' is available") - systemd-timesyncd laeuft
-# dort bereits standardmaessig aktiv und synchronisiert kontinuierlich,
-# ein einmaliger sntp-Sync ist nicht mehr noetig. Stattdessen den lokalen
-# NTP-Server (kein Internet-Pool - die Staende haben ggf. keinen Internet-
-# Zugang) als Zeitquelle fuer timesyncd konfigurieren.
-- name: Lokalen NTP-Server fuer systemd-timesyncd konfigurieren
-  lineinfile:
-    path: /etc/systemd/timesyncd.conf
-    regexp: '^#?\s*NTP='
-    line: "NTP={{ ntpserver }}"
-    insertafter: '^\[Time\]'
-  register: targetdisplay_timesyncd_conf
-
-- name: systemd-timesyncd neu starten (nach Konfigurationsaenderung)
-  systemd:
-    name: systemd-timesyncd
-    state: restarted
-  when: targetdisplay_timesyncd_conf is changed
+# Zeitsynchronisation (lokaler NTP-Server + sofortiger Sync nach Link-up):
+# siehe tasks/timesync.yml (wird auch von update-app.yml genutzt).
+- import_tasks: timesync.yml
 
 # journald speichert standardmaessig nur fluechtig unter /run/log/journal -
 # ueberlebt keinen Reboot, was die Fehlersuche nach einem Absturz-/
