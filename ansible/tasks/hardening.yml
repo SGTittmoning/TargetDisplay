@@ -1,7 +1,7 @@
 ---
 # Zusaetzliche OS-Haertung ueber das in tasks/base.yml bereits Vorhandene
-# hinaus - siehe INTERNAL_NOTES.md Hardening-Analyse fuer den Hintergrund
-# jedes einzelnen Punkts.
+# hinaus (Firewall, avahi/Bluetooth, SSH). Der Hintergrund steht jeweils an
+# den einzelnen Tasks.
 
 - name: nftables-Paket installieren
   apt:

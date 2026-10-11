@@ -17,6 +17,19 @@
 #                                       Check ab: zuerst auf dem Host
 #                                       targetdisplay-writable.sh rw
 #                                       ausfuehren, siehe README.
+#                                       Wirksam ist das Overlay erst, wenn
+#                                       'findmnt -n -o FSTYPE /' overlay
+#                                       liefert (get_overlay_now allein
+#                                       beweist es nicht).
+#   targetdisplay_git_version=<ref>     App-Stand (Branch/Tag/Commit, Standard
+#                                       main).
+#   targetdisplay_boot_splash=false     Boot-Logo (Plymouth) nicht einrichten
+#                                       (Standard: an); weitere Einstellungen
+#                                       _boot_splash_background/_max_percent.
+#   targetdisplay_cursor_hide_idle_sec  Sekunden bis der Mauszeiger ausgeblendet
+#                                       wird (Standard 1).
+#   targetdisplay_touch_calibration_file  eigene Kalibrierdatei unter files/
+#                                       (pro Host im Inventory).
 
 - hosts: targetdisplay
   become: yes
@@ -40,7 +53,7 @@
     # der Mehr-Stand-Faehigkeit nicht mehr einmalig bei der Installation
     # gesetzt, sondern kommen aus targetdisplay_stands (s.u.) plus dem
     # (ggf. erzwungenen) Ersteinrichtungs-Assistenten am Geraet selbst -
-    # siehe tasks/stands.yml und INTERNAL_NOTES.md.
+    # siehe tasks/stands.yml.
     - name: targetdisplay_stands/targetdisplay_git_repo muessen gesetzt sein
       assert:
         that:
