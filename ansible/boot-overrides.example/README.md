@@ -14,7 +14,7 @@ ansible/boot-overrides/          # lokal anlegen, ist gitignored
 | Datei | Inhalt |
 |---|---|
 | `targetdisplay-active-stand.json` | `{"id": "<stand-id>"}` — muss eine `id` aus `targetdisplay_stands` im Inventory sein |
-| `targetdisplay-sections.json` | `section_full` und `section_detail`: je vier Eckpunkte `[x, y]` in der Reihenfolge links oben, rechts oben, links unten, rechts unten, in Pixeln des nativen Kamerabilds (z.B. 2560×1920) |
+| `targetdisplay-sections.json` | `section_full` und `section_detail`: je vier Eckpunkte `[x, y]` in Pixeln des nativen Kamerabilds (z.B. 2560×1920). Die Reihenfolge ist beliebig, die App sortiert selbst; der Editor liefert links oben, rechts oben, links unten, rechts unten |
 
 ## Echte Werte gewinnen
 
