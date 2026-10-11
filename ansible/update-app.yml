@@ -163,6 +163,11 @@
         state: absent
       when: update_do_restore | bool
 
+    # Das Overlay greift nur, wenn das von der Firmware geladene initramfs den
+    # overlayroot-Hook enthaelt (siehe tasks/overlay_initramfs.yml).
+    - import_tasks: tasks/overlay_initramfs.yml
+      when: update_do_restore | bool
+
     - name: "Phase 3: wieder read-only schalten (Boot-RO + Overlay)"
       command: "{{ update_writable_script }} ro"
       when: update_do_restore | bool
@@ -175,6 +180,13 @@
     - name: Endzustand pruefen (Overlay)
       command: raspi-config nonint get_overlay_now
       register: update_overlay_end
+      changed_when: false
+
+    # get_overlay_now liest nur die Kernel-Kommandozeile. Ob das Root-
+    # Dateisystem wirklich ein Overlay ist, zeigt erst der Mount-Typ.
+    - name: Endzustand pruefen (Root-Dateisystem tatsaechlich Overlay)
+      command: findmnt -n -o FSTYPE /
+      register: update_root_fstype
       changed_when: false
 
     - name: Endzustand pruefen (Boot-RO)
@@ -193,6 +205,7 @@
         that:
           - update_service_end.stdout | trim == 'active'
           - not (update_do_restore | bool) or update_overlay_end.stdout | trim == '0'
+          - not (update_do_restore | bool) or update_root_fstype.stdout | trim == 'overlay'
           - not (update_do_restore | bool) or update_bootro_end.stdout | trim == '0'
         success_msg: >-
           Update fertig. Dienst aktiv, Overlay {{ 'aktiv' if update_overlay_end.stdout | trim == '0' else 'nicht aktiv' }},
@@ -200,4 +213,5 @@
         fail_msg: >-
           Endzustand nicht wie erwartet: Dienst={{ update_service_end.stdout | trim }},
           Overlay={{ update_overlay_end.stdout | trim }} (0=aktiv),
-          Boot-RO={{ update_bootro_end.stdout | trim }} (0=aktiv).
+          Boot-RO={{ update_bootro_end.stdout | trim }} (0=aktiv),
+          Root-Dateisystem={{ update_root_fstype.stdout | trim }} (erwartet: overlay).

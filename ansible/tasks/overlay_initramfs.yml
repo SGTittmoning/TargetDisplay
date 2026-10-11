@@ -1,0 +1,72 @@
+---
+# Stellt sicher, dass die initramfs-Dateien, die die Firmware tatsaechlich
+# laedt (/boot/firmware/initramfs*), den overlayroot-Hook enthalten.
+#
+# Hintergrund: "overlayroot=tmpfs" in der Kernel-Kommandozeile allein macht
+# noch kein Overlay - den Overlay-Mount erledigt ein Skript IM initramfs. Wird
+# das Paket overlayroot installiert, waehrend die Boot-Partition schon
+# read-only gemountet ist, erzeugt apt zwar ein neues initrd unter /boot, der
+# anschliessende Kopierschritt nach /boot/firmware (z50-raspi-firmware)
+# scheitert aber an der read-only Partition. Die Firmware laedt weiter das
+# alte initramfs ohne Hook: Kommandozeile und "raspi-config nonint
+# get_overlay_now" melden "aktiv", das Root-Dateisystem bleibt aber normal
+# beschreibbar - ohne Fehlermeldung, und ein harter Stromausfall waere wieder
+# ungeschuetzt. Beobachtet auf einem Stand, auf dem overlayroot nachtraeglich
+# bei aktivem Boot-RO installiert wurde.
+#
+# Dieser Block prueft das tatsaechliche initramfs und erzeugt es bei Bedarf
+# neu. Er schaltet die Boot-Partition dafuer kurz auf rw und setzt sie danach
+# wieder auf den vorherigen Zustand.
+
+- name: Ist der overlayroot-Hook fuer initramfs-tools installiert?
+  stat:
+    path: /usr/share/initramfs-tools/hooks/overlayroot
+  register: overlay_hook_stat
+
+- name: Geladene initramfs-Dateien ohne overlayroot-Hook ermitteln
+  shell: |
+    set -o pipefail
+    for f in /boot/firmware/initramfs*; do
+      [ -e "$f" ] || continue
+      n=$(lsinitramfs "$f" 2>/dev/null | grep -c overlayroot) || true
+      [ "${n:-0}" -gt 0 ] || echo "$f"
+    done
+  args:
+    executable: /bin/bash
+  register: overlay_initramfs_missing
+  changed_when: false
+  when: overlay_hook_stat.stat.exists
+
+- name: Boot-Partition-Zustand merken (read-only?)
+  command: findmnt -n -o OPTIONS /boot/firmware
+  register: overlay_boot_opts
+  changed_when: false
+  when: overlay_hook_stat.stat.exists and overlay_initramfs_missing.stdout | trim | length > 0
+
+- name: initramfs neu erzeugen (overlayroot-Hook fehlte in der geladenen Datei)
+  when: overlay_hook_stat.stat.exists and overlay_initramfs_missing.stdout | trim | length > 0
+  block:
+    - name: Boot-Partition kurzzeitig beschreibbar machen
+      command: mount -o remount,rw /boot/firmware
+      when: overlay_boot_opts.stdout.split(',') | select('equalto', 'ro') | list | length > 0
+
+    - name: initramfs fuer alle installierten Kernel neu erzeugen
+      command: update-initramfs -u -k all
+
+    - name: Pruefen, dass der Hook jetzt in den geladenen Dateien steckt
+      shell: |
+        set -o pipefail
+        for f in /boot/firmware/initramfs*; do
+          [ -e "$f" ] || continue
+          n=$(lsinitramfs "$f" 2>/dev/null | grep -c overlayroot) || true
+          [ "${n:-0}" -gt 0 ] || echo "$f"
+        done
+      args:
+        executable: /bin/bash
+      register: overlay_initramfs_still_missing
+      changed_when: false
+      failed_when: overlay_initramfs_still_missing.stdout | trim | length > 0
+  always:
+    - name: Boot-Partition wieder read-only setzen (falls sie es vorher war)
+      command: mount -o remount,ro /boot/firmware
+      when: overlay_boot_opts.stdout.split(',') | select('equalto', 'ro') | list | length > 0

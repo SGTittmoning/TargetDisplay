@@ -64,6 +64,11 @@
     'install ok installed' not in targetdisplay_overlayroot_pkg.stdout
   register: targetdisplay_overlay_enabled
 
+# Sicherstellen, dass das initramfs den overlayroot-Hook wirklich enthaelt
+# (siehe tasks/overlay_initramfs.yml) - sonst ist das Overlay nach dem Reboot
+# nur auf dem Papier aktiv.
+- import_tasks: overlay_initramfs.yml
+
 - name: Reboot fuer Bootro/Overlay-Aktivierung
   reboot:
     msg: "Reboot nach Aktivierung von Bootro/Overlay-Root"
