@@ -107,7 +107,7 @@ jobs:
       - name: Install community.general
         run: ansible-galaxy collection install "community.general:13.3.0"
       - name: ansible-lint
-        run: ansible-lint ansible/install.yml ansible/maintain.yml
+        run: ansible-lint ansible/install.yml ansible/maintain.yml ansible/update-app.yml ansible/boot-overrides.yml
       - name: Syntax check
         run: |
           # Ansible liest Inventories nur mit passender Dateiendung; die Vorlage
@@ -115,6 +115,8 @@ jobs:
           cp ansible/inventory.yml.dist "$RUNNER_TEMP/inventory.yml"
           ansible-playbook -i "$RUNNER_TEMP/inventory.yml" ansible/install.yml --syntax-check
           ansible-playbook -i "$RUNNER_TEMP/inventory.yml" ansible/maintain.yml --syntax-check
+          ansible-playbook -i "$RUNNER_TEMP/inventory.yml" ansible/update-app.yml --syntax-check
+          ansible-playbook -i "$RUNNER_TEMP/inventory.yml" ansible/boot-overrides.yml --syntax-check
 
   pip-audit:
     if: github.event.repository.private == false
