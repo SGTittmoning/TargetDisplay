@@ -131,6 +131,12 @@ Drei Dinge müssen rein:
 eingebauten Standard-PIN `1234` und erzwingt eine PIN-Änderung im
 Ersteinrichtungs-Assistenten, bevor es in den Normalbetrieb geht.
 
+**`ntpserver`** (Gruppenvariable) muss eine von den Ständen aus erreichbare
+Zeitquelle sein; der Wert in der Vorlage ist nur ein Platzhalter und ein im
+Inventory eingetragener Wert eine Annahme, bis er geprüft ist. Ohne
+erreichbare Quelle steht die Uhr falsch (es gibt keine RTC) — das beeinträchtigt
+die App nicht, aber Log-Zeitstempel und `apt`-Signaturprüfungen.
+
 ## Schritt 3 — Eigenes Vereinslogo hinterlegen (optional)
 
 Ohne diesen Schritt zeigt das Gerät das generische Platzhalter-Wappen aus
@@ -212,6 +218,36 @@ Danach sind weitere Config-Änderungen nur noch über den in
 `ansible/README.md` beschriebenen rw/ro-Tanz (`maintain.yml` bzw.
 `targetdisplay-writable.sh` direkt auf dem Gerät) möglich.
 
+## Spätere Updates
+
+Zwei verschiedene Dinge, zwei verschiedene Playbooks:
+
+| Was | Wie | Git-Zugriff? |
+|---|---|---|
+| **Betriebssystem** (`apt full-upgrade`) | `maintain.yml` (erledigt den read-only-Tanz und die Reboots selbst) | nein |
+| **App-Code** (neuer Commit auf `main` oder anderer Ref) | `install.yml` — `git` mit `force: yes`, Dienst-Neustart bei Änderung; Ref festlegen mit `-e targetdisplay_git_version=<branch\|tag\|commit>` | ja |
+
+`maintain.yml` spielt **keinen** App-Code ein. Ein App-Update läuft so:
+
+```bash
+ansible-playbook -i inventory.yml install.yml --limit <host>
+```
+
+**Bei aktivem Overlay** bricht `install.yml` im Vorab-Check ab (Schreibvorgänge
+gingen nur in den flüchtigen tmpfs-Layer). Ablauf dann:
+
+```bash
+# auf dem Stand (ssh); fordert ggf. einen Zwischen-Reboot an - danach nochmal aufrufen
+sudo /root/bin/targetdisplay-writable.sh rw
+
+# vom Control-Rechner
+ansible-playbook -i inventory.yml install.yml --limit <host>
+
+# wieder auf dem Stand: Overlay + read-only Boot-Partition setzen, dann Reboot
+sudo /root/bin/targetdisplay-writable.sh ro
+sudo reboot
+```
+
 ## Zusammenfassung: was bleibt manuell?
 
 | Schritt | Warum nicht automatisierbar |
@@ -233,7 +269,9 @@ nicht ersetzen:
   weglassen — `ansible-playbook -i inventory.yml install.yml` installiert
   dann jeden Host unter `hosts:` nacheinander.
 - **Ersteinrichtungs-Assistent pro Gerät überspringen, wenn schon bekannt
-  ist, welcher Stand wo steht**: `targetdisplay-active-stand.json`
+  ist, welcher Stand wo steht** (Ansible legt `targetdisplay-active-stand.json`
+  und `targetdisplay-sections.json` **nicht** selbst an — ohne sie startet der
+  Assistent): `targetdisplay-active-stand.json`
   (`{"id": "standN"}`) und `targetdisplay-sections.json`
   (`{"section_full": [...], "section_detail": [...]}`, aus einer
   bestehenden Kalibrierung exportiert) lassen sich **vor dem ersten Boot**

@@ -62,6 +62,35 @@ With it active, nothing on disk changes at runtime — updates need a small danc
 - `maintain.yml` does this automatically via `files/targetdisplay-update.sh`
 - `files/targetdisplay-writable.sh` (manual config edits, e.g. touch calibration) and `files/targetdisplay-update.sh` (apt upgrades) are also deployed to `/root/bin/` on the device itself, for when Ansible access isn't available
 
+## Updating a running stand
+
+Two different kinds of update, two different playbooks:
+
+| What | How | Touches git? |
+|---|---|---|
+| **OS packages** (`apt full-upgrade`, autoremove, clean) | `maintain.yml` (via `targetdisplay-update.sh`, handles the read-only dance and the reboots itself) | no |
+| **App code** (a new commit on `main`, or another ref) | `install.yml` — the checkout uses `force: yes` and restarts `targetdisplay.service` when anything changed. Pin a ref with `-e targetdisplay_git_version=<branch\|tag\|commit>` | yes |
+
+`maintain.yml` does **not** deploy app code. To roll out a new app version:
+
+```bash
+ansible-playbook -i inventory.yml install.yml --limit <host>
+```
+
+**With the overlay active**, `install.yml` aborts in its pre-flight check (writes would land in the volatile tmpfs layer and vanish at the next reboot). Lift the read-only state first, then re-lock it:
+
+```bash
+# on the stand (ssh), may ask for an intermediate reboot - the script says so; call it again afterwards
+sudo /root/bin/targetdisplay-writable.sh rw
+
+# from the control machine
+ansible-playbook -i inventory.yml install.yml --limit <host>
+
+# on the stand again: re-enable overlay + read-only boot partition, then reboot
+sudo /root/bin/targetdisplay-writable.sh ro
+sudo reboot
+```
+
 ## Known open points
 
 - **Touch calibration values are per physical unit** — the shipped `99-calibration.conf` is a placeholder from the previous Bullseye-based deployment and needs to be redone per stand after a fresh install (see above).
