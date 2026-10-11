@@ -87,6 +87,39 @@ clear_state() {
   return 0
 }
 
+# Overlay aktivieren und sicherstellen, dass das von der Firmware geladene
+# initramfs den overlayroot-Hook wirklich enthaelt. "overlayroot=tmpfs" in der
+# Kommandozeile allein macht kein Overlay - den Mount erledigt ein Skript IM
+# initramfs. Ist /boot/firmware dabei schon read-only gemountet, erzeugt apt das
+# neue initrd zwar, der Kopierschritt nach /boot/firmware scheitert aber
+# lautlos; das Root-FS bleibt beschreibbar, get_overlay_now meldet trotzdem
+# "aktiv". Deshalb: Aufruf NUR bei live beschreibbarer Boot-Partition, danach
+# Hook pruefen und bei Bedarf neu erzeugen. Rueckgabe 1, wenn der Hook auch
+# danach fehlt (die Boot-Partition setzt der Aufrufer in jedem Fall zurueck).
+overlay_initramfs_missing() {
+  local f n out=""
+  command -v lsinitramfs >/dev/null 2>&1 || return 0
+  for f in "$BOOT_DIR"/initramfs*; do
+    [ -e "$f" ] || continue
+    n=$(lsinitramfs "$f" 2>/dev/null | grep -c overlayroot) || true
+    [ "${n:-0}" -gt 0 ] || out="$out $f"
+  done
+  echo "$out"
+}
+
+enable_overlay_checked() {
+  raspi-config nonint enable_overlayfs
+  if [ -n "$(overlay_initramfs_missing)" ]; then
+    echo "initramfs ohne overlayroot-Hook - erzeuge neu..."
+    update-initramfs -u -k all
+    if [ -n "$(overlay_initramfs_missing)" ]; then
+      echo "FEHLER: overlayroot-Hook fehlt in$(overlay_initramfs_missing) - das Overlay waere nach dem Reboot NICHT wirksam." >&2
+      return 1
+    fi
+  fi
+  return 0
+}
+
 print_status() {
   echo "OverlayFS aktiv (live):      $([ "$(overlay_now)" -eq 0 ] && echo ja || echo nein)"
   echo "Boot-Partition read-only:    $([ "$(bootro_now)" -eq 0 ] && echo ja || echo nein)"
@@ -143,14 +176,15 @@ cmd_ro() {
       echo "erneut 'sudo $0 ro' ausfuehren." >&2
       exit 1
     fi
-    echo "Setze Boot-Partition wieder read-only (fstab + live)..."
+    echo "Setze Boot-Partition auf read-only (fstab)..."
     raspi-config nonint enable_bootro
-    mount -o remount,ro "$BOOT_DIR"
   else
     echo "Boot-Partition ist bereits read-only."
   fi
 
   if [ "$OVERLAY_ALREADY_ACTIVE" -eq 1 ]; then
+    # Overlay laeuft schon: nur den Live-Zustand der Boot-Partition angleichen.
+    mount -o remount,ro "$BOOT_DIR"
     clear_state
     echo ""
     echo "OverlayFS war bereits aktiv. Fertig - System ist jetzt vollstaendig read-only."
@@ -158,8 +192,17 @@ cmd_ro() {
     return 0
   fi
 
+  # Overlay erst aktivieren und den initramfs-Hook pruefen, solange die
+  # Boot-Partition live beschreibbar ist - danach erst read-only mounten
+  # (siehe enable_overlay_checked).
   echo "Aktiviere OverlayFS wieder (wirkt erst nach Reboot)..."
-  raspi-config nonint enable_overlayfs
+  mount -o remount,rw "$BOOT_DIR"
+  OVERLAY_RC=0
+  enable_overlay_checked || OVERLAY_RC=$?
+  mount -o remount,ro "$BOOT_DIR"
+  if [ "$OVERLAY_RC" -ne 0 ]; then
+    exit "$OVERLAY_RC"
+  fi
 
   clear_state
   echo ""
