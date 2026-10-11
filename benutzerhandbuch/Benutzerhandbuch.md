@@ -167,7 +167,7 @@ Erlaubt es, ein und dasselbe Gerät auf einen anderen Schießstand (mit eigener 
 Anders als die übrigen Unterabschnitte hier ist dies kein einzelner Bildschirm mit festen Bedienelementen, sondern ein Ablauf über mehrere Schritte/Bildschirme hinweg:
 
 1. Zunächst muss die **aktuell gültige PIN** eingegeben werden (dasselbe Tastenfeld wie in 3.1) – so lässt sich verhindern, dass jemand, der zufällig kurz an das offene Einstellungen-Menü gelangt, die PIN einfach überschreibt.
-2. Danach erscheint das Tastenfeld erneut mit dem Titel **„Neuen PIN eingeben (4-6 Ziffern)“**:
+2. Danach erscheint das Tastenfeld erneut mit dem Titel **„Neuen PIN eingeben (4-6 Ziffern)“**. Der Standard-PIN „1234“ wird nicht angenommen (Hinweis „nicht erlaubt“); bitte eine andere PIN wählen:
 
 ![Neuen PIN eingeben](screenshots/11_neuen_pin_eingeben.png)
 
