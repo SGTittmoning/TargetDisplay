@@ -90,6 +90,8 @@ With it active, nothing on disk changes at runtime — updates need a small danc
 
 `overlayroot=tmpfs` on the kernel command line alone does not make an overlay — the overlay mount is done by a script **inside the initramfs** that the firmware loads. If the `overlayroot` package gets installed while the boot partition is already read-only, apt builds a new initrd but cannot copy it to `/boot/firmware`; the firmware keeps loading the old one, `raspi-config nonint get_overlay_now` still says "active" (it only reads the command line), and the root filesystem stays plainly writable. `tasks/overlay_initramfs.yml` (used by `install.yml` when enabling the overlay and by `update-app.yml` before it re-enables it) therefore checks the initramfs files the firmware really loads and regenerates them if the hook is missing; `update-app.yml` finally asserts that `/` is really mounted as `overlay`.
 
+The on-device scripts follow the same rule: `targetdisplay-writable.sh ro` and `targetdisplay-update.sh apply` enable the overlay **while the boot partition is still writable**, check the initramfs for the hook (regenerating it if missing, failing loudly if it is still missing) and only then mount the boot partition read-only.
+
 ## Updating a running stand
 
 Two different kinds of update, two different playbooks:
