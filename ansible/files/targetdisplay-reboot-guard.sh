@@ -53,11 +53,18 @@ count=0
 if [ -f "$COUNT_FILE" ]; then
   count=$(cat "$COUNT_FILE")
 fi
+previous=$count
 count=$((count + 1))
 
 if [ "$count" -gt "$MAX_REBOOTS" ]; then
   logger -t targetdisplay-reboot-guard "Grenze von $MAX_REBOOTS Reboots erreicht - kein weiterer Reboot. targetdisplay.service bleibt aktiviert und wird von targetdisplay-retry.timer periodisch neu gestartet."
-  write_count "$count"
+  # Der Zaehler wird nur beim Ueberschreiten der Grenze einmal geschrieben.
+  # Danach feuert OnFailure= mit jedem Retry-Zyklus erneut; ein weiteres
+  # Hochzaehlen wuerde die FAT-Boot-Partition unbegrenzt beschreiben, ohne
+  # dass der Wert noch etwas aussagt (der Reset-Timer loescht die Datei).
+  if [ "$previous" -le "$MAX_REBOOTS" ]; then
+    write_count "$count"
+  fi
   exit 0
 fi
 
