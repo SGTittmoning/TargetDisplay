@@ -107,7 +107,8 @@ enable_overlay_checked() {
 }
 
 print_status() {
-  echo "OverlayFS aktiv (live):      $([ "$(overlay_now)" -eq 0 ] && echo ja || echo nein)"
+  echo "OverlayFS laut Kommandozeile: $([ "$(overlay_now)" -eq 0 ] && echo ja || echo nein)"
+  echo "Root-Dateisystem (Mount-Typ):   $(findmnt -n -o FSTYPE / 2>/dev/null || echo unbekannt)  (wirksam nur bei: overlay)"
   echo "Boot-Partition read-only:    $([ "$(bootro_now)" -eq 0 ] && echo ja || echo nein)"
   if [ -f "$STATE_FILE" ]; then
     echo "Update-Zyklus-Status:         $(cat "$STATE_FILE")"

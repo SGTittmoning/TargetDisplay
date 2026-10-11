@@ -12,7 +12,7 @@
 # durch die unprivilegierte App zur Laufzeit (Stand-Auswahl im Assistenten)
 # ist eigens in tasks/settings_sudo.yml/targetdisplay-save-active-stand.sh
 # abgesichert.
-- name: Root-Overlay-Status pruefen (Boot-Partition beschreibbar?)
+- name: Boot-RO-Status pruefen (Boot-Partition beschreibbar?)
   command: raspi-config nonint get_bootro_now
   register: targetdisplay_bootro_now
   changed_when: false

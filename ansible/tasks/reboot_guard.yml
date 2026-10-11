@@ -1,5 +1,5 @@
 ---
-# Zweite Eskalationsstufe nach den App-Neustart-Versuchen in play_it:
+# Zweite Eskalationsstufe nach den automatischen Dienst-Neustarts (Restart=always):
 # wiederholtes Scheitern von targetdisplay.service (StartLimitBurst,
 # siehe templates/targetdisplay.service.j2) loest per OnFailure= einen
 # Pi-Reboot aus - mit persistenter Obergrenze (targetdisplay-reboot-guard.sh,

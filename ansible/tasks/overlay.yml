@@ -22,6 +22,9 @@
 # "targetdisplay-writable.sh rw" (+ Reboot), nach den Arbeiten
 # "targetdisplay-writable.sh ro" (+ Reboot) auf dem Host ausfuehren.
 #
+# Wirksam ist das Overlay erst, wenn "findmnt -n -o FSTYPE /" overlay liefert
+# (siehe overlay_initramfs.yml).
+#
 # get_overlay_now/get_bootro_now: 0 = aktiv, 1 = nicht aktiv (raspi-config
 # Konvention). get_overlay_now prueft nur, ob "overlayroot=tmpfs" beim
 # AKTUELLEN Boot in der Kernel-Cmdline stand - das allein reicht als

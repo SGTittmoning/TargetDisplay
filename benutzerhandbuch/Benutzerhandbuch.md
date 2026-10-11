@@ -14,7 +14,7 @@ Dieses Handbuch beschreibt zunächst die Bedienelemente für den täglichen Gebr
 
 ## 2. Der Hauptbildschirm
 
-Der Hauptbildschirm ist die Ansicht, die nach dem Einschalten des Geräts dauerhaft zu sehen ist. Links liegen die Bedienelemente, rechts das entzerrte Kamerabild der Scheibe.
+Nach dem Einschalten erscheint zunächst das Vereinswappen (Boot-Logo) auf einfarbigem Hintergrund; sobald die Anwendung gestartet ist, folgt der Hauptbildschirm. Das Gerät muss dabei nicht bedient werden. Der Hauptbildschirm ist die Ansicht, die danach dauerhaft zu sehen ist. Links liegen die Bedienelemente, rechts das entzerrte Kamerabild der Scheibe.
 
 ![Hauptbildschirm](screenshots/01_hauptbildschirm.png)
 
@@ -50,7 +50,7 @@ Die Nummerierung startet in jeder Gruppe neu bei 1 – gemeint ist immer die Pos
 
 **Fußbereich (unten)**
 
-1. **Datum/Uhrzeit-Anzeige** – zeigt die aktuelle Uhrzeit groß und das Datum darüber. Rein informativ.
+1. **Datum/Uhrzeit-Anzeige** – zeigt die aktuelle Uhrzeit groß und das Datum darüber. Rein informativ. Unmittelbar nach dem Einschalten kann die Uhrzeit kurz falsch sein, bis das Gerät die Zeit aus dem Netzwerk bezogen hat; sie korrigiert sich dann von selbst.
 2. **Versions-/FPS-Anzeige** (ganz unten links, kleine graue Schrift) – zeigt die installierte Programmversion sowie, während das Live-Bild läuft, die aktuelle Bildwiederholrate (FPS) und die Anzahl empfangener Bilder. Dient vor allem der Fehlersuche durch Technik/Standaufsicht, für den normalen Betrieb ohne Bedeutung.
 
 ### 2.1 Zoom im Detail
@@ -185,7 +185,7 @@ Anders als die übrigen Unterabschnitte hier ist dies kein einzelner Bildschirm 
 
 **Abb. 12:** Neustart-Bestätigung.
 
-1. **Ja, neu starten** (blau hervorgehoben) – startet das Gerät sofort neu.
+1. **Ja, neu starten** (blau hervorgehoben) – startet das Gerät sofort neu. Zunächst erscheint das Boot-Logo (Vereinswappen), danach der Hauptbildschirm.
 2. **Abbrechen** – kehrt ohne Neustart zum Einstellungen-Menü zurück.
 
 ---
@@ -206,7 +206,7 @@ Erst wenn alle drei Schritte abgeschlossen sind, erscheint der normale Hauptbild
 
 ## Bei Problemen
 
-Fällt das Kamerabild aus, startet sich das Gerät selbst neu und versucht es danach alle 10 Minuten erneut; ein manueller Neustart (siehe Abschnitt 3.6) beschleunigt das.
+Fällt das Kamerabild aus, startet sich das Gerät mehrfach selbst neu (dabei erscheint jeweils kurz das Vereinswappen) und versucht es danach alle 10 Minuten erneut; ein manueller Neustart (siehe Abschnitt 3.6) beschleunigt das.
 
 Lässt sich ein Problem nicht durch einen einfachen Geräteneustart beheben (siehe Abschnitt 3.6), wenden Sie sich bitte an:
 
