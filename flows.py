@@ -10,7 +10,7 @@ import transformlib as tl
 import ui
 from camera import STREAM_STARTUP_TIMEOUT_SEC
 from pinlock import PinLimiter
-from settings_store import save_active_stand, save_pin, save_sections_override
+from settings_store import DEFAULT_PIN, save_active_stand, save_pin, save_sections_override
 from ui import EDITOR_MAX_H, EDITOR_MAX_W, FG_DARK, WIN_CLOSED, popup, show_page
 
 
@@ -102,17 +102,28 @@ def confirm_reboot():
     return event == '-CONFIRM_YES-'
 
 
+def validate_new_pin(entered):
+    # Prueft eine neu eingegebene PIN: 4-6 Ziffern und nicht der Standardwert.
+    # Der Standardwert wuerde gespeichert, main() verlangt aber weiterhin eine
+    # Aenderung, solange der PIN DEFAULT_PIN ist - der Nutzer saehe ohne
+    # Hinweis wieder die Eingabe. Liefert (True, entered) oder
+    # (False, (Fehlertext, Wartezeit_s)) im Format von _run_pin_keypad().
+    # Der Fehlertext muss in das PIN-Anzeigefeld passen (rund 11 Zeichen),
+    # laengere Texte werden dort abgeschnitten.
+    if not 4 <= len(entered) <= 6:
+        return False, ('4-6 Ziffern', 0.8)
+    if entered == DEFAULT_PIN:
+        return False, ('zu einfach', 1.5)
+    return True, entered
+
+
 def _enter_new_pin(title, show_cancel):
     # Liefert die eingetippte Ziffernfolge (4-6 Stellen, OK gedrueckt)
     # zurueck, oder None (Abbrechen/Fenster zu) - OHNE Vergleich mit einem
     # "richtigen" PIN, anders als check_pin(). Wird sowohl fuer die
     # Neueingabe als auch die Wiederholung genutzt (change_pin_flow ruft
     # diese Funktion zweimal auf).
-    def validate(entered):
-        if 4 <= len(entered) <= 6:
-            return True, entered
-        return False, ('4-6 Ziffern', 0.8)
-    result = _run_pin_keypad(title, show_cancel, validate)
+    result = _run_pin_keypad(title, show_cancel, validate_new_pin)
     # Seite fuer die naechste Nutzung (check_pin) wieder in den
     # Grundzustand versetzen.
     ui.window['-PIN_TITLE-'].update('PIN eingeben')
