@@ -4,6 +4,14 @@ xset s off -dpms &
 
 matchbox-window-manager &
 
+# Mauszeiger nach kurzer Ruhe ausblenden (Touch-Kiosk, der Zeiger stoert im
+# Bild). Das Paket "unclutter" wird in tasks/base.yml installiert; es wird
+# unter startx/.xinitrc nicht von selbst gestartet. -root: auch ueber dem
+# Hintergrund ausblenden, nicht nur ueber Fenstern.
+if command -v unclutter >/dev/null 2>&1; then
+  unclutter -idle {{ targetdisplay_cursor_hide_idle_sec | default(1) }} -root &
+fi
+
 # exec statt einfachem Aufruf: ersetzt diese Shell durch play_it, statt
 # play_it als Kindprozess zu starten - weniger Prozess-Verschachtelung
 # zwischen dem von systemd/xinit verfolgten Prozess und der eigentlichen
