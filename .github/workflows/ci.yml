@@ -15,6 +15,13 @@ on:
 permissions:
   contents: read
 
+# GitHub-Runner haben gelegentlich kurze Netzwerkaussetzer (z.B. "IncompleteRead"
+# beim Paket-Download). Ein einzelner Hänger soll keinen Pflicht-Check rot
+# färben: pip versucht Downloads mehrfach und mit großzügigem Timeout.
+env:
+  PIP_RETRIES: "5"
+  PIP_DEFAULT_TIMEOUT: "30"
+
 jobs:
   actionlint:
     if: github.event.repository.private == false
@@ -31,7 +38,7 @@ jobs:
           ACTIONLINT_VERSION: "1.7.12"
           ACTIONLINT_SHA256: "8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8"
         run: |
-          curl -sSfL -o actionlint.tgz "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
+          curl -sSfL --retry 5 --retry-delay 3 --retry-all-errors -o actionlint.tgz "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
           echo "${ACTIONLINT_SHA256}  actionlint.tgz" | sha256sum -c -
           tar xzf actionlint.tgz actionlint
           ./actionlint
@@ -44,7 +51,7 @@ jobs:
       - uses: actions/checkout@v7
       - name: shellcheck
         run: |
-          command -v shellcheck || { sudo apt-get update && sudo apt-get install -y shellcheck; }
+          command -v shellcheck || { sudo apt-get -o Acquire::Retries=5 update && sudo apt-get -o Acquire::Retries=5 install -y shellcheck; }
           shellcheck -S warning ansible/files/*.sh play_it tests/run-script-tests.sh
 
   python:
@@ -74,7 +81,7 @@ jobs:
           python-version: "3.12"
       - name: Install test dependencies
         run: |
-          sudo apt-get update && sudo apt-get install -y xvfb
+          sudo apt-get -o Acquire::Retries=5 update && sudo apt-get -o Acquire::Retries=5 install -y xvfb
           pip install pytest numpy opencv-python-headless av pyyaml pillow
       - name: pytest (Timer, Watchdog, PIN-Wartezeit, Perspektive, Rauchtest der Oberflaeche unter Xvfb, ...)
         run: xvfb-run -a python -m pytest -q tests
@@ -164,7 +171,7 @@ jobs:
           GITLEAKS_VERSION: "8.30.1"
           GITLEAKS_SHA256: "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb"
         run: |
-          curl -sSfL -o gitleaks.tgz "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          curl -sSfL --retry 5 --retry-delay 3 --retry-all-errors -o gitleaks.tgz "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
           echo "${GITLEAKS_SHA256}  gitleaks.tgz" | sha256sum -c -
           tar xzf gitleaks.tgz gitleaks
           ./gitleaks detect --source . --redact --no-banner --exit-code 1
