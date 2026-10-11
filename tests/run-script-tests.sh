@@ -27,10 +27,35 @@ for c in logger reboot; do
 done
 cat > "$STUBS/raspi-config" <<'STUB'
 #!/bin/bash
+echo "raspi-config $2" >> "$STUB_LOG"
 case "$2" in
   get_bootro_now) echo "${BOOTRO:-1}" ;;
+  get_overlay_now) echo "${OVERLAY:-1}" ;;
 esac
 exit 0
+STUB
+cat > "$STUBS/id" <<'STUB'
+#!/bin/bash
+echo 0
+STUB
+cat > "$STUBS/lsinitramfs" <<'STUB'
+#!/bin/bash
+# Hook vorhanden, ausser STUB_HOOK=0; nach update-initramfs vorhanden,
+# ausser STUB_HOOK_STAYS_MISSING=1.
+if [ "${STUB_HOOK:-1}" = 1 ] || { [ -e "$STUB_LOG.rebuilt" ] && [ "${STUB_HOOK_STAYS_MISSING:-0}" != 1 ]; }; then
+  echo "scripts/local-bottom/overlayroot"
+else
+  echo "scripts/local-bottom/other"
+fi
+STUB
+cat > "$STUBS/update-initramfs" <<'STUB'
+#!/bin/bash
+echo "update-initramfs $*" >> "$STUB_LOG"
+touch "$STUB_LOG.rebuilt"
+STUB
+cat > "$STUBS/apt-get" <<'STUB'
+#!/bin/bash
+echo "apt-get $*" >> "$STUB_LOG"
 STUB
 cat > "$STUBS/mount" <<'STUB'
 #!/bin/bash
@@ -65,8 +90,9 @@ done
 
 export STUB_LOG="$WORK/stub.log"
 export PATH="$STUBS:$PATH"
-reset() { : > "$STUB_LOG"; rm -rf "$BOOT"; mkdir -p "$BOOT"; unset BOOTRO FAIL_MOUNT_RW STUB_INACTIVE STUB_FAILED STUB_NRESTARTS STUB_ACTIVE_ENTER_US; }
+reset() { : > "$STUB_LOG"; rm -rf "$BOOT"; mkdir -p "$BOOT"; unset BOOTRO OVERLAY FAIL_MOUNT_RW STUB_INACTIVE STUB_FAILED STUB_NRESTARTS STUB_ACTIVE_ENTER_US STUB_HOOK STUB_HOOK_STAYS_MISSING; rm -f "$STUB_LOG.rebuilt"; }
 calls() { grep -c "$1" "$STUB_LOG" 2>/dev/null || true; }
+lineof() { grep -n -m1 "$1" "$STUB_LOG" 2>/dev/null | cut -d: -f1; }
 
 # =========================================================== save-*.sh
 echo "save-*.sh"
@@ -214,6 +240,41 @@ check "lo up: nichts" 0 "$(calls 'systemctl')"
 
 reset; "$BIN/targetdisplay-nm-timesync.sh" eth0 dhcp4-change
 check "dhcp4-change: nichts" 0 "$(calls 'systemctl')"
+
+
+# ============================================ writable.sh ro (initramfs)
+echo "writable.sh ro: Reihenfolge Overlay/initramfs/read-only"
+
+reset; touch "$BOOT/initramfs8"; OVERLAY=1 BOOTRO=1 "$BIN/targetdisplay-writable.sh" ro >/dev/null 2>&1; rc=$?
+check "ro: Exit 0" 0 "$rc"
+check "ro: enable_overlayfs vor dem Read-only-Mount" 1 "$([ "$(lineof 'enable_overlayfs')" -lt "$(lineof 'remount,ro')" ] && echo 1 || echo 0)"
+check "ro: Hook vorhanden -> kein update-initramfs" 0 "$(calls 'update-initramfs')"
+
+reset; touch "$BOOT/initramfs8"; STUB_HOOK=0 OVERLAY=1 BOOTRO=1 "$BIN/targetdisplay-writable.sh" ro >/dev/null 2>&1; rc=$?
+check "ro, Hook fehlt: Exit 0 (nach Neuerzeugung)" 0 "$rc"
+check "ro, Hook fehlt: update-initramfs aufgerufen" 1 "$(calls 'update-initramfs -u -k all')"
+check "ro, Hook fehlt: update-initramfs vor read-only" 1 "$([ "$(lineof 'update-initramfs')" -lt "$(lineof 'remount,ro')" ] && echo 1 || echo 0)"
+
+reset; touch "$BOOT/initramfs8"; STUB_HOOK=0 STUB_HOOK_STAYS_MISSING=1 OVERLAY=1 BOOTRO=1 "$BIN/targetdisplay-writable.sh" ro >/dev/null 2>&1; rc=$?
+check "ro, Hook bleibt weg: Exit 1" 1 "$rc"
+check "ro, Hook bleibt weg: Boot trotzdem wieder read-only" 1 "$(calls 'remount,ro')"
+
+reset; touch "$BOOT/initramfs8"; OVERLAY=1 BOOTRO=0 "$BIN/targetdisplay-writable.sh" ro >/dev/null 2>&1
+check "ro, Boot schon read-only: erst rw (fuer initrd-Kopie)" 1 "$([ "$(lineof 'remount,rw')" -lt "$(lineof 'enable_overlayfs')" ] && echo 1 || echo 0)"
+check "ro, Boot schon read-only: am Ende wieder ro" 1 "$([ "$(lineof 'enable_overlayfs')" -lt "$(lineof 'remount,ro')" ] && echo 1 || echo 0)"
+
+# ============================================ update.sh apply (initramfs)
+echo "update.sh apply: Reihenfolge Overlay/initramfs/read-only"
+
+reset; touch "$BOOT/initramfs8"; echo awaiting-apply-no-reboot > "$BOOT/.targetdisplay-update.state"
+OVERLAY=1 BOOTRO=0 "$BIN/targetdisplay-update.sh" apply >/dev/null 2>&1; rc=$?
+check "apply: Exit 0" 0 "$rc"
+check "apply: enable_overlayfs vor dem letzten Read-only-Mount" 1 "$([ "$(lineof 'enable_overlayfs')" -lt "$(grep -n 'remount,ro' "$STUB_LOG" | tail -1 | cut -d: -f1)" ] && echo 1 || echo 0)"
+
+reset; touch "$BOOT/initramfs8"; echo awaiting-apply-no-reboot > "$BOOT/.targetdisplay-update.state"
+STUB_HOOK=0 STUB_HOOK_STAYS_MISSING=1 OVERLAY=1 BOOTRO=0 "$BIN/targetdisplay-update.sh" apply >/dev/null 2>&1; rc=$?
+check "apply, Hook bleibt weg: Exit 1" 1 "$rc"
+check "apply, Hook bleibt weg: Zustandsdatei bleibt" 1 "$([ -f "$BOOT/.targetdisplay-update.state" ] && echo 1 || echo 0)"
 
 echo
 echo "Ergebnis: $pass ok, $fail Fehler"
