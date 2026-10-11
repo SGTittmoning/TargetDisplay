@@ -1,8 +1,9 @@
 [Unit]
-Description=5 Minuten nach Boot pruefen ob TargetDisplay stabil laeuft, Reboot-Zaehler zuruecksetzen
+Description=5 Minuten nach Boot und danach alle 10 Minuten pruefen ob TargetDisplay stabil laeuft, Reboot-Zaehler zuruecksetzen
 
 [Timer]
 OnBootSec=5min
+OnUnitActiveSec=10min
 AccuracySec=30s
 
 [Install]
