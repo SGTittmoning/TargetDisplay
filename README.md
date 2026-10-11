@@ -50,7 +50,7 @@ python3 -m venv --system-site-packages .venv
 .venv/bin/python3 main.py
 ```
 
-For unattended kiosk operation on a Raspberry Pi, `play_it` is the launcher script that runs `main.py`; see [`ansible/`](ansible/) for the automated setup that installs it as a systemd service (X11 session via `startx`, auto-restart on failure, no desktop interaction needed).
+For unattended kiosk operation on a Raspberry Pi, `play_it` is the launcher script that runs `main.py`; see [`ansible/`](ansible/) for the automated setup that installs it as a systemd service (X11 session via `startx`, auto-restart on failure, no desktop interaction needed). App updates on an installed stand: `ansible/update-app.yml`; pre-seeding stand and regions: `ansible/boot-overrides.yml` (both described in [`ansible/README.md`](ansible/README.md)).
 
 ## Configuration reference
 

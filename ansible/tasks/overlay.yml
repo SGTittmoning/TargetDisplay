@@ -17,9 +17,9 @@
 # enable_bootro, dann enable_overlayfs). Ein gemeinsamer Reboot am Ende
 # aktiviert beides zusammen.
 #
-# Ist das Overlay auf einem Host schon aktiv und bootro soll nachtraeglich
-# ergaenzt werden, schlaegt dieser Task hier fehl (siehe oben) - in dem Fall
-# stattdessen einmal manuell "targetdisplay-writable.sh rw" (+ Reboot), dann
+# Ist das Overlay auf einem Host schon aktiv, bricht install.yml bereits im
+# Vorab-Check ab und erreicht diese Datei nicht - dann zuerst manuell
+# "targetdisplay-writable.sh rw" (+ Reboot), nach den Arbeiten
 # "targetdisplay-writable.sh ro" (+ Reboot) auf dem Host ausfuehren.
 #
 # get_overlay_now/get_bootro_now: 0 = aktiv, 1 = nicht aktiv (raspi-config

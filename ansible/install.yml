@@ -12,15 +12,11 @@
 #                                       Boot-Partition (bootro) aktivieren
 #                                       (Reboot!) - am besten erst NACH
 #                                       erfolgreichem Test (Bild korrekt,
-#                                       Touch kalibriert). Auf einem Host,
-#                                       auf dem das Overlay schon aktiv ist,
-#                                       kann bootro NICHT mehr nachtraeglich
-#                                       per Playbook ergaenzt werden
-#                                       (raspi-config verweigert das) - dann
-#                                       stattdessen einmal manuell
-#                                       targetdisplay-writable.sh rw/ro auf
-#                                       dem Host ausfuehren, siehe
-#                                       tasks/overlay.yml.
+#                                       Touch kalibriert). Bei bereits aktivem
+#                                       Overlay bricht install.yml im Vorab-
+#                                       Check ab: zuerst auf dem Host
+#                                       targetdisplay-writable.sh rw
+#                                       ausfuehren, siehe README.
 
 - hosts: targetdisplay
   become: yes

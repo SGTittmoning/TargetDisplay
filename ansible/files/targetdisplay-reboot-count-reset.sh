@@ -1,6 +1,6 @@
 #!/bin/bash
-# Wird 5 Minuten nach jedem Boot ausgefuehrt (siehe
-# targetdisplay-reboot-count-reset.timer). Der Reboot-Zaehler wird nur
+# Wird 5 Minuten nach jedem Boot und danach alle 10 Minuten ausgefuehrt
+# (siehe targetdisplay-reboot-count-reset.timer). Der Reboot-Zaehler wird nur
 # zurueckgesetzt, wenn targetdisplay.service dann tatsaechlich stabil laeuft:
 # aktiv, seit mindestens MIN_STABLE_SEC ohne Unterbrechung und mit weniger
 # als MAX_RESTARTS automatischen Neustarts. Ein Dienst, der im Neustart-Zyklus

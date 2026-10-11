@@ -462,7 +462,7 @@ footer{
         <ol class="legend">
           <li><span class="legend-num admin">1</span><div><b>Ziffernblock 0&ndash;9</b><p>Eingabe der PIN (4&ndash;6-stellig). Ziffern werden als Sternchen dargestellt.</p></div></li>
           <li><span class="legend-num admin">2</span><div><b>Löschen</b><p>Setzt die aktuelle Eingabe zurück auf leer.</p></div></li>
-          <li><span class="legend-num admin">3</span><div><b>OK</b><p>Bestätigt die Eingabe. Bei falscher PIN erscheint &bdquo;falsch&ldquo; in Rot mit ablaufender Wartezeit in Sekunden (wird mit jedem weiteren Fehlversuch länger, siehe oben); erst danach ist eine neue Eingabe möglich.</p></div></li>
+          <li><span class="legend-num admin">3</span><div><b>OK</b><p>Bestätigt die Eingabe. Bei falscher PIN erscheint &bdquo;falsch&ldquo; in Rot, ab dem zweiten Fehlversuch mit ablaufender Wartezeit in Sekunden (wird mit jedem weiteren Fehlversuch länger, siehe oben); erst danach ist eine neue Eingabe möglich.</p></div></li>
           <li><span class="legend-num admin">4</span><div><b>Abbrechen</b><p>Bricht ab, kehrt zum Hauptbildschirm zurück.</p></div></li>
         </ol>
 
@@ -539,11 +539,13 @@ footer{
           <li><b>Ausschnitte kalibrieren</b> &ndash; zunächst &bdquo;Ganze Scheibe&ldquo;, danach &bdquo;Innen Scheibe&ldquo;, jeweils identisch zum Ausschnitte-Editor (ohne Abbrechen; der Speichern-Button heißt hier schlicht &bdquo;Speichern&ldquo;, da der Assistent ohne Neustart weiterläuft).</li>
           <li><b>PIN festlegen</b> &ndash; identisch zum Dialog &bdquo;PIN ändern&ldquo;, nur ohne vorherige Abfrage einer aktuellen PIN: Das Gerät startet mit dem eingebauten Standard-PIN &bdquo;1234&ldquo;, den der Assistent an dieser Stelle zwingend durch einen selbst gewählten PIN ersetzen lässt.</li>
         </ol>
+        <p>Ist die Kamera nicht erreichbar, zeigt der Assistent &bdquo;Kamera nicht erreichbar&ldquo; mit &bdquo;Erneut versuchen&ldquo; und &bdquo;Zurück zur Stand-Auswahl&ldquo;. Er wartet, bis die Kamera antwortet.</p>
         <p>Erst nach allen drei Schritten erscheint der normale Hauptbildschirm aus Kapitel 1.</p>
       </section>
 
       <section class="chapter" id="bei-problemen">
         <div class="chapter-head"><h2>Bei Problemen</h2></div>
+        <p>Fällt das Kamerabild aus, startet sich das Gerät selbst neu und versucht es danach alle 10 Minuten erneut; ein manueller Neustart beschleunigt das.</p>
         <p>Lässt sich ein Problem nicht durch einen einfachen Geräteneustart beheben (siehe Abschnitt &bdquo;Gerät neu starten&ldquo;), wenden Sie sich bitte an:</p>
         <hr class="writeline">
       </section>
@@ -558,7 +560,7 @@ footer{
 
       <footer>
         <span>TargetDisplay &middot; internes Vereinshandbuch</span>
-        <span class="footer-mono">Stand: September 2026</span>
+        <span class="footer-mono">Stand: Oktober 2026</span>
       </footer>
 
     </main>

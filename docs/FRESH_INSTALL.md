@@ -143,7 +143,7 @@ Ohne diesen Schritt zeigt das Gerät das generische Platzhalter-Wappen aus
 dem Repo. Für das echte Vereinslogo:
 
 ```bash
-cp /pfad/zum/logo.png ansible/files/logo.png
+cp /pfad/zum/logo.png files/logo.png
 ```
 
 - Muss `logo.png` heißen, liegt auf dem Control-Rechner (nicht im Repo,
@@ -166,7 +166,8 @@ Zeitzone/NTP, persistentes Journal-Logging, feste Display-Auflösung
 `targetdisplay-stands.json`, Logo-Overlay, systemd-Service für die X11-
 Session, eng gefasstes sudo für die drei PIN-geschützten Settings-Aktionen
 der App selbst, den Reboot-Guard (Auto-Reboot nach wiederholtem
-Camera-Stream-Ausfall), sowie Basis-Hardening (Firewall, avahi/Bluetooth
+Camera-Stream-Ausfall, höchstens 5 Mal; danach versucht ein Timer alle
+10 Minuten den Neustart des Dienstes, er wird nie deaktiviert), sowie Basis-Hardening (Firewall, avahi/Bluetooth
 deaktiviert, SSH-Detailhärtung).
 
 **Hinweis zur SSH-Härtung:** Danach trennt der Pi eine idle SSH-Sitzung
@@ -218,9 +219,10 @@ ansible-playbook -i inventory.yml install.yml --limit stand1.example.lan -e targ
 
 Schützt gegen SD-Karten-Korruption bei hartem Stromausfall (die Stände
 werden nicht sauber heruntergefahren, sondern an der Wand ausgeschaltet).
-Danach sind weitere Config-Änderungen nur noch über den in
-`ansible/README.md` beschriebenen rw/ro-Tanz (`maintain.yml` bzw.
-`targetdisplay-writable.sh` direkt auf dem Gerät) möglich.
+Danach laufen App-Updates über `update-app.yml` (siehe „Spätere Updates“),
+Paket-Updates über `maintain.yml`; Änderungen an Config, Units oder Skripten
+brauchen `targetdisplay-writable.sh rw` → `install.yml` → `ro` (Ablauf in
+„Spätere Updates“ und `ansible/README.md`).
 
 ## Spätere Updates
 
@@ -250,8 +252,14 @@ eines Markers (`/boot/firmware/.targetdisplay-update-restore`) fort und sperrt
 am Ende wieder. Mit `-e update_restore_ro=true|false` lässt sich das
 erzwingen bzw. unterdrücken.
 
-`update-app.yml` ändert keine Pakete, Härtung, `/root/bin`-Skripte,
-`targetdisplay_stands` oder Touch-Kalibrierung. Dafür `install.yml`; bei
+`update-app.yml` rendert zusätzlich `.xinitrc` und `targetdisplay.service` (aus
+dem lokalen `ansible/`-Stand des Control-Rechners, nicht aus dem App-Checkout).
+Es ändert keine Pakete, Härtung, `/root/bin`-Skripte, Reboot-Guard-/Retry-/
+Reset-Units, `targetdisplay_stands` oder Touch-Kalibrierung. **Vor einem
+Upgrade die Release-Notes prüfen:** ändert ein Release Skripte unter
+`ansible/files/` oder Units/Templates (z. B. 0.12.0: Reboot-Guard ohne
+Dauer-Deaktivierung, `targetdisplay-retry.timer`), muss einmal `install.yml`
+laufen. Dafür `install.yml`; bei
 aktivem Overlay bricht es im Vorab-Check ab (Schreibvorgänge gingen nur in
 den flüchtigen tmpfs-Layer), der Ablauf ist dann:
 
@@ -288,8 +296,8 @@ nicht ersetzen:
   weglassen — `ansible-playbook -i inventory.yml install.yml` installiert
   dann jeden Host unter `hosts:` nacheinander.
 - **Ersteinrichtungs-Assistent pro Gerät überspringen, wenn schon bekannt
-  ist, welcher Stand wo steht** (Ansible legt `targetdisplay-active-stand.json`
-  und `targetdisplay-sections.json` **nicht** selbst an — ohne sie startet der
+  ist, welcher Stand wo steht** (`install.yml` legt `targetdisplay-active-stand.json`
+  und `targetdisplay-sections.json` **nicht** an — ohne sie startet der
   Assistent): `targetdisplay-active-stand.json`
   (`{"id": "standN"}`) und `targetdisplay-sections.json`
   (`{"section_full": [...], "section_detail": [...]}`, aus einer
@@ -299,8 +307,9 @@ nicht ersetzen:
   gleiche Ebene wie `config.txt` — z.B. am Mac unter `/Volumes/bootfs/`
   nach dem Flashen, vor dem Auswerfen der Karte). Der Assistent überspringt
   dann Stand-Auswahl und Eckpunkt-Kalibrierung automatisch und verlangt nur
-  noch die einmalige PIN-Änderung direkt am Gerät (aus Sicherheitsgründen
-  bewusst nicht vorbelegbar, siehe `flows.py::change_pin_flow`). Nützlich,
+  noch die einmalige PIN-Änderung direkt am Gerät, solange der PIN noch der
+  Standardwert `1234` ist (`boot-overrides.yml` schreibt bewusst keinen PIN;
+  über `my_settings_pin` im Inventory ist er vorbelegbar). Nützlich,
   wenn ein Gerät exakt dieselbe Position/Kameraausrichtung wie zuvor
   bekommt; bei jeder Abweichung lieber den Assistenten regulär durchlaufen
   lassen statt eine falsche Kalibrierung vorzubelegen.
