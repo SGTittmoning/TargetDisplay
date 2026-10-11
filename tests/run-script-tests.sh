@@ -187,6 +187,13 @@ check "ro-Boot: Zaehler wird geschrieben" 6 "$(cat "$COUNT")"
 check "ro-Boot: remount rw" 1 "$(calls 'remount,rw')"
 check "ro-Boot: remount ro" 1 "$(calls 'remount,ro')"
 
+reset; echo 6 > "$COUNT"; BOOTRO=0 "$BIN/targetdisplay-reboot-guard.sh"; rc=$?
+check "bereits ueber Grenze: Exit 0" 0 "$rc"
+check "bereits ueber Grenze: Zaehler bleibt 6" 6 "$(cat "$COUNT")"
+check "bereits ueber Grenze: kein remount (kein Schreibzugriff)" 0 "$(calls 'remount')"
+check "bereits ueber Grenze: kein Reboot" 0 "$(calls '^reboot')"
+check "bereits ueber Grenze: Grund weiter im Log" 1 "$(calls 'logger.*Grenze von 5')"
+
 # ===================================================== retry.sh
 echo "retry.sh"
 reset; STUB_FAILED=0 "$BIN/targetdisplay-retry.sh"; rc=$?
