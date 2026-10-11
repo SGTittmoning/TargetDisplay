@@ -13,8 +13,8 @@
     repo: "{{ targetdisplay_git_repo }}"
     dest: "{{ targetdisplay_app_path }}"
     # Standardmaessig der Default-Branch des Repos (aktuell "main") - ohne
-    # dieses Argument wuerde ein Test-Deploy eines Feature-Branches (z.B.
-    # "tkinter-rewrite" vor dessen Merge) sonst still den falschen,
+    # dieses Argument wuerde ein Test-Deploy eines Feature-Branches (vor
+    # dessen Merge) sonst still den falschen,
     # unbeabsichtigten Stand ausrollen. Ueberschreibbar per
     # "-e targetdisplay_git_version=<branch|tag|commit>", siehe README.
     version: "{{ targetdisplay_git_version | default('main') }}"

@@ -20,7 +20,7 @@ ansible-playbook -i inventory.yml install.yml --limit <host> -e targetdisplay_en
 To test a feature branch (or a specific tag/commit) before it's merged, without changing the default for anyone else, pass `targetdisplay_git_version` — it only affects which ref `git` checks out, nothing else in the playbook:
 
 ```bash
-ansible-playbook -i inventory.yml install.yml --limit <host> -e targetdisplay_git_version=tkinter-rewrite
+ansible-playbook -i inventory.yml install.yml --limit <host> -e targetdisplay_git_version=feature/mein-branch   # oder ein Tag, z.B. v0.12.3
 ```
 
 Omit it (or re-run without the flag) to go back to the default (`main`) on the next deploy.
