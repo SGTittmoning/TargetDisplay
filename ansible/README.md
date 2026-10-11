@@ -58,7 +58,18 @@ It writes through the same `sudo` scripts the app itself uses for its Settings m
 
 ## Touch calibration
 
-`files/99-calibration.conf` ships with placeholder values for a generic eGalax touch controller — every physical touchscreen has slightly different calibration numbers. After a fresh install (before enabling the read-only filesystem!), calibrate the actual screen with `xinput_calibrator` and update the values in `files/99-calibration.conf` for that stand, or drop a per-host override next to it. The `copy` task uses `force: no`, so it won't overwrite a file that's already been hand-calibrated on the device.
+`files/99-calibration.conf` ships with placeholder values for a generic eGalax touch controller — every physical touchscreen has slightly different calibration numbers. After a fresh install (before enabling the read-only filesystem!), calibrate the actual screen with `xinput_calibrator` and update the values in `files/99-calibration.conf`. The `copy` task uses `force: no`, so it won't overwrite a file that's already been hand-calibrated on the device.
+
+Hosts with a different touch controller — a different `MatchProduct` name, e.g. a replacement unit with newer hardware or firmware — can use their own file instead. Put it next to the default one and name it per host in the inventory (variable `targetdisplay_touch_calibration_file`, a file name under `files/`; default `99-calibration.conf`):
+
+```yaml
+stand5.example.lan:
+  targetdisplay_touch_calibration_file: 99-calibration.conf.stand5
+```
+
+Check which controller a device really reports with `DISPLAY=:0 xinput list --name-only`. `MatchProduct` in X11 matches as a **substring**, so a generic `...TouchController` entry also matches a `...TouchController Stylus` device — just with the wrong values; such a host needs its own file.
+
+Because the `copy` task keeps `force: no`, the variable only takes effect where `/usr/share/X11/xorg.conf.d/99-calibration.conf` does not exist yet (fresh install). On an already installed host the existing file is not replaced — delete it on the device first (or copy the intended file there by hand), then run `install.yml` again.
 
 ## Custom logo
 
