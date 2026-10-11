@@ -1,0 +1,102 @@
+---
+# Spielt die Geraete-Vorbelegung (aktiver Stand + Ausschnitte) auf einen
+# bereits installierten Host ein. Ohne diese Dateien startet am Geraet der
+# Ersteinrichtungs-Assistent; mit ihnen wird Stand-Auswahl und Eckpunkt-
+# Kalibrierung uebersprungen, nur die einmalige PIN-Aenderung bleibt.
+#
+# Quelle: ansible/boot-overrides/<stand>/ (lokal, gitignored - die Werte sind
+# je Anlage/Kamera-Ausrichtung verschieden). Aufbau siehe
+# ansible/boot-overrides.example/.
+#
+# Aufruf:
+#   ansible-playbook -i inventory.yml boot-overrides.yml --limit <host> -e stand=stand1
+#
+# Geschrieben wird ueber dieselben sudo-Skripte, die auch die App fuer ihr
+# PIN-geschuetztes Einstellungsmenue nutzt (targetdisplay-save-*.sh): JSON-
+# Pruefung, atomares Schreiben, Boot-Partition wird bei Bedarf kurz
+# beschreibbar gemacht und danach wieder read-only gesetzt. Das Playbook
+# funktioniert deshalb auch bei aktivem Overlay/bootro, ohne rw/ro-Zyklus.
+# Unveraenderte Dateien werden nicht neu geschrieben (wiederholbar).
+#
+# ACHTUNG: Weicht der Inhalt auf dem Geraet ab, wird er ueberschrieben - auch
+# ein am Geraet selbst gewaehlter Stand/Ausschnitt (PIN-Menue der App). Die App
+# liest die Dateien nur beim Start; ein laufender Dienst zeigt erst nach einem
+# Neustart (systemctl restart targetdisplay) den neuen Stand.
+#
+# Optional per -e: boot_overrides_dir=/anderer/pfad/zum/standN
+
+- hosts: targetdisplay
+  become: yes
+
+  vars:
+    boot_overrides_dir: "{{ playbook_dir }}/boot-overrides/{{ stand }}"
+    boot_dir: /boot/firmware
+    overrides:
+      - { file: targetdisplay-active-stand.json, script: targetdisplay-save-active-stand.sh }
+      - { file: targetdisplay-sections.json, script: targetdisplay-save-sections.sh }
+
+  tasks:
+    # Alle Pruefungen laufen lokal auf dem Control-Rechner, bevor am Geraet
+    # etwas geschrieben wird.
+    - name: "Vorbelegung pruefen (-e stand=<id>, Dateien vorhanden, Werte plausibel)"
+      vars:
+        active_stand: "{{ lookup('file', boot_overrides_dir ~ '/targetdisplay-active-stand.json') | from_json }}"
+        sections: "{{ lookup('file', boot_overrides_dir ~ '/targetdisplay-sections.json') | from_json }}"
+      assert:
+        that:
+          - stand is defined
+          - stand is match('^[A-Za-z0-9_-]+$')
+          - active_stand.id is defined
+          - targetdisplay_stands is not defined or active_stand.id in (targetdisplay_stands | map(attribute='id') | list)
+          - sections.section_full | length == 4
+          - sections.section_detail | length == 4
+          - (sections.section_full + sections.section_detail) | map('length') | unique | list == [2]
+        fail_msg: >-
+          Vorbelegung ungueltig: -e stand=<id> angeben (nur Buchstaben, Ziffern,
+          _ und -), ansible/boot-overrides/<id>/ mit beiden JSON-Dateien muss
+          existieren, die Stand-ID muss in targetdisplay_stands vorkommen und
+          section_full/section_detail brauchen je 4 Eckpunkte [x, y].
+      delegate_to: localhost
+      become: no
+
+    - name: Aktuellen Inhalt der Boot-Dateien lesen
+      slurp:
+        src: "{{ boot_dir }}/{{ item.file }}"
+      register: boot_current
+      failed_when: false
+      loop: "{{ overrides }}"
+      loop_control:
+        label: "{{ item.file }}"
+
+    # Kein "stdin:" am command-Modul: Ansible wuerde den Inhalt, der wie ein
+    # JSON-Objekt aussieht, zurueck in ein Python-Dict wandeln - das Skript
+    # bekaeme dann kein gueltiges JSON mehr. Deshalb der Umweg ueber eine
+    # Temp-Datei in /run (tmpfs, nur root) und Shell-Redirect.
+    - name: Inhalt bereitstellen (nur bei Abweichung)
+      copy:
+        content: "{{ lookup('file', boot_overrides_dir ~ '/' ~ item.0.file) }}"
+        dest: "/run/{{ item.0.file }}"
+        owner: root
+        group: root
+        mode: "0600"
+      when: &differs >-
+        item.1.content is not defined or
+        (item.1.content | b64decode | from_json) != (lookup('file', boot_overrides_dir ~ '/' ~ item.0.file) | from_json)
+      loop: "{{ overrides | zip(boot_current.results) | list }}"
+      loop_control: &loop_label
+        label: "{{ item.0.file }}"
+
+    - name: Ueber das App-Speicherskript schreiben (nur bei Abweichung)
+      shell: "/root/bin/{{ item.0.script }} < /run/{{ item.0.file }}"
+      changed_when: true
+      when: *differs
+      loop: "{{ overrides | zip(boot_current.results) | list }}"
+      loop_control: *loop_label
+
+    - name: Temp-Dateien entfernen
+      file:
+        path: "/run/{{ item.file }}"
+        state: absent
+      loop: "{{ overrides }}"
+      loop_control:
+        label: "{{ item.file }}"

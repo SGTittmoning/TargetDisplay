@@ -274,7 +274,8 @@ nicht ersetzen:
   Assistent): `targetdisplay-active-stand.json`
   (`{"id": "standN"}`) und `targetdisplay-sections.json`
   (`{"section_full": [...], "section_detail": [...]}`, aus einer
-  bestehenden Kalibrierung exportiert) lassen sich **vor dem ersten Boot**
+  bestehenden Kalibrierung exportiert) lassen sich per Ansible mit
+  `boot-overrides.yml` einspielen (siehe unten) oder **vor dem ersten Boot**
   direkt auf die frisch geflashte Boot-Partition kopieren (FAT-Partition,
   gleiche Ebene wie `config.txt` — z.B. am Mac unter `/Volumes/bootfs/`
   nach dem Flashen, vor dem Auswerfen der Karte). Der Assistent überspringt
@@ -284,3 +285,22 @@ nicht ersetzen:
   wenn ein Gerät exakt dieselbe Position/Kameraausrichtung wie zuvor
   bekommt; bei jeder Abweichung lieber den Assistenten regulär durchlaufen
   lassen statt eine falsche Kalibrierung vorzubelegen.
+
+### Vorbelegung per Ansible einspielen (`boot-overrides.yml`)
+
+Statt die Dateien von Hand auf die Karte zu kopieren, lassen sie sich auf einem
+**bereits installierten** Host mit einem Playbook setzen — auch bei aktivem
+Overlay, ohne rw/ro-Zyklus (geschrieben wird über dieselben Skripte, die die App
+für ihr Einstellungsmenü nutzt):
+
+```bash
+# Werte unter ansible/boot-overrides/<stand>/ ablegen (lokal, gitignored;
+# Aufbau siehe ansible/boot-overrides.example/), dann:
+ansible-playbook -i inventory.yml boot-overrides.yml --limit <host> -e stand=stand1
+```
+
+Das Playbook prüft vorher lokal, dass die Stand-ID in `targetdisplay_stands`
+vorkommt und je Bereich vier Eckpunkte vorhanden sind, und schreibt nur
+Dateien, deren Inhalt vom Gerät abweicht. Die App liest die Dateien beim
+Start — nach dem Einspielen den Dienst neu starten
+(`sudo systemctl restart targetdisplay`) bzw. das Gerät neu booten.
