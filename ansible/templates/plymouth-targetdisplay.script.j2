@@ -1,0 +1,31 @@
+# Plymouth-Skript: splash.png zentriert auf einfarbigem Hintergrund, nie
+# groesser als {{ targetdisplay_boot_splash_max_percent | default(70) }} % des Bildschirms, nie ueber die Originalgroesse
+# hinaus vergroessert. Wird von Ansible aus templates/ erzeugt.
+
+Window.SetBackgroundTopColor({{ targetdisplay_boot_splash_background | default([1, 1, 1]) | join(', ') }});
+Window.SetBackgroundBottomColor({{ targetdisplay_boot_splash_background | default([1, 1, 1]) | join(', ') }});
+
+screen_width = Window.GetWidth();
+screen_height = Window.GetHeight();
+
+theme_image = Image("splash.png");
+image_width = theme_image.GetWidth();
+image_height = theme_image.GetHeight();
+
+max_width = screen_width * {{ (targetdisplay_boot_splash_max_percent | default(70)) / 100 }};
+max_height = screen_height * {{ (targetdisplay_boot_splash_max_percent | default(70)) / 100 }};
+
+scale = 1;
+if (image_width > max_width)
+    scale = max_width / image_width;
+if (image_height * scale > max_height)
+    scale = max_height / image_height;
+
+target_width = Math.Int(image_width * scale);
+target_height = Math.Int(image_height * scale);
+resized_image = theme_image.Scale(target_width, target_height);
+
+if (Plymouth.GetMode() != "shutdown") {
+    sprite = Sprite(resized_image);
+    sprite.SetPosition((screen_width - target_width) / 2, (screen_height - target_height) / 2, -100);
+}

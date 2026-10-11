@@ -104,6 +104,8 @@
 
     - import_tasks: tasks/app_deploy.yml
 
+    - import_tasks: tasks/boot_splash.yml
+
     - import_tasks: tasks/startup_service.yml
 
     - import_tasks: tasks/reboot_guard.yml
