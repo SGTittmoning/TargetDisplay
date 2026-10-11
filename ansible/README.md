@@ -58,6 +58,8 @@ stand5.example.lan:
 
 Check which controller a device really reports with `DISPLAY=:0 xinput list --name-only`. `MatchProduct` in X11 matches as a **substring**, so a generic `...TouchController` entry also matches a `...TouchController Stylus` device — just with the wrong values; such a host needs its own file.
 
+Because the `copy` task keeps `force: no`, the variable only takes effect where `/usr/share/X11/xorg.conf.d/99-calibration.conf` does not exist yet (fresh install). On an already installed host the existing file is not replaced — delete it on the device first (or copy the intended file there by hand), then run `install.yml` again.
+
 ## Custom logo
 
 The repo ships a generic placeholder logo (`ressources/logo.png`) that comes along automatically with the git checkout — think of it as the "dist" logo. To show your own club/range logo on every stand instead, drop a `logo.png` (RGBA supported) at `ansible/files/logo.png` **on the Ansible control machine** — deliberately not committed (already gitignored) since it's specific to your club. `install.yml` picks it up automatically on every run from then on and overlays it onto each host, no per-device copying needed. Remove that file again to fall back to the shipped placeholder on the next run.
