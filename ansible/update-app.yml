@@ -4,9 +4,10 @@
 # config.yml und Logo und startet den Dienst neu, wenn sich etwas geaendert
 # hat (tasks/app_deploy.yml + tasks/startup_service.yml, dieselben Tasks wie
 # in install.yml) sowie die Zeitsynchronisation (tasks/timesync.yml) und das
-# Boot-Logo (tasks/boot_splash.yml). Pakete,
-# Haertung, Wartungsskripte usw. werden NICHT angefasst - dafuer install.yml
-# bzw. maintain.yml.
+# Boot-Logo (tasks/boot_splash.yml, installiert dafuer plymouth). Sonstige
+# Pakete, Haertung, Wartungsskripte (/root/bin) usw. werden NICHT angefasst -
+# dafuer install.yml bzw. maintain.yml. Benoetigt wie install.yml die
+# Variablen targetdisplay_git_repo und ntpserver.
 #
 # Aufruf:
 #   ansible-playbook -i inventory.yml update-app.yml --limit <host>
@@ -15,9 +16,11 @@
 #
 # Ablauf bei aktivem Overlay (automatisch erkannt):
 #   1. targetdisplay-writable.sh rw   (Overlay aus -> Reboot -> Boot-RO aus)
-#   2. App-Update
-#   3. targetdisplay-writable.sh ro   (Boot-RO + Overlay wieder an -> Reboot)
-#   4. Pruefung: Overlay und Boot-RO aktiv, Dienst laeuft
+#   2. App-Update (inkl. Zeitsync und Boot-Logo)
+#   3. initramfs-Hook pruefen (tasks/overlay_initramfs.yml), dann
+#      targetdisplay-writable.sh ro   (Boot-RO + Overlay wieder an -> Reboot)
+#   4. Pruefung: Overlay und Boot-RO aktiv, Root-FS tatsaechlich 'overlay',
+#      Dienst laeuft
 # Ohne aktives Overlay (Teststand, frische Installation) entfaellt 1. und 3.:
 # der Lauf aktualisiert nur und startet den Dienst bei Bedarf neu.
 #
@@ -61,10 +64,12 @@
         that:
           - targetdisplay_git_repo is defined
           - targetdisplay_git_repo is not regex('^https?://[^/]*@')
+          - ntpserver is defined
           - update_restore_ro | string | lower in ['auto', 'true', 'false']
         fail_msg: >-
-          targetdisplay_git_repo fehlt oder enthaelt Zugangsdaten, oder
-          update_restore_ro ist nicht auto/true/false.
+          targetdisplay_git_repo oder ntpserver fehlt, targetdisplay_git_repo
+          enthaelt Zugangsdaten, oder update_restore_ro ist nicht
+          auto/true/false.
 
     - name: targetdisplay-writable.sh vorhanden?
       stat:
