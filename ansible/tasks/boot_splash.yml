@@ -1,0 +1,111 @@
+---
+# Boot-Logo (Plymouth): ein Bild zentriert auf einfarbigem Hintergrund statt
+# Textmeldungen des Kernels. Standard: AN. Abschalten mit
+#   targetdisplay_boot_splash: false     (Inventory/-e)
+# "false" richtet es nur nicht ein - ein bereits eingerichtetes Boot-Logo
+# bleibt bestehen.
+#
+# Bildquelle: ansible/files/splash.png (auf dem Control-Rechner, nicht im Repo -
+# vereinsspezifisch), sonst das Logo der App (ressources/logo.png im
+# App-Verzeichnis, also das mitgelieferte Platzhalter-Wappen bzw. ein eigenes
+# files/logo.png, siehe tasks/app_deploy.yml).
+#
+# Das Theme steckt im initramfs; deshalb wird es nach jeder Aenderung neu
+# erzeugt. Ablauf auf Staenden mit Overlay: siehe update-app.yml (Phase 2 hat
+# die Boot-Partition beschreibbar).
+
+- name: Boot-Logo einrichten (Plymouth)
+  when: targetdisplay_boot_splash | default(true) | bool
+  block:
+    - name: plymouth installieren
+      apt:
+        name: plymouth
+        state: present
+      register: targetdisplay_splash_pkg
+
+    - name: Eigenes Boot-Bild vorhanden? (ansible/files/splash.png)
+      stat:
+        path: "{{ playbook_dir }}/files/splash.png"
+      register: targetdisplay_splash_custom
+      delegate_to: localhost
+      become: no
+
+    - name: Theme-Verzeichnis anlegen
+      file:
+        path: /usr/share/plymouth/themes/targetdisplay
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Boot-Bild einspielen (eigene Datei files/splash.png)
+      copy:
+        src: splash.png
+        dest: /usr/share/plymouth/themes/targetdisplay/splash.png
+        owner: root
+        group: root
+        mode: "0644"
+      when: targetdisplay_splash_custom.stat.exists
+      register: targetdisplay_splash_img_custom
+
+    - name: Boot-Bild einspielen (Logo der App)
+      copy:
+        src: "{{ targetdisplay_app_path }}/ressources/logo.png"
+        dest: /usr/share/plymouth/themes/targetdisplay/splash.png
+        remote_src: yes
+        owner: root
+        group: root
+        mode: "0644"
+      when: not targetdisplay_splash_custom.stat.exists
+      register: targetdisplay_splash_img_app
+
+    - name: Theme-Beschreibung und -Skript erzeugen
+      template:
+        src: "plymouth-targetdisplay.{{ item }}.j2"
+        dest: "/usr/share/plymouth/themes/targetdisplay/targetdisplay.{{ item }}"
+        owner: root
+        group: root
+        mode: "0644"
+      loop:
+        - plymouth
+        - script
+      register: targetdisplay_splash_theme_files
+
+    - name: Aktuelles Plymouth-Theme ermitteln
+      command: plymouth-set-default-theme
+      register: targetdisplay_splash_current
+      changed_when: false
+
+    - name: Theme als Standard setzen
+      command: plymouth-set-default-theme targetdisplay
+      when: targetdisplay_splash_current.stdout | trim != 'targetdisplay'
+      register: targetdisplay_splash_theme_set
+
+    # cmdline.txt ist EINE Zeile; jedes Token nur anhaengen, wenn es fehlt.
+    - name: Kernel-Parameter fuer das Boot-Logo setzen (cmdline.txt)
+      replace:
+        path: /boot/firmware/cmdline.txt
+        regexp: '^(?!.*(?:^| ){{ item | regex_escape }}(?: |$))(.+?)[ \t]*$'
+        replace: '\1 {{ item }}'
+      loop:
+        - quiet
+        - splash
+        - plymouth.ignore-serial-consoles
+        - logo.nologo
+      register: targetdisplay_splash_cmdline
+
+    - name: Regenbogen-Bildschirm der Firmware abschalten (config.txt)
+      lineinfile:
+        path: /boot/firmware/config.txt
+        regexp: '^disable_splash='
+        line: disable_splash=1
+        insertafter: '^\[all\]'
+
+    - name: initramfs mit dem Theme neu erzeugen
+      include_tasks: initramfs_rebuild.yml
+      when: >-
+        targetdisplay_splash_pkg is changed or
+        targetdisplay_splash_theme_set is changed or
+        targetdisplay_splash_theme_files is changed or
+        (targetdisplay_splash_img_custom is defined and targetdisplay_splash_img_custom is changed) or
+        (targetdisplay_splash_img_app is defined and targetdisplay_splash_img_app is changed)

@@ -152,6 +152,17 @@ cp /pfad/zum/logo.png files/logo.png
   überschrieben — kein manuelles Kopieren pro Gerät. Datei einfach wieder
   löschen, um beim nächsten Lauf zum Platzhalter zurückzufallen.
 
+**Boot-Logo:** Beim Start zeigt das Gerät standardmäßig dasselbe Logo
+(`ressources/logo.png`, also Platzhalter bzw. das eigene `files/logo.png`)
+zentriert auf schwarzem Hintergrund statt der Kernel-Meldungen (Plymouth,
+`tasks/boot_splash.yml`). Ein abweichendes Boot-Bild: `files/splash.png`
+(Control-Rechner, `.gitignore`t). Abschalten: `targetdisplay_boot_splash: false`
+im Inventory (richtet es nur nicht ein; ein bereits eingerichtetes Boot-Logo
+bleibt bestehen). Hintergrund und Größe: `targetdisplay_boot_splash_background`
+(RGB-Liste, Standard `[0, 0, 0]`) und `targetdisplay_boot_splash_max_percent`
+(Standard 70). Das Theme steckt im initramfs und wird deshalb bei Änderungen
+neu erzeugt; auf einem Stand mit aktivem Overlay läuft das über `update-app.yml`.
+
 ## Schritt 4 — Playbook laufen lassen
 
 ```bash
