@@ -20,8 +20,15 @@ def test_laenge_ausserhalb_4_bis_6_wird_abgelehnt(entered):
 def test_standard_pin_wird_abgelehnt_mit_hinweis():
     ok, (text, wait) = flows.validate_new_pin(DEFAULT_PIN)
     assert not ok
-    assert text == 'nicht erlaubt'
+    assert text == 'zu einfach'
     assert wait > 0
+
+
+def test_fehlertexte_passen_ins_anzeigefeld():
+    # Das PIN-Anzeigefeld zeigt rund 11 Zeichen; laengere Texte werden abgeschnitten.
+    for entered in ('', '1234'):
+        text = flows.validate_new_pin(entered)[1][0]
+        assert len(text) <= 11
 
 
 def test_aehnliche_pins_sind_erlaubt():

@@ -108,10 +108,12 @@ def validate_new_pin(entered):
     # Aenderung, solange der PIN DEFAULT_PIN ist - der Nutzer saehe ohne
     # Hinweis wieder die Eingabe. Liefert (True, entered) oder
     # (False, (Fehlertext, Wartezeit_s)) im Format von _run_pin_keypad().
+    # Der Fehlertext muss in das PIN-Anzeigefeld passen (rund 11 Zeichen),
+    # laengere Texte werden dort abgeschnitten.
     if not 4 <= len(entered) <= 6:
         return False, ('4-6 Ziffern', 0.8)
     if entered == DEFAULT_PIN:
-        return False, ('nicht erlaubt', 1.5)
+        return False, ('zu einfach', 1.5)
     return True, entered
 
 
