@@ -201,8 +201,12 @@ kalibrieren, PIN setzen) oder direkt den Kiosk-Bildschirm, falls
 **Touch-Kalibrierung ist noch Handarbeit** (kein Ansible-Task dafür, siehe
 `ansible/README.md`, Abschnitt "Touch calibration"): `xinput_calibrator`
 auf dem Gerät ausführen und die Werte in `ansible/files/99-calibration.conf`
-(bzw. eine Host-spezifische Kopie) eintragen, **bevor** das Overlay
-aktiviert wird (Schritt 6) — danach ist das Root-Dateisystem read-only.
+eintragen, **bevor** das Overlay aktiviert wird (Schritt 6) — danach ist das
+Root-Dateisystem read-only. Hat ein Gerät einen anderen Touch-Controller
+(`DISPLAY=:0 xinput list --name-only`), bekommt es eine eigene Datei
+`ansible/files/99-calibration.conf.<name>`, die im Inventory per
+`targetdisplay_touch_calibration_file: 99-calibration.conf.<name>` an diesen
+Host gebunden wird.
 
 ## Schritt 6 — Optional: Read-only-Filesystem aktivieren
 

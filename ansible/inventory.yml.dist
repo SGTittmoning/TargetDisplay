@@ -33,6 +33,11 @@ targetdisplay:
       # Standard-PIN "1234" und erzwingt eine PIN-Aenderung im
       # Ersteinrichtungs-Assistenten, bevor es in den Normalbetrieb geht.
       # my_settings_pin: "CHANGEME"  # 4-6 stelliger numerischer PIN
+    # Optional: eigene Touch-Kalibrierdatei fuer ein Geraet mit anderem
+    # Touch-Controller (Datei unter ansible/files/, Standard ist
+    # 99-calibration.conf):
+    # stand2.example.lan:
+    #   targetdisplay_touch_calibration_file: 99-calibration.conf.stand2
     # stand2.example.lan: ...
     # stand3.example.lan: ...
     # stand4.example.lan: ...

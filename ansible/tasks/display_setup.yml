@@ -57,9 +57,15 @@
     replace: '#dtoverlay=vc4-kms-v3d'
   register: targetdisplay_kms_disabled
 
-- name: Touch-Kalibrierung kopieren (Platzhalterwerte - siehe README)
+# Standard ist files/99-calibration.conf. Ein Geraet mit anderem
+# Touch-Controller (anderer MatchProduct-Name, z.B. ein Tauschgeraet mit
+# neuerer Hardware/Firmware) waehlt im Inventory eine eigene Datei unter
+# files/ ueber targetdisplay_touch_calibration_file. Bewusst per
+# default() statt als Play-Variable: Play-Variablen schlagen Inventory-
+# Variablen, ein Host-Override waere sonst wirkungslos.
+- name: Touch-Kalibrierung kopieren (Ausgangswerte - siehe README)
   copy:
-    src: 99-calibration.conf
+    src: "{{ targetdisplay_touch_calibration_file | default('99-calibration.conf') }}"
     dest: /usr/share/X11/xorg.conf.d/99-calibration.conf
     owner: root
     group: root
