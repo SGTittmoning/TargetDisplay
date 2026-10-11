@@ -1,0 +1,39 @@
+---
+# initramfs fuer alle installierten Kernel neu erzeugen und nach /boot/firmware
+# bringen (dort laedt die Firmware es her, siehe tasks/overlay_initramfs.yml).
+# Die Boot-Partition wird dafuer kurz auf rw gesetzt, wenn sie read-only ist,
+# und danach auf den vorherigen Zustand zurueckgestellt. Vorher wird der
+# aktuelle Stand der geladenen Dateien nach /root/initramfs-backup-<Zeit>/
+# gesichert (liegt auf dem Root-FS - beschreibbar ist es nur ausserhalb eines
+# aktiven Overlays, genau dann laufen diese Tasks).
+
+- name: Boot-Partition-Zustand merken (read-only?)
+  command: findmnt -n -o OPTIONS /boot/firmware
+  register: initramfs_boot_opts
+  changed_when: false
+
+- name: initramfs neu erzeugen
+  block:
+    - name: Boot-Partition kurzzeitig beschreibbar machen
+      command: mount -o remount,rw /boot/firmware
+      when: initramfs_boot_opts.stdout.split(',') | select('equalto', 'ro') | list | length > 0
+
+    - name: Aktuelle initramfs-Dateien sichern
+      shell: |
+        d=/root/initramfs-backup-$(date +%Y%m%d-%H%M%S)
+        mkdir -p "$d" && cp -a /boot/firmware/initramfs* /boot/firmware/cmdline.txt "$d"/
+      changed_when: true
+
+    - name: initramfs fuer alle installierten Kernel neu erzeugen
+      command: update-initramfs -u -k all
+
+    - name: Pruefen, dass die geladenen Dateien nicht leer sind
+      shell: |
+        for f in /boot/firmware/initramfs*; do
+          [ -s "$f" ] || { echo "leer/fehlt: $f"; exit 1; }
+        done
+      changed_when: false
+  always:
+    - name: Boot-Partition wieder read-only setzen (falls sie es vorher war)
+      command: mount -o remount,ro /boot/firmware
+      when: initramfs_boot_opts.stdout.split(',') | select('equalto', 'ro') | list | length > 0

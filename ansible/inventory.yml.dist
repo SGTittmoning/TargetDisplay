@@ -33,6 +33,11 @@ targetdisplay:
       # Standard-PIN "1234" und erzwingt eine PIN-Aenderung im
       # Ersteinrichtungs-Assistenten, bevor es in den Normalbetrieb geht.
       # my_settings_pin: "CHANGEME"  # 4-6 stelliger numerischer PIN
+    # Optional: Boot-Logo (Plymouth) ist standardmaessig AN. Abschalten mit
+    # targetdisplay_boot_splash: false (siehe README). Eigenes Bild:
+    # ansible/files/splash.png auf dem Control-Rechner ablegen, sonst wird das
+    # App-Logo (ressources/logo.png) verwendet.
+    # targetdisplay_boot_splash: false
     # Optional: eigene Touch-Kalibrierdatei fuer ein Geraet mit anderem
     # Touch-Controller (Datei unter ansible/files/, Standard ist
     # 99-calibration.conf):

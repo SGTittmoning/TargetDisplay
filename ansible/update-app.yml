@@ -3,7 +3,8 @@
 # Root-Overlay/bootro. Holt den aktuellen App-Code (git), aktualisiert venv,
 # config.yml und Logo und startet den Dienst neu, wenn sich etwas geaendert
 # hat (tasks/app_deploy.yml + tasks/startup_service.yml, dieselben Tasks wie
-# in install.yml) sowie die Zeitsynchronisation (tasks/timesync.yml). Pakete,
+# in install.yml) sowie die Zeitsynchronisation (tasks/timesync.yml) und das
+# Boot-Logo (tasks/boot_splash.yml). Pakete,
 # Haertung, Wartungsskripte usw. werden NICHT angefasst - dafuer install.yml
 # bzw. maintain.yml.
 #
@@ -147,6 +148,7 @@
       block:
         - import_tasks: tasks/timesync.yml
         - import_tasks: tasks/app_deploy.yml
+        - import_tasks: tasks/boot_splash.yml
         - import_tasks: tasks/startup_service.yml
       rescue:
         - name: Update fehlgeschlagen - Stand bleibt beschreibbar
