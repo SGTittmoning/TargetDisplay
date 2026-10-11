@@ -45,6 +45,17 @@ Omit it (or re-run without the flag) to go back to the default (`main`) on the n
 
 A device that hasn't got a stand selected yet, a calibrated region, or has never moved off the built-in default PIN (`"1234"`) shows an on-device wizard instead of the normal kiosk screen: pick a stand from the list deployed above, drag the four corners into place for each region, then set a real PIN. No PIN is required for this first pass — the device isn't in service yet, there's nothing to protect. Each step is written to the boot partition as soon as it's completed, so the wizard always resumes at exactly the step still missing, even across a power loss mid-step. All three (stand, regions, PIN) can be changed again later from the in-app Settings screen, which is PIN-gated as normal at that point.
 
+## Pre-seeding stand and regions (`boot-overrides.yml`)
+
+Ansible deliberately does not decide which stand a device shows or where its regions are — that is what the wizard asks on the device. If you already know both (e.g. a replacement unit that goes to exactly the same position with the same camera alignment as before), `boot-overrides.yml` writes the two override files `targetdisplay-active-stand.json` and `targetdisplay-sections.json` for you, so the wizard skips stand selection and corner calibration and only asks for the one-time PIN change:
+
+```bash
+# values live in ansible/boot-overrides/<stand>/ (gitignored, see ansible/boot-overrides.example/)
+ansible-playbook -i inventory.yml boot-overrides.yml --limit <host> -e stand=stand1
+```
+
+It writes through the same `sudo` scripts the app itself uses for its Settings menu (JSON check, atomic write, boot partition remounted writable only for that moment), so it also works on a device with the overlay/bootro already active — no rw/ro cycle needed. Files that already have the wanted content are left alone, so running it again is harmless — but a file whose content differs is overwritten, including a stand or region someone picked on the device itself via the Settings menu. The app reads the files only at start, so a running service picks up the new values after `systemctl restart targetdisplay`. The values are validated on the control machine first (stand `id` must be in `targetdisplay_stands`, four `[x, y]` corners per region).
+
 ## Touch calibration
 
 `files/99-calibration.conf` ships with placeholder values for a generic eGalax touch controller — every physical touchscreen has slightly different calibration numbers. After a fresh install (before enabling the read-only filesystem!), calibrate the actual screen with `xinput_calibrator` and update the values in `files/99-calibration.conf` for that stand, or drop a per-host override next to it. The `copy` task uses `force: no`, so it won't overwrite a file that's already been hand-calibrated on the device.
