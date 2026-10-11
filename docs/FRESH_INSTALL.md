@@ -134,8 +134,9 @@ Ersteinrichtungs-Assistenten, bevor es in den Normalbetrieb geht.
 **`ntpserver`** (Gruppenvariable) muss eine von den Ständen aus erreichbare
 Zeitquelle sein; der Wert in der Vorlage ist nur ein Platzhalter und ein im
 Inventory eingetragener Wert eine Annahme, bis er geprüft ist. Ohne
-erreichbare Quelle steht die Uhr falsch (es gibt keine RTC) — das beeinträchtigt
-die App nicht, aber Log-Zeitstempel und `apt`-Signaturprüfungen.
+erreichbare Quelle steht die Uhr falsch (es gibt keine RTC). Die Timer der App
+sind davon nicht betroffen, wohl aber die auf dem Hauptbildschirm angezeigte
+Uhrzeit/das Datum, Log-Zeitstempel und `apt`-Signaturprüfungen.
 
 ## Schritt 3 — Eigenes Vereinslogo hinterlegen (optional)
 
@@ -162,6 +163,11 @@ bleibt bestehen). Hintergrund und Größe: `targetdisplay_boot_splash_background
 (RGB-Liste, Standard `[0, 0, 0]`) und `targetdisplay_boot_splash_max_percent`
 (Standard 70). Das Theme steckt im initramfs und wird deshalb bei Änderungen
 neu erzeugt; auf einem Stand mit aktivem Overlay läuft das über `update-app.yml`.
+Das Logo erscheint ab dem nächsten Start. Die Kernel-Parameter
+`quiet splash …` und `disable_splash=1` blenden Kernel-Meldungen am
+Bildschirm aus (Fehlersuche: `journalctl -k -b`). `targetdisplay_boot_splash:
+false` baut ein vorhandenes Boot-Logo nicht zurück. Hintergrund als
+RGB-Liste mit Werten von 0.0 bis 1.0.
 
 ## Schritt 4 — Playbook laufen lassen
 
@@ -172,14 +178,16 @@ ansible-playbook -i inventory.yml install.yml --limit stand1.example.lan
 Das erledigt in einem Rutsch (siehe `ansible/README.md` für Details je
 Punkt): System-Update, alle benötigten Pakete (X11, Matchbox, Python/
 OpenCV-Stack), dedizierter unprivilegierter `targetdisplay`-Service-User,
-Zeitzone/NTP, persistentes Journal-Logging, feste Display-Auflösung
+Zeitzone/NTP (inkl. Sofort-Sync nach Link-up), persistentes Journal-Logging, feste Display-Auflösung
 (1280×800), App-Checkout in eine venv, Rendern von `config.yml` +
 `targetdisplay-stands.json`, Logo-Overlay, systemd-Service für die X11-
 Session, eng gefasstes sudo für die drei PIN-geschützten Settings-Aktionen
 der App selbst, den Reboot-Guard (Auto-Reboot nach wiederholtem
 Camera-Stream-Ausfall, höchstens 5 Mal; danach versucht ein Timer alle
-10 Minuten den Neustart des Dienstes, er wird nie deaktiviert), sowie Basis-Hardening (Firewall, avahi/Bluetooth
-deaktiviert, SSH-Detailhärtung).
+10 Minuten den Neustart des Dienstes, er wird nie deaktiviert), das Boot-Logo
+(Plymouth, ab dem nächsten Start sichtbar), das Ausblenden des Mauszeigers,
+sowie Basis-Hardening (Firewall, avahi/Bluetooth deaktiviert, SSH nur per
+Schlüssel sobald der Admin-User eine `authorized_keys` hat, SSH-Detailhärtung).
 
 **Hinweis zur SSH-Härtung:** Danach trennt der Pi eine idle SSH-Sitzung
 serverseitig nach 5 Minuten ohne Aktivität (`ClientAliveInterval`/
@@ -230,6 +238,12 @@ ansible-playbook -i inventory.yml install.yml --limit stand1.example.lan -e targ
 
 Schützt gegen SD-Karten-Korruption bei hartem Stromausfall (die Stände
 werden nicht sauber heruntergefahren, sondern an der Wand ausgeschaltet).
+**Prüfen, dass das Overlay wirklich wirkt:** nach dem Reboot muss
+`findmnt -n -o FSTYPE /` den Wert `overlay` liefern und `/boot/firmware` als
+`vfat` mit `ro` gemountet sein. `raspi-config nonint get_overlay_now` genügt
+nicht — es liest nur die Kernel-Kommandozeile und meldet auch dann „aktiv“,
+wenn `/` weiterhin normal beschreibbar ist.
+
 Danach laufen App-Updates über `update-app.yml` (siehe „Spätere Updates“),
 Paket-Updates über `maintain.yml`; Änderungen an Config, Units oder Skripten
 brauchen `targetdisplay-writable.sh rw` → `install.yml` → `ro` (Ablauf in
@@ -253,8 +267,10 @@ ansible-playbook -i inventory.yml update-app.yml --limit <host>
 
 `update-app.yml` bearbeitet immer nur einen Stand und stoppt beim ersten
 Fehler. Bei aktivem Overlay: Overlay aus → Reboot → Boot-Partition
-beschreibbar → App-Update → Boot-RO + Overlay an → Reboot → Prüfung von
-Overlay, Boot-RO und Dienst (rund 3 Minuten, zwei Reboots). Ohne Overlay
+beschreibbar → App-Update → Boot-RO + Overlay an → Reboot → Prüfung des
+overlayroot-Hooks im initramfs vor dem Sperren und am Ende von Overlay
+(`/` tatsächlich `overlay`), Boot-RO und Dienst (rund 3 Minuten, zwei Reboots;
+bei neu zu erzeugendem initramfs länger). Ohne Overlay
 aktualisiert es nur und startet den Dienst bei Bedarf neu.
 
 Bricht ein Lauf ab (Netz weg, Update-Task schlägt fehl), bleibt der Stand
@@ -264,15 +280,19 @@ am Ende wieder. Mit `-e update_restore_ro=true|false` lässt sich das
 erzwingen bzw. unterdrücken.
 
 `update-app.yml` rendert zusätzlich `.xinitrc` und `targetdisplay.service` (aus
-dem lokalen `ansible/`-Stand des Control-Rechners, nicht aus dem App-Checkout).
-Es ändert keine Pakete, Härtung, `/root/bin`-Skripte, Reboot-Guard-/Retry-/
+dem lokalen `ansible/`-Stand des Control-Rechners, nicht aus dem App-Checkout)
+und wendet Zeitsynchronisation (`timesync.yml`, braucht `ntpserver`) und
+Boot-Logo (`boot_splash.yml`, installiert `plymouth`) an. Es ändert keine
+weiteren Pakete (z. B. `unclutter`), Härtung, `/root/bin`-Skripte, Reboot-Guard-/Retry-/
 Reset-Units, `targetdisplay_stands` oder Touch-Kalibrierung. **Vor einem
 Upgrade die Release-Notes prüfen:** ändert ein Release Skripte unter
 `ansible/files/` oder Units/Templates (z. B. 0.12.0: Reboot-Guard ohne
-Dauer-Deaktivierung, `targetdisplay-retry.timer`), muss einmal `install.yml`
-laufen. Dafür `install.yml`; bei
-aktivem Overlay bricht es im Vorab-Check ab (Schreibvorgänge gingen nur in
-den flüchtigen tmpfs-Layer), der Ablauf ist dann:
+Dauer-Deaktivierung, `targetdisplay-retry.timer`; 0.12.1: Paket `unclutter`;
+0.12.2/0.12.3: `targetdisplay-writable.sh`/`-update.sh` prüfen den
+overlayroot-Hook, der Guard schreibt den Zähler nach der Obergrenze nicht
+weiter), muss einmal `install.yml` laufen. Bei aktivem Overlay bricht dieses im
+Vorab-Check ab (Schreibvorgänge gingen nur in den flüchtigen tmpfs-Layer), der
+Ablauf ist dann:
 
 ```bash
 # auf dem Stand (ssh); fordert ggf. einen Zwischen-Reboot an - danach nochmal aufrufen
