@@ -1,0 +1,201 @@
+---
+# App-Update auf einem bereits eingerichteten Stand - auch bei aktivem
+# Root-Overlay/bootro. Holt den aktuellen App-Code (git), aktualisiert venv,
+# config.yml und Logo und startet den Dienst neu, wenn sich etwas geaendert
+# hat (tasks/app_deploy.yml + tasks/startup_service.yml, dieselben Tasks wie
+# in install.yml). Pakete, Haertung, Wartungsskripte usw. werden NICHT
+# angefasst - dafuer install.yml bzw. maintain.yml.
+#
+# Aufruf:
+#   ansible-playbook -i inventory.yml update-app.yml --limit <host>
+#   ansible-playbook -i inventory.yml update-app.yml --limit <host> \
+#       -e targetdisplay_git_version=<branch|tag|commit>
+#
+# Ablauf bei aktivem Overlay (automatisch erkannt):
+#   1. targetdisplay-writable.sh rw   (Overlay aus -> Reboot -> Boot-RO aus)
+#   2. App-Update
+#   3. targetdisplay-writable.sh ro   (Boot-RO + Overlay wieder an -> Reboot)
+#   4. Pruefung: Overlay und Boot-RO aktiv, Dienst laeuft
+# Ohne aktives Overlay (Teststand, frische Installation) entfaellt 1. und 3.:
+# der Lauf aktualisiert nur und startet den Dienst bei Bedarf neu.
+#
+# Ein Marker auf der Boot-Partition (.targetdisplay-update-restore) merkt sich
+# "nach dem Update wieder read-only schalten". Bricht ein Lauf mitten drin ab
+# (Netz weg, Reboot haengt), bleibt der Stand beschreibbar, laeuft aber
+# normal weiter; ein erneuter Aufruf desselben Befehls macht dank Marker an
+# derselben Stelle weiter und schaltet am Ende wieder read-only.
+#
+# Optional per -e:
+#   update_restore_ro=auto|true|false   auto (Standard): read-only wieder
+#                                       herstellen, wenn Overlay/Boot-RO beim
+#                                       Start aktiv waren oder der Marker
+#                                       existiert. true erzwingt es (auch auf
+#                                       einem Stand ohne Overlay), false
+#                                       unterdrueckt es.
+#
+# Es wird immer nur EIN Host gleichzeitig bearbeitet (serial: 1) und beim
+# ersten Fehler abgebrochen - ein fehlerhafter Lauf trifft so hoechstens
+# einen Stand.
+
+- hosts: targetdisplay
+  become: yes
+  serial: 1
+  max_fail_percentage: 0
+
+  vars:
+    update_restore_ro: auto
+    targetdisplay_service_user: targetdisplay
+    targetdisplay_app_path: "/home/{{ targetdisplay_service_user }}/TargetDisplay"
+    # Muessen zu install.yml passen (fliessen in config.yml ein).
+    targetdisplay_screen_width: 1280
+    targetdisplay_screen_height: 800
+    update_boot_dir: /boot/firmware
+    update_marker: /boot/firmware/.targetdisplay-update-restore
+    update_writable_script: /root/bin/targetdisplay-writable.sh
+
+  tasks:
+    - name: targetdisplay_git_repo muss gesetzt sein, ohne Zugangsdaten
+      assert:
+        that:
+          - targetdisplay_git_repo is defined
+          - targetdisplay_git_repo is not regex('^https?://[^/]*@')
+          - update_restore_ro | string | lower in ['auto', 'true', 'false']
+        fail_msg: >-
+          targetdisplay_git_repo fehlt oder enthaelt Zugangsdaten, oder
+          update_restore_ro ist nicht auto/true/false.
+
+    - name: targetdisplay-writable.sh vorhanden?
+      stat:
+        path: "{{ update_writable_script }}"
+      register: update_script
+
+    - name: Abbruch falls das Skript fehlt (Stand noch nicht per install.yml eingerichtet)
+      assert:
+        that: update_script.stat.exists
+        fail_msg: "{{ update_writable_script }} fehlt - zuerst install.yml ausfuehren."
+
+    - name: Ausgangszustand ermitteln (Overlay, Boot-RO, Marker)
+      command: raspi-config nonint get_overlay_now
+      register: update_overlay_start
+      changed_when: false
+
+    - name: Boot-RO-Zustand ermitteln
+      command: raspi-config nonint get_bootro_now
+      register: update_bootro_start
+      changed_when: false
+
+    - name: Marker aus einem frueheren, abgebrochenen Lauf?
+      stat:
+        path: "{{ update_marker }}"
+      register: update_marker_stat
+
+    - name: Soll am Ende wieder read-only geschaltet werden?
+      set_fact:
+        update_do_restore: >-
+          {{ (update_restore_ro | string | lower == 'true') or
+             (update_restore_ro | string | lower == 'auto' and (
+               update_overlay_start.stdout | trim == '0' or
+               update_bootro_start.stdout | trim == '0' or
+               update_marker_stat.stat.exists)) }}
+
+    # Phase 1: Overlay laeuft nur im RAM - zuerst deaktivieren, wirkt nach
+    # dem Reboot.
+    - name: "Phase 1: Overlay deaktivieren (nur bei aktivem Overlay)"
+      command: "{{ update_writable_script }} rw"
+      when: update_overlay_start.stdout | trim == '0'
+
+    - name: Reboot, damit das Overlay wirklich weg ist
+      reboot:
+        msg: "Reboot fuer update-app.yml (Overlay deaktivieren)"
+      when: update_overlay_start.stdout | trim == '0'
+
+    - name: Overlay-Zustand nach Phase 1 pruefen
+      command: raspi-config nonint get_overlay_now
+      register: update_overlay_now
+      changed_when: false
+
+    - name: Abbruch falls das Overlay noch aktiv ist
+      assert:
+        that: update_overlay_now.stdout | trim == '1'
+        fail_msg: >-
+          Overlay ist nach dem Reboot weiterhin aktiv - nichts wurde
+          geschrieben. Zustand mit '{{ update_writable_script }} status'
+          am Geraet pruefen.
+
+    - name: Boot-RO-Zustand nach Phase 1 pruefen
+      command: raspi-config nonint get_bootro_now
+      register: update_bootro_now
+      changed_when: false
+
+    - name: "Phase 2: Boot-Partition beschreibbar machen (falls noch read-only)"
+      command: "{{ update_writable_script }} rw"
+      when: update_bootro_now.stdout | trim == '0'
+
+    - name: Marker setzen ("nach dem Update wieder read-only")
+      copy:
+        content: "restore-ro\n"
+        dest: "{{ update_marker }}"
+        owner: root
+        group: root
+        mode: "0644"
+      when: update_do_restore | bool
+
+    # Fehler im Update: Marker bleibt, Stand bleibt beschreibbar und laeuft
+    # mit dem bisherigen Dienst weiter. Erneuter Aufruf setzt fort.
+    - name: App-Update
+      block:
+        - import_tasks: tasks/app_deploy.yml
+        - import_tasks: tasks/startup_service.yml
+      rescue:
+        - name: Update fehlgeschlagen - Stand bleibt beschreibbar
+          fail:
+            msg: >-
+              App-Update fehlgeschlagen. Der Stand ist weiterhin beschreibbar
+              (Overlay aus) und laeuft normal. Ursache beheben und denselben
+              Befehl erneut ausfuehren - er schaltet am Ende wieder
+              read-only.
+
+    - name: Marker entfernen (Boot-Partition ist noch beschreibbar)
+      file:
+        path: "{{ update_marker }}"
+        state: absent
+      when: update_do_restore | bool
+
+    - name: "Phase 3: wieder read-only schalten (Boot-RO + Overlay)"
+      command: "{{ update_writable_script }} ro"
+      when: update_do_restore | bool
+
+    - name: Reboot, damit das Overlay wieder aktiv wird
+      reboot:
+        msg: "Reboot nach update-app.yml (Overlay wieder aktivieren)"
+      when: update_do_restore | bool
+
+    - name: Endzustand pruefen (Overlay)
+      command: raspi-config nonint get_overlay_now
+      register: update_overlay_end
+      changed_when: false
+
+    - name: Endzustand pruefen (Boot-RO)
+      command: raspi-config nonint get_bootro_now
+      register: update_bootro_end
+      changed_when: false
+
+    - name: Endzustand pruefen (Dienst)
+      command: systemctl is-active targetdisplay.service
+      register: update_service_end
+      changed_when: false
+      failed_when: false
+
+    - name: Ergebnis
+      assert:
+        that:
+          - update_service_end.stdout | trim == 'active'
+          - not (update_do_restore | bool) or update_overlay_end.stdout | trim == '0'
+          - not (update_do_restore | bool) or update_bootro_end.stdout | trim == '0'
+        success_msg: >-
+          Update fertig. Dienst aktiv, Overlay {{ 'aktiv' if update_overlay_end.stdout | trim == '0' else 'nicht aktiv' }},
+          Boot-RO {{ 'aktiv' if update_bootro_end.stdout | trim == '0' else 'nicht aktiv' }}.
+        fail_msg: >-
+          Endzustand nicht wie erwartet: Dienst={{ update_service_end.stdout | trim }},
+          Overlay={{ update_overlay_end.stdout | trim }} (0=aktiv),
+          Boot-RO={{ update_bootro_end.stdout | trim }} (0=aktiv).
