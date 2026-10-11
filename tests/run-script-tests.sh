@@ -45,6 +45,7 @@ cat > "$STUBS/systemctl" <<'STUB'
 echo "systemctl $*" >> "$STUB_LOG"
 case "$1" in
   is-active) exit "${STUB_INACTIVE:-0}" ;;
+  is-failed) exit "${STUB_FAILED:-1}" ;;   # Exit 0 = Dienst steht auf failed
   show)
     case "$*" in
       *NRestarts*) echo "${STUB_NRESTARTS:-0}" ;;
@@ -64,7 +65,7 @@ done
 
 export STUB_LOG="$WORK/stub.log"
 export PATH="$STUBS:$PATH"
-reset() { : > "$STUB_LOG"; rm -rf "$BOOT"; mkdir -p "$BOOT"; unset BOOTRO FAIL_MOUNT_RW STUB_INACTIVE STUB_NRESTARTS STUB_ACTIVE_ENTER_US; }
+reset() { : > "$STUB_LOG"; rm -rf "$BOOT"; mkdir -p "$BOOT"; unset BOOTRO FAIL_MOUNT_RW STUB_INACTIVE STUB_FAILED STUB_NRESTARTS STUB_ACTIVE_ENTER_US; }
 calls() { grep -c "$1" "$STUB_LOG" 2>/dev/null || true; }
 
 # =========================================================== save-*.sh
@@ -159,6 +160,45 @@ check "ohne Zaehlerdatei: Exit 0" 0 "$rc"
 BOOTRO=0 STUB_ACTIVE_ENTER_US=100000000 run_reset
 check "ro-Boot: remount rw" 1 "$(calls 'remount,rw')"
 check "ro-Boot: remount ro" 1 "$(calls 'remount,ro')"
+
+# ====================================================== reboot-guard.sh
+echo "reboot-guard.sh"
+COUNT="$BOOT/.targetdisplay-reboot-count"
+
+reset; "$BIN/targetdisplay-reboot-guard.sh"; rc=$?
+check "erster Ausfall: Exit 0" 0 "$rc"
+check "erster Ausfall: Zaehler 1" 1 "$(cat "$COUNT")"
+check "erster Ausfall: Reboot ausgeloest" 1 "$(calls '^reboot')"
+
+reset; echo 4 > "$COUNT"; "$BIN/targetdisplay-reboot-guard.sh"
+check "Zaehler 4 -> 5 (= Grenze): Reboot ausgeloest" 1 "$(calls '^reboot')"
+check "Zaehler 4 -> 5: Zaehler steht auf 5" 5 "$(cat "$COUNT")"
+
+reset; echo 5 > "$COUNT"; "$BIN/targetdisplay-reboot-guard.sh"; rc=$?
+check "Grenze ueberschritten: Exit 0" 0 "$rc"
+check "Grenze ueberschritten: kein weiterer Reboot" 0 "$(calls '^reboot')"
+check "Grenze ueberschritten: Zaehler steht auf 6" 6 "$(cat "$COUNT")"
+check "Grenze ueberschritten: Dienst wird NICHT deaktiviert" 0 "$(calls 'systemctl.*disable')"
+check "Grenze ueberschritten: Dienst wird nicht gestoppt" 0 "$(calls 'systemctl.*stop')"
+check "Grenze ueberschritten: Grund im Log" 1 "$(calls 'logger.*Grenze von 5')"
+
+reset; echo 5 > "$COUNT"; BOOTRO=0 "$BIN/targetdisplay-reboot-guard.sh"
+check "ro-Boot: Zaehler wird geschrieben" 6 "$(cat "$COUNT")"
+check "ro-Boot: remount rw" 1 "$(calls 'remount,rw')"
+check "ro-Boot: remount ro" 1 "$(calls 'remount,ro')"
+
+# ===================================================== retry.sh
+echo "retry.sh"
+reset; STUB_FAILED=0 "$BIN/targetdisplay-retry.sh"; rc=$?
+check "Dienst failed: Exit 0" 0 "$rc"
+check "Dienst failed: reset-failed" 1 "$(calls 'systemctl reset-failed targetdisplay.service')"
+check "Dienst failed: start" 1 "$(calls 'systemctl start --no-block targetdisplay.service')"
+check "Dienst failed: Grund im Log" 1 "$(calls 'logger.*steht auf failed')"
+
+reset; STUB_FAILED=1 "$BIN/targetdisplay-retry.sh"; rc=$?
+check "Dienst nicht failed: Exit 0" 0 "$rc"
+check "Dienst nicht failed: kein reset-failed" 0 "$(calls 'reset-failed')"
+check "Dienst nicht failed: kein start" 0 "$(calls 'systemctl start')"
 
 echo
 echo "Ergebnis: $pass ok, $fail Fehler"

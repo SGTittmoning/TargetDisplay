@@ -1,0 +1,6 @@
+[Unit]
+Description=targetdisplay.service neu starten, falls es nach erreichter Reboot-Grenze auf failed steht
+
+[Service]
+Type=oneshot
+ExecStart=/root/bin/targetdisplay-retry.sh

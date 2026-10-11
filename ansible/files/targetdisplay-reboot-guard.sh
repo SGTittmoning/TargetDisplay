@@ -1,9 +1,16 @@
 #!/bin/bash
 # Wird von targetdisplay-reboot.service aufgerufen, wenn targetdisplay.service
 # wiederholt gescheitert ist (StartLimitBurst erreicht). Rebootet nur bis
-# zu einer Obergrenze - bei einem DAUERHAFTEN Fehler (z.B. fehlendes Paket,
-# falsche Konfiguration) soll das System nicht fuer immer neu starten,
-# sondern anhalten und auf manuelle Untersuchung warten.
+# zu einer Obergrenze (MAX_REBOOTS) - bei einem DAUERHAFTEN Fehler (z.B.
+# Kamera ausgefallen, falsche Konfiguration) soll das System nicht fuer
+# immer neu starten.
+#
+# Der Dienst wird dabei NIE deaktiviert: Die Staende laufen unbeaufsichtigt
+# und ohne Zugriff von aussen, eine dauerhafte Abschaltung waere dort nicht
+# mehr behebbar. Ist die Obergrenze erreicht, bleibt der Dienst im Zustand
+# "failed" und wird von targetdisplay-retry.timer in festen Abstaenden
+# erneut gestartet (siehe targetdisplay-retry.sh) - sobald die Ursache
+# (z.B. die Kamera) behoben ist, kommt der Stand von selbst wieder.
 #
 # Nach demselben Muster wie im oeffentlichen CamDisplay-Repo
 # (https://github.com/SGTittmoning/CamDisplay), nur das Namensschema
@@ -49,9 +56,8 @@ fi
 count=$((count + 1))
 
 if [ "$count" -gt "$MAX_REBOOTS" ]; then
-  logger -t targetdisplay-reboot-guard "Grenze von $MAX_REBOOTS Reboots erreicht - targetdisplay.service wird deaktiviert statt weiter zu rebooten. Manuelle Pruefung noetig."
+  logger -t targetdisplay-reboot-guard "Grenze von $MAX_REBOOTS Reboots erreicht - kein weiterer Reboot. targetdisplay.service bleibt aktiviert und wird von targetdisplay-retry.timer periodisch neu gestartet."
   write_count "$count"
-  systemctl disable --now targetdisplay.service || true
   exit 0
 fi
 
