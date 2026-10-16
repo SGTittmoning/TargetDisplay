@@ -75,7 +75,7 @@ Das Bild wechselt sekündlich zwischen dem festgehaltenen Referenzbild und dem a
 
 **20 Sek.** und **10 Sek.** laufen nach demselben einfachen Muster ab: Der Bildschirm wird komplett **rot** mit einer großen, rückwärtszählenden Zahl als 7-Sekunden-Vorbereitungszeit; danach wird der Bildschirm **grün** für die eingestellte Sichtzeit (mit Countdown); anschließend kurz (3 Sekunden) wieder **rot** als Stopp-Phase, danach schaltet der Timer automatisch ab.
 
-**5 x 3 Sek.** beginnt ebenfalls mit der 7-Sekunden-Vorbereitungszeit in Rot, wiederholt danach aber fünfmal denselben Wechsel: 3 Sekunden **grün** (Scheibe sichtbar, mit Countdown und Durchgangszähler), gefolgt von 7 Sekunden **rot** (Scheibe verdeckt, ebenfalls mit Countdown und Durchgangszähler). Nach dem fünften Durchgang folgt, genau wie bei den anderen beiden Varianten, dieselbe kurze (3 Sekunden) rote Stopp-Phase, danach schaltet der Timer automatisch ab.
+**5 x 3 Sek.** beginnt ebenfalls mit der 7-Sekunden-Vorbereitungszeit in Rot, wiederholt danach aber fünfmal denselben Wechsel: 3 Sekunden **grün** (Scheibe sichtbar, mit Countdown und Durchgangszähler), gefolgt von 7 Sekunden **rot** (Scheibe verdeckt, ebenfalls mit Countdown und Durchgangszähler). Nach der fünften grünen Phase entfällt die 7-Sekunden-Pause: Es folgt direkt, genau wie bei den anderen beiden Varianten, die kurze (3 Sekunden) rote Stopp-Phase ohne Zahl, danach schaltet der Timer automatisch ab und die Scheibe ist sofort wieder zu sehen. Die ganze Serie dauert 53 Sekunden.
 
 Während eines laufenden Timers wird kein Kamerabild angezeigt und Zoom/Blinken/Video-aus sind gesperrt. War vor dem Start „Blinken“ aktiv, läuft es nach dem Timer automatisch weiter (siehe Abschnitt 2.2).
 
