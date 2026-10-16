@@ -65,11 +65,11 @@ Die Nummerierung startet in jeder Gruppe neu bei 1 – gemeint ist immer die Pos
 
 ### 2.2 „Blinken“-Vergleichsmodus im Detail
 
-Das Bild wechselt sekündlich zwischen dem festgehaltenen Referenzbild und dem aktuellen Live-Bild hin und her. Löcher, die zwischen Referenz und Live-Bild „aufblinken“, sind neu – typischer Anwendungsfall: **Referenz** direkt nach einer geschossenen Serie erneut auslösen, um die nächste Serie einzeln sichtbar zu machen. Während des Blinkens sind die Timer-Buttons gesperrt und dabei sichtbar ausgegraut. Der Video-aus-Knopf ist ebenfalls gesperrt, ändert dabei aber äußerlich nicht sein Aussehen – er sieht weiterhin normal aus, reagiert aber nicht auf Tippen. Zoom bleibt weiterhin bedienbar. **Stop** gibt Timer und Video-aus-Knopf wieder frei.
+Das Bild wechselt sekündlich zwischen dem festgehaltenen Referenzbild und dem aktuellen Live-Bild hin und her. Löcher, die zwischen Referenz und Live-Bild „aufblinken“, sind neu – typischer Anwendungsfall: **Referenz** direkt nach einer geschossenen Serie erneut auslösen, um die nächste Serie einzeln sichtbar zu machen. Die Timer bleiben während des Blinkens bedienbar. Startet ein Timer, pausiert das Blinken für die Dauer des Timers und läuft danach mit derselben Referenz weiter – so lässt sich eine Referenz vor der Serie aufnehmen, und nach dem Timer blinken genau die Treffer dieser Serie. Der Video-aus-Knopf ist während des Blinkens gesperrt, ändert dabei aber äußerlich nicht sein Aussehen – er sieht weiterhin normal aus, reagiert aber nicht auf Tippen. Zoom bleibt weiterhin bedienbar. **Stop** beendet das Blinken und gibt den Video-aus-Knopf wieder frei.
 
 ![Blinken-Modus aktiv](screenshots/03_hauptbildschirm_blinken_aktiv.png)
 
-**Abb. 3:** „Blinken“ ist aktiv (Start ausgegraut, Referenz/Stop aktiv), Zoom bleibt bedienbar, Timer ist gesperrt.
+**Abb. 3:** „Blinken“ ist aktiv (Start ausgegraut, Referenz/Stop aktiv), Zoom und Timer bleiben bedienbar.
 
 ### 2.3 Wettkampf-Timer im Detail
 
@@ -77,7 +77,7 @@ Das Bild wechselt sekündlich zwischen dem festgehaltenen Referenzbild und dem a
 
 **5 x 3 Sek.** beginnt ebenfalls mit der 7-Sekunden-Vorbereitungszeit in Rot, wiederholt danach aber fünfmal denselben Wechsel: 3 Sekunden **grün** (Scheibe sichtbar, mit Countdown und Durchgangszähler), gefolgt von 7 Sekunden **rot** (Scheibe verdeckt, ebenfalls mit Countdown und Durchgangszähler). Nach der fünften grünen Phase entfällt die 7-Sekunden-Pause: Es folgt direkt, genau wie bei den anderen beiden Varianten, die kurze (3 Sekunden) rote Stopp-Phase ohne Zahl, danach schaltet der Timer automatisch ab und die Scheibe ist sofort wieder zu sehen. Die ganze Serie dauert 53 Sekunden.
 
-Während eines laufenden Timers wird kein Kamerabild angezeigt und Zoom/Blinken/Video-aus sind gesperrt.
+Während eines laufenden Timers wird kein Kamerabild angezeigt und Zoom/Blinken/Video-aus sind gesperrt. War vor dem Start „Blinken“ aktiv, läuft es nach dem Timer automatisch weiter (siehe Abschnitt 2.2).
 
 ![Timer – Vorbereitungsphase (rot)](screenshots/04_timer_vorbereitung_rot.png)
 

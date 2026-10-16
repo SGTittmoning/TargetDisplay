@@ -224,7 +224,15 @@ footer{
       content: "Seite " counter(page) " von " counter(pages);
       font-family: "IBM Plex Mono", monospace; font-size: 9px; color: #6b6355;
     }
+    @bottom-left {
+      content: string(handbook-footer);
+      font-family: "IBM Plex Mono", monospace; font-size: 9px; color: #6b6355;
+    }
   }
+  /* Die Schlusszeile steht im Druck in der Fusszeile jeder Seite statt am
+     Ende des Textflusses - dort landete sie sonst allein auf einer eigenen
+     letzten Seite. */
+  footer { string-set: handbook-footer content(text); height: 0; overflow: hidden; margin: 0; padding: 0; border: 0; }
   * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
   body { font-size: 12.5px; }
   .intro { font-size: 14.5px; }
@@ -247,10 +255,25 @@ footer{
   .plate-pair { break-inside: avoid; page-break-inside: avoid; }
   .legend > li { break-inside: avoid; page-break-inside: avoid; }
   .callout { break-inside: avoid; page-break-inside: avoid; }
+  /* Eine Legende (nummerierte Bedienelemente) bleibt am Stueck und bei der
+     Abbildung bzw. Ueberschrift davor; ein Hinweis bleibt beim Inhalt, auf
+     den er sich bezieht. */
+  .legend { break-inside: avoid; page-break-inside: avoid; }
+  .grp + .legend, figure.plate + .legend { break-before: avoid; page-break-before: avoid; }
+  .legend + .callout { break-before: avoid; page-break-before: avoid; }
+  /* Tabellen: nicht trennen; ist eine laenger als eine Seite, wiederholt
+     sich die Kopfzeile und keine Zeile wird geteilt. */
+  table { break-inside: avoid; page-break-inside: avoid; }
+  thead { display: table-header-group; }
+  tr { break-inside: avoid; page-break-inside: avoid; }
   .lock-badge { break-after: avoid; page-break-after: avoid; }
   .notes-page .writeline { break-inside: avoid; page-break-inside: avoid; }
   a { color: inherit; text-decoration: none; }
   img { max-width: 100%; }
+  /* Screenshots im Druck in der Hoehe begrenzt, damit Abbildung und
+     zugehoerige Legende auf eine Seite passen. */
+  figure.plate img { max-height: 88mm; width: auto; display: block; margin: 0 auto; }
+  section.restricted figure.plate img { max-height: 52mm; }
   /* Verhindert, dass ein Absatz mitten im Satz getrennt wird - erzwingt
      mindestens 3 Zeilen vor/nach einem Seitenumbruch innerhalb eines
      Absatzes (sonst wandert der ganze Absatz auf die naechste Seite). */
@@ -416,10 +439,10 @@ footer{
 
         <div class="grp">
         <h3 id="blinken">&bdquo;Blinken&ldquo;-Vergleichsmodus im Detail</h3>
-        <p>Das Bild wechselt sekündlich zwischen dem festgehaltenen Referenzbild und dem aktuellen Live-Bild. Löcher, die dabei &bdquo;aufblinken&ldquo;, sind neu &ndash; typischer Anwendungsfall: <b>Referenz</b> direkt nach einer geschossenen Serie erneut auslösen, um die nächste Serie einzeln sichtbar zu machen. Während des Blinkens sind die Timer-Buttons gesperrt und dabei sichtbar ausgegraut. Der Video-aus-Knopf ist ebenfalls gesperrt, ändert dabei aber äußerlich nicht sein Aussehen &ndash; er sieht weiterhin normal aus, reagiert aber nicht auf Tippen. Zoom bleibt weiterhin bedienbar. <b>Stop</b> gibt Timer und Video-aus-Knopf wieder frei.</p>
+        <p>Das Bild wechselt sekündlich zwischen dem festgehaltenen Referenzbild und dem aktuellen Live-Bild. Löcher, die dabei &bdquo;aufblinken&ldquo;, sind neu &ndash; typischer Anwendungsfall: <b>Referenz</b> direkt nach einer geschossenen Serie erneut auslösen, um die nächste Serie einzeln sichtbar zu machen. Die Timer bleiben während des Blinkens bedienbar. Startet ein Timer, pausiert das Blinken für die Dauer des Timers und läuft danach mit derselben Referenz weiter &ndash; so lässt sich eine Referenz vor der Serie aufnehmen, und nach dem Timer blinken genau die Treffer dieser Serie. Der Video-aus-Knopf ist während des Blinkens gesperrt, ändert dabei aber äußerlich nicht sein Aussehen &ndash; er sieht weiterhin normal aus, reagiert aber nicht auf Tippen. Zoom bleibt weiterhin bedienbar. <b>Stop</b> beendet das Blinken und gibt den Video-aus-Knopf wieder frei.</p>
         <figure class="plate">
           <img src="screenshots/03_hauptbildschirm_blinken_aktiv.png" alt="Blinken-Modus aktiv">
-          <figcaption class="fig-note">Abb. 3 &ndash; Blinken aktiv: Start ausgegraut, Referenz/Stop aktiv &ndash; Zoom bleibt bedienbar, Timer gesperrt.</figcaption>
+          <figcaption class="fig-note">Abb. 3 &ndash; Blinken aktiv: Start ausgegraut, Referenz/Stop aktiv &ndash; Zoom und Timer bleiben bedienbar.</figcaption>
         </figure>
         </div>
 
@@ -427,7 +450,7 @@ footer{
         <h3 id="timer">Wettkampf-Timer im Detail</h3>
         <p><b>20&nbsp;Sek.</b> und <b>10&nbsp;Sek.</b> laufen nach demselben einfachen Muster ab: 7&nbsp;Sekunden roter Countdown zur Vorbereitung, dann grün für die Sichtzeit, anschließend kurz (3&nbsp;Sekunden) wieder rot als Stopp-Phase, danach automatisches Ende.</p>
         <p><b>5&nbsp;&times;&nbsp;3&nbsp;Sek.</b> beginnt ebenfalls mit der 7-Sekunden-Vorbereitungszeit in Rot, wiederholt danach aber fünfmal denselben Wechsel: 3&nbsp;Sekunden grün (Scheibe sichtbar, mit Countdown und Durchgangszähler), gefolgt von 7&nbsp;Sekunden rot (Scheibe verdeckt, ebenfalls mit Countdown und Durchgangszähler). Nach der fünften grünen Phase entfällt die 7-Sekunden-Pause: Es folgt direkt, genau wie bei den anderen beiden Varianten, die kurze (3 Sekunden) rote Stopp-Phase ohne Zahl, danach schaltet der Timer automatisch ab und die Scheibe ist sofort wieder zu sehen. Die ganze Serie dauert 53 Sekunden.</p>
-        <p>Während eines laufenden Timers wird kein Kamerabild angezeigt und Zoom/Blinken/Video-aus sind gesperrt.</p>
+        <p>Während eines laufenden Timers wird kein Kamerabild angezeigt und Zoom/Blinken/Video-aus sind gesperrt. War vor dem Start &bdquo;Blinken&ldquo; aktiv, läuft es nach dem Timer automatisch weiter (siehe &bdquo;Blinken&ldquo;-Vergleichsmodus im Detail).</p>
         <div class="plate-pair">
           <figure class="plate"><img src="screenshots/04_timer_vorbereitung_rot.png" alt="Timer Vorbereitungsphase, rot"><figcaption class="fig-note">Abb. 4 &ndash; Vorbereitungsphase (rot)</figcaption></figure>
           <figure class="plate"><img src="screenshots/05_timer_laeuft_gruen.png" alt="Timer läuft, grün"><figcaption class="fig-note">Abb. 5 &ndash; Sichtzeit läuft (grün)</figcaption></figure>

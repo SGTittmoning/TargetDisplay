@@ -35,6 +35,7 @@ from settings_store import (
 from transformlib import VIDEO_ZOOM_FACTOR, clamp_zoom_center
 from ui import (
     WIN_CLOSED,
+    blink_buttons,
     blink_disabled,
     set_icon_buttons,
     set_stand_name,
@@ -319,18 +320,16 @@ def main():
           # bewusst fuer alle drei Bedienwege einheitlich nutzbar: Crop wird
           # pro Frame nach der Referenz/Live-Auswahl angewendet, betrifft
           # also beide Zoom-Zustaende gleich, funktioniert also einwandfrei
-          # waehrend des Blinkens.
-          timer_disabled(True)
+          # waehrend des Blinkens. Die Timer bleiben ebenfalls startbar
+          # (siehe Timer-Start unten).
           video_filter_disabled(True)
-          set_icon_buttons(('-BLINK_START-',), False)
-          set_icon_buttons(('-BLINK_STOP-', '-BLINK_REF-'), True)
+          blink_buttons(True)
           blink_ref = []
           blink = True
         elif event == '-BLINK_REF-':
           blink_ref = []
           blink = True
         elif event == '-BLINK_STOP-':
-          timer_disabled(False)
           blink_disabled(False)
           video_filter_disabled(False)
           blink_ref = []
@@ -338,6 +337,9 @@ def main():
         elif event in ('-TIMER_5_3_7-', '-TIMER_20-', '-TIMER_10-'):
           # Alle drei Timer-Varianten starten identisch - nur timerType
           # (=event) unterscheidet, welcher Ablauf (timerlib) gerendert wird.
+          # Ein laufendes Blinken pausiert nur: blink und blink_ref bleiben
+          # unveraendert, nach dem Timer blinkt das Bild mit der Referenz von
+          # vor der Serie weiter und zeigt so die Treffer der Serie.
           zoom_disabled(True)
           sync_reset_button(zoom_level, zoom_center, globally_disabled=True)
           blink_disabled(True)
@@ -352,8 +354,10 @@ def main():
         elif event == '-TIMER_STOP-':
           zoom_disabled(False)
           sync_reset_button(zoom_level, zoom_center)
-          blink_disabled(False)
-          video_filter_disabled(False)
+          blink_buttons(blink)
+          # Video aus bleibt gesperrt, solange Blinken weiterlaeuft - wie
+          # nach -BLINK_START-.
+          video_filter_disabled(blink)
           displayTimer = False
           displayVideo = True
           video_resumed_at = time.monotonic()
