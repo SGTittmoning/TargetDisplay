@@ -224,7 +224,15 @@ footer{
       content: "Seite " counter(page) " von " counter(pages);
       font-family: "IBM Plex Mono", monospace; font-size: 9px; color: #6b6355;
     }
+    @bottom-left {
+      content: string(handbook-footer);
+      font-family: "IBM Plex Mono", monospace; font-size: 9px; color: #6b6355;
+    }
   }
+  /* Die Schlusszeile steht im Druck in der Fusszeile jeder Seite statt am
+     Ende des Textflusses - dort landete sie sonst allein auf einer eigenen
+     letzten Seite. */
+  footer { string-set: handbook-footer content(text); height: 0; overflow: hidden; margin: 0; padding: 0; border: 0; }
   * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
   body { font-size: 12.5px; }
   .intro { font-size: 14.5px; }
@@ -247,10 +255,25 @@ footer{
   .plate-pair { break-inside: avoid; page-break-inside: avoid; }
   .legend > li { break-inside: avoid; page-break-inside: avoid; }
   .callout { break-inside: avoid; page-break-inside: avoid; }
+  /* Eine Legende (nummerierte Bedienelemente) bleibt am Stueck und bei der
+     Abbildung bzw. Ueberschrift davor; ein Hinweis bleibt beim Inhalt, auf
+     den er sich bezieht. */
+  .legend { break-inside: avoid; page-break-inside: avoid; }
+  .grp + .legend, figure.plate + .legend { break-before: avoid; page-break-before: avoid; }
+  .legend + .callout { break-before: avoid; page-break-before: avoid; }
+  /* Tabellen: nicht trennen; ist eine laenger als eine Seite, wiederholt
+     sich die Kopfzeile und keine Zeile wird geteilt. */
+  table { break-inside: avoid; page-break-inside: avoid; }
+  thead { display: table-header-group; }
+  tr { break-inside: avoid; page-break-inside: avoid; }
   .lock-badge { break-after: avoid; page-break-after: avoid; }
   .notes-page .writeline { break-inside: avoid; page-break-inside: avoid; }
   a { color: inherit; text-decoration: none; }
   img { max-width: 100%; }
+  /* Screenshots im Druck in der Hoehe begrenzt, damit Abbildung und
+     zugehoerige Legende auf eine Seite passen. */
+  figure.plate img { max-height: 88mm; width: auto; display: block; margin: 0 auto; }
+  section.restricted figure.plate img { max-height: 52mm; }
   /* Verhindert, dass ein Absatz mitten im Satz getrennt wird - erzwingt
      mindestens 3 Zeilen vor/nach einem Seitenumbruch innerhalb eines
      Absatzes (sonst wandert der ganze Absatz auf die naechste Seite). */
