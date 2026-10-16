@@ -246,7 +246,8 @@ class Window:
                              muted_bg, muted_fg, icon_on=None, icon_off=None,
                              start_enabled=True, font=('Helvetica', 15, 'bold')):
         # Gemeinsamer Baustein fuer alle farbcodierten Hauptbildschirm-Buttons
-        # (Zoom/Blinken/Timer, inkl. des reinen Text-Buttons "Timer Stop").
+        # (Zoom/Blinken/Timer, inkl. der reinen Text-Buttons "Timer Stop", "Replay"
+        # und "Replay Ende").
         # Der Button bleibt bewusst IMMER state=NORMAL - "deaktiviert" wird
         # rein optisch (Muted-Flaeche/-Icon) UND funktional (command wird zu
         # einem No-Op statt self.post(key), s.u.) simuliert, nie ueber Tks
@@ -264,7 +265,7 @@ class Window:
         command = real_command if start_enabled else (lambda: None)
 
         if icon is None:
-            # Reiner Text-Button (aktuell nur "Timer Stop") - keine
+            # Reiner Text-Button ("Timer Stop" und die Replay-Buttons) - keine
             # Compound-Bild/Text-Problematik (siehe unten), unveraendert
             # ein einzelnes tk.Button-Widget.
             b = tk.Button(parent, text=text, bg=bg, fg=fg,
@@ -603,19 +604,26 @@ class Window:
         for b in (b1, b2, b3):
             b.config(height=BTN_HEIGHT)
         pack_equal([b1, b2, b3])
-        # Ohne image= interpretiert Tk width/height eines Buttons als
-        # Text-ZEILEN/-ZEICHEN, nicht als Pixel (anders als bei den Icon-
-        # Buttons oben) - "Timer Stop" hat bewusst kein Icon (reiner Text-
-        # Button). Fuer eine exakte Pixelhoehe daher derselbe Kniff wie bei
-        # name_frame oben: feste Frame-Hoehe +
-        # pack_propagate(False), der Button selbst fuellt sie per fill='both'.
+        # Zweite Reihe: "Timer Stop" und die beiden Replay-Buttons (siehe
+        # replay.py) - "Replay" spielt die Aufnahme der letzten Serie
+        # (erneut) ab, "Replay Ende" kehrt zum Livebild zurueck. Ohne image=
+        # interpretiert Tk width/height eines Buttons als Text-ZEILEN/
+        # -ZEICHEN, nicht als Pixel (anders als bei den Icon-Buttons oben) -
+        # diese drei haben bewusst kein Icon. Fuer eine exakte Pixelhoehe
+        # daher eine feste Frame-Hoehe + grid_propagate(False), die Buttons
+        # fuellen sie per sticky='nsew' (pack_equal()).
         row2 = tk.Frame(timer_group, bg=BG, height=46)
         row2.pack(side='top', fill='x', pady=(BTN_GAP, 0))
-        row2.pack_propagate(False)
-        stop_btn = self._make_accent_button(row2, '-TIMER_STOP-', 'Timer Stop',
-                                             ACCENT_TIMER, 'white', ACCENT_TIMER_MUTED_BG, ACCENT_TIMER_MUTED_FG,
-                                             start_enabled=False, font=('Helvetica', 14, 'bold'))
-        stop_btn.pack(side='left', fill='both', expand=True)
+        row2.grid_propagate(False)
+        row2.grid_rowconfigure(0, weight=1)
+        row2_buttons = [
+            self._make_accent_button(row2, key, text,
+                                     ACCENT_TIMER, 'white', ACCENT_TIMER_MUTED_BG, ACCENT_TIMER_MUTED_FG,
+                                     start_enabled=False, font=('Helvetica', 14, 'bold'))
+            for key, text in (('-TIMER_STOP-', 'Timer Stop'), ('-REPLAY-', 'Replay'),
+                              ('-REPLAY_END-', 'Replay Ende'))
+        ]
+        pack_equal(row2_buttons)
 
         # -- Footer. Kein Sidebar-Logo: das Vereinswappen bleibt
         # ausschliesslich dem Blank-Screen-Wasserzeichen vorbehalten (siehe
@@ -875,6 +883,13 @@ def blink_buttons(active):
   # sind Referenz/Stop aktiv und Start gesperrt, sonst umgekehrt.
   set_icon_buttons(('-BLINK_START-',), not active)
   set_icon_buttons(('-BLINK_STOP-', '-BLINK_REF-'), active)
+
+
+def replay_buttons(available, active):
+  # "Replay" ist bedienbar, sobald eine Aufnahme vorliegt (auch waehrend des
+  # Replays, dann startet es von vorn), "Replay Ende" nur waehrend des Replays.
+  set_icon_buttons(('-REPLAY-',), available)
+  set_icon_buttons(('-REPLAY_END-',), active)
 
 
 def timer_disabled(disable):
