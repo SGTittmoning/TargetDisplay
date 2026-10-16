@@ -14,3 +14,9 @@ video:
   size:
     x: 600
     y: 600
+
+# Optional: replay of the green phases of a timer series. Both values have
+# built-in defaults (1.0 s, 600 MB) and may be omitted.
+replay:
+  latency_sec: 1.0   # camera stream delay; shifts the recording window (0-3 s)
+  budget_mb: 600     # RAM limit per recording; above it only every 2nd (4th, ...) frame is kept
