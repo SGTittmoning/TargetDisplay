@@ -61,3 +61,12 @@ def timer_state(timer_type, elapsed):
     if t < PREP_TIME + show + STOP_TIME:
         return TimerState('red', None, None, False)
     return _FINISHED
+
+
+def green_windows(timer_type):
+    """Gruenphasen als Liste von (Beginn, Ende) in Sekunden ab Timer-Start."""
+    if timer_type == TIMER_5_3_7:
+        cycle = SERIES_SHOW + SERIES_HIDE
+        return [(PREP_TIME + k * cycle, PREP_TIME + k * cycle + SERIES_SHOW)
+                for k in range(SERIES_LOOPS)]
+    return [(PREP_TIME, PREP_TIME + SINGLE_SHOW[timer_type])]
