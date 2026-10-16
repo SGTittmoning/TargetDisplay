@@ -176,3 +176,65 @@ def test_pin_abbrechen_waehrend_wartezeit(app, monkeypatch):
     ]
     run_app(app, steps, monkeypatch)
     assert time.monotonic() - started < 15
+
+
+
+class CountingCamera(FakeCamera):
+    """Liefert je Frame einen anderen Grauwert, damit Referenz- und Live-Bild
+    unterscheidbar sind."""
+
+    def getFrame(self, full=False):
+        self.last_frame_time = time.monotonic()
+        return np.full((700, 700, 3), self.frame_id % 200, np.uint8)
+
+
+def _button_states(monkeypatch, keys):
+    """Haelt beim Schliessen des Fensters fest, welche Buttons bedienbar sind."""
+    import ui
+    states = {}
+    real_close = ui.Window.close
+
+    def close(self):
+        for k in keys:
+            states[k] = self[k].widget.cget('bg') == self._btn_style[k]['bg_on']
+        real_close(self)
+
+    monkeypatch.setattr(ui.Window, 'close', close)
+    return states
+
+
+def _is_timer_frame(d):
+    return (d[100, 100] == (0, 0, 255)).all() or (d[100, 100] == (0, 255, 0)).all()
+
+
+def test_timer_waehrend_blinken(app, monkeypatch):
+    monkeypatch.setattr(app, 'Camera', CountingCamera)
+    keys = ('-BLINK_START-', '-BLINK_REF-', '-BLINK_STOP-', '-TIMER_10-', '-TIMER_STOP-')
+    states = _button_states(monkeypatch, keys)
+    steps = [
+        (1.0, '-BLINK_START-'),
+        (0.5, '-TIMER_10-'),      # Timer trotz Blinken startbar
+        (1.5, '-TIMER_STOP-'),
+        (2.5, '-FULL_VIDEO-'),
+    ]
+    draws = run_app(app, steps, monkeypatch)
+    timer_idx = [i for i, d in enumerate(draws) if _is_timer_frame(d)]
+    assert timer_idx, 'Timer wurde nicht angezeigt'
+    before = [int(d[300, 300, 0]) for d in draws[:timer_idx[0]]]
+    after = [int(d[300, 300, 0]) for d in draws[timer_idx[-1] + 1:]]
+    # Nach dem Timer blinkt das Bild mit der Referenz von VOR dem Timer
+    # weiter: ein Teil der Bilder ist aelter als der Timer-Start.
+    assert after and min(after) <= max(before)
+    assert max(after) > max(before)
+    # Blinken laeuft weiter, Timer wieder startbar
+    assert states['-BLINK_STOP-'] and states['-BLINK_REF-']
+    assert not states['-BLINK_START-']
+    assert states['-TIMER_10-'] and not states['-TIMER_STOP-']
+
+
+def test_timer_ohne_blinken_gibt_blinken_frei(app, monkeypatch):
+    keys = ('-BLINK_START-', '-BLINK_REF-', '-BLINK_STOP-')
+    states = _button_states(monkeypatch, keys)
+    run_app(app, [(1.0, '-TIMER_10-'), (1.0, '-TIMER_STOP-')], monkeypatch)
+    assert states['-BLINK_START-']
+    assert not states['-BLINK_REF-'] and not states['-BLINK_STOP-']
