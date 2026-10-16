@@ -11,7 +11,7 @@ Fullscreen kiosk display for a shooting-range target camera. Straightens out the
 
 - **Perspective correction** — a four-point transform turns an angled camera view into a straight top-down view, so the camera doesn't need to be mounted directly above the target
 - **Two zoom levels** — full target overview and a detail view, with click-and-hold panning while zoomed
-- **"Blink" compare mode** — alternates between a held reference frame and the live feed to make new shot holes easier to spot
+- **"Blink" compare mode** — alternates between a held reference frame and the live feed to make new shot holes easier to spot. A timer can be started while blinking: blinking pauses for the timer and then resumes with the same reference, so the shots of that series stand out
 - **Built-in competition timers** — e.g. a 5×(3s/7s) sequence, a 20s sequence, and a 10s sequence, with on-screen countdown
 - **PIN-gated in-app settings** — re-calibrate the four-point regions directly on the device (drag the corners on a live still image, with a magnifier for precise placement), switch which stand/camera the device shows, change the PIN, and trigger a device restart, all behind a numeric PIN so passers-by can't reach them
 - **Multi-stand aware** — a single install can serve any number of stands/camera locations; which one a given device shows is picked once, on the device itself, from a shared list rather than baked in per install (see [Configuration reference](#configuration-reference))
