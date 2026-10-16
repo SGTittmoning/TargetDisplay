@@ -1,0 +1,151 @@
+"""Aufnahme der Gruenphasen einer Timer-Serie und Wiedergabe als Replay.
+
+Gespeichert wird das rohe, auf den Scheibenbereich zugeschnittene Kamerabild
+(wie die Blink-Referenz), nicht das entzerrte Anzeigebild - so wirken Ganze
+Scheibe, Innen Scheibe und der manuelle Zoom im Replay genau wie live. Die
+Aufnahme liegt nur im RAM.
+"""
+from collections import namedtuple
+
+# Rotes Trennbild zwischen zwei Durchgaengen der Serie.
+SEPARATOR_SEC = 0.5
+
+# Kamerabilder kommen ueber RTMP verspaetet an. Die Aufnahme verschiebt die
+# Gruenfenster um diesen Wert, sonst fehlten die letzten Schuesse. Begrenzt
+# auf die rote Stopp-Phase nach dem letzten Durchgang (timerlib.STOP_TIME),
+# denn nur so lange laeuft der Timer noch und nimmt auf.
+DEFAULT_LATENCY_SEC = 1.0
+MAX_LATENCY_SEC = 3.0
+
+# Obergrenze fuer den RAM-Bedarf einer Aufnahme. Bei einem grossen
+# Scheibenausschnitt wird statt jedes Bildes nur jedes zweite (vierte, ...)
+# behalten, die Aufnahme deckt aber weiter die ganze Gruenphase ab.
+DEFAULT_BUDGET_MB = 600
+
+# kind: 'frame' oder 'separator'; segment: Index des Durchgangs (0-basiert);
+# offset: Sekunden seit Beginn des Durchgangs; frame: Rohbild oder None;
+# key: wechselt genau dann, wenn ein anderes Bild zu zeigen ist.
+ReplayView = namedtuple('ReplayView', 'kind segment offset frame key')
+
+
+class Recording:
+    def __init__(self, windows, latency=DEFAULT_LATENCY_SEC, budget_bytes=DEFAULT_BUDGET_MB * 1024 * 1024):
+        self.windows = list(windows)
+        self.latency = min(max(float(latency), 0.0), MAX_LATENCY_SEC)
+        self.budget_bytes = budget_bytes
+        # Je Durchgang eine Liste von (offset, frame), zeitlich aufsteigend.
+        self.segments = [[] for _ in self.windows]
+        self.bytes = 0
+        self.step = 1
+        self._offered = 0
+        # Spaetester Kamerazeitpunkt, den die Aufnahme gesehen hat (Sekunden
+        # ab Timer-Start, um die Verzoegerung bereinigt).
+        self._clock = None
+
+    def is_complete(self, elapsed):
+        """True, sobald `elapsed` (ab Timer-Start) hinter dem letzten Gruenfenster liegt."""
+        return elapsed - self.latency >= self.windows[-1][1]
+
+    def add(self, frame, elapsed):
+        """Nimmt ein Kamerabild auf, das `elapsed` Sekunden nach Timer-Start ankam.
+
+        Liefert True, wenn das Bild gespeichert wurde.
+        """
+        t = elapsed - self.latency
+        self._clock = t if self._clock is None else max(self._clock, t)
+        for i, (start, end) in enumerate(self.windows):
+            if start <= t < end:
+                break
+        else:
+            return False
+        self._offered += 1
+        if (self._offered - 1) % self.step:
+            return False
+        while self.bytes + frame.nbytes > self.budget_bytes and self.bytes > 0:
+            self._thin()
+            if (self._offered - 1) % self.step:
+                return False
+        if self.bytes + frame.nbytes > self.budget_bytes:
+            return False
+        self.segments[i].append((t - start, frame))
+        self.bytes += frame.nbytes
+        return True
+
+    def _thin(self):
+        # Jedes zweite Bild verwerfen und kuenftig nur noch jedes zweite
+        # (bzw. vierte, ...) annehmen.
+        self.step *= 2
+        for k, seg in enumerate(self.segments):
+            self.segments[k] = seg[::2]
+        self.bytes = sum(f.nbytes for seg in self.segments for _, f in seg)
+
+    def has_frames(self):
+        return any(self.segments)
+
+    def frame_count(self):
+        return sum(len(seg) for seg in self.segments)
+
+    def _segment_lengths(self):
+        # Vollstaendig vergangene Durchgaenge zaehlen mit ihrer vollen Dauer.
+        # Wurde der Timer mitten in einem Durchgang gestoppt, endet dieser
+        # mit seinem letzten Bild. Durchgaenge ohne jedes Bild am Ende fallen
+        # weg.
+        lengths = []
+        for (start, end), seg in zip(self.windows, self.segments):
+            if self._clock is not None and self._clock >= end:
+                lengths.append(end - start)
+            elif seg:
+                lengths.append(seg[-1][0])
+            else:
+                lengths.append(0.0)
+        while lengths and not self.segments[len(lengths) - 1]:
+            lengths.pop()
+        return lengths
+
+    def duration(self):
+        lengths = self._segment_lengths()
+        if not lengths:
+            return 0.0
+        return sum(lengths) + SEPARATOR_SEC * (len(lengths) - 1)
+
+    def view(self, position):
+        """Was zur Abspielzeit `position` (Sekunden) zu zeigen ist.
+
+        Nach dem Ende bleibt das letzte Bild stehen.
+        """
+        lengths = self._segment_lengths()
+        if not lengths:
+            return None
+        position = min(max(position, 0.0), self.duration())
+        for i, length in enumerate(lengths):
+            if i > 0:
+                if position < SEPARATOR_SEC:
+                    return ReplayView('separator', i, 0.0, None, ('sep', i))
+                position -= SEPARATOR_SEC
+            if position < length or i == len(lengths) - 1:
+                offset = min(position, length)
+                return self._frame_view(i, offset)
+            position -= length
+        return None  # pragma: no cover
+
+    def _frame_view(self, segment, offset):
+        seg = self.segments[segment]
+        if not seg:
+            return ReplayView('frame', segment, offset, None, ('none', segment))
+        # Spaetestes Bild, das zum Zeitpunkt `offset` schon aufgenommen war,
+        # vor dem ersten Bild das erste.
+        idx = 0
+        for k, (t, _) in enumerate(seg):
+            if t <= offset:
+                idx = k
+            else:
+                break
+        return ReplayView('frame', segment, offset, seg[idx][1], ('frame', segment, idx))
+
+
+def counter_text(view, segment_total):
+    """Zaehler fuer die Replay-Anzeige, Zehntelsekunden mit Dezimalkomma."""
+    seconds = f'{view.offset:.1f}'.replace('.', ',') + ' s'
+    if segment_total > 1:
+        return f'Durchgang {view.segment + 1}/{segment_total}  {seconds}'
+    return seconds
