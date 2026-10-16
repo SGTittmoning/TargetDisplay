@@ -8,7 +8,7 @@ def colors(timer_type):
 
 
 def test_gesamtdauer():
-    assert t.total_seconds(t.TIMER_5_3_7) == 60
+    assert t.total_seconds(t.TIMER_5_3_7) == 53
     assert t.total_seconds(t.TIMER_20) == 30
     assert t.total_seconds(t.TIMER_10) == 20
 
@@ -23,16 +23,16 @@ def test_serie_ablauf():
     assert s(t.TIMER_5_3_7, 16) == ('red', 1, 1, False)
     assert s(t.TIMER_5_3_7, 17) == ('green', 2, 3, False)
     assert s(t.TIMER_5_3_7, 47) == ('green', 5, 3, False)
-    assert s(t.TIMER_5_3_7, 50) == ('red', 5, 7, False)
-    assert s(t.TIMER_5_3_7, 56) == ('red', 5, 1, False)
-    # Stopp-Phase nach dem letzten Durchgang
-    assert s(t.TIMER_5_3_7, 57) == ('red', None, None, False)
-    assert s(t.TIMER_5_3_7, 59) == ('red', None, None, False)
-    assert s(t.TIMER_5_3_7, 60).finished
+    assert s(t.TIMER_5_3_7, 40) == ('red', 4, 7, False)
+    assert s(t.TIMER_5_3_7, 49) == ('green', 5, 1, False)
+    # Nach dem letzten Gruen keine 7-s-Pause, direkt die Stopp-Phase
+    assert s(t.TIMER_5_3_7, 50) == ('red', None, None, False)
+    assert s(t.TIMER_5_3_7, 52) == ('red', None, None, False)
+    assert s(t.TIMER_5_3_7, 53).finished
 
 
 def test_serie_hat_fuenf_gruene_phasen():
-    seq = [t.timer_state(t.TIMER_5_3_7, s) for s in range(60)]
+    seq = [t.timer_state(t.TIMER_5_3_7, s) for s in range(53)]
     assert sorted({x.number for x in seq if x.number}) == [1, 2, 3, 4, 5]
     assert sum(1 for x in seq if x.color == 'green') == 15
 
