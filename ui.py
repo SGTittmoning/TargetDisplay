@@ -870,6 +870,13 @@ def blink_disabled(disable):
   set_icon_buttons(('-BLINK_STOP-', '-BLINK_REF-'), False)
 
 
+def blink_buttons(active):
+  # Bedienbare Blinken-Buttons passend zum Blinkzustand: laeuft Blinken,
+  # sind Referenz/Stop aktiv und Start gesperrt, sonst umgekehrt.
+  set_icon_buttons(('-BLINK_START-',), not active)
+  set_icon_buttons(('-BLINK_STOP-', '-BLINK_REF-'), active)
+
+
 def timer_disabled(disable):
   set_icon_buttons(('-TIMER_5_3_7-', '-TIMER_20-', '-TIMER_10-'), not disable)
   set_icon_buttons(('-TIMER_STOP-',), False)
