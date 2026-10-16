@@ -6,7 +6,7 @@
 
 TargetDisplay ist die Bildschirmanzeige an den Schießständen unseres Vereins. Eine Kamera blickt schräg auf die Zielscheibe, und die App rechnet dieses Bild automatisch so um, dass die Scheibe gerade von oben zu sehen ist – so, als würde man direkt davorstehen. Das Gerät läuft auf einem kleinen Touchscreen-Computer direkt am Stand und wird ausschließlich mit dem Finger bedient, eine Maus oder Tastatur wird nicht benötigt.
 
-Neben der reinen Live-Ansicht der Scheibe bietet TargetDisplay ein paar Werkzeuge, die den Trainings- und Wettkampfbetrieb erleichtern: zwei Zoomstufen (ganze Scheibe oder ein vergrößerter Innenbereich), einen „Blinken“-Vergleichsmodus, der zwischen einem gemerkten Referenzbild und dem aktuellen Live-Bild hin- und herschaltet (praktisch, um neue Einschusslöcher zu erkennen), sowie mehrere eingebaute Wettkampf-Timer mit Countdown-Anzeige. Ein kleiner, durch eine PIN geschützter Einstellungsbereich erlaubt es Standaufsichten außerdem, das Gerät bei Bedarf direkt am Stand neu zu kalibrieren oder umzukonfigurieren.
+Neben der reinen Live-Ansicht der Scheibe bietet TargetDisplay ein paar Werkzeuge, die den Trainings- und Wettkampfbetrieb erleichtern: zwei Zoomstufen (ganze Scheibe oder ein vergrößerter Innenbereich), einen „Blinken“-Vergleichsmodus, der zwischen einem gemerkten Referenzbild und dem aktuellen Live-Bild hin- und herschaltet (praktisch, um neue Einschusslöcher zu erkennen), sowie mehrere eingebaute Wettkampf-Timer mit Countdown-Anzeige, deren Sichtzeiten sich anschließend als Replay ansehen lassen. Ein kleiner, durch eine PIN geschützter Einstellungsbereich erlaubt es Standaufsichten außerdem, das Gerät bei Bedarf direkt am Stand neu zu kalibrieren oder umzukonfigurieren.
 
 Dieses Handbuch beschreibt zunächst die Bedienelemente für den täglichen Gebrauch (Kapitel 2), die für alle Vereinsmitglieder gedacht sind. Kapitel 3 behandelt den PIN-geschützten Administrativen Bereich, der sich an Standaufsichten richtet.
 
@@ -25,7 +25,7 @@ Die Nummerierung startet in jeder Gruppe neu bei 1 – gemeint ist immer die Pos
 **Kopfzeile (oben)**
 
 1. **Standname** (oben links, z. B. „Stand 1“) – zeigt an, welcher Schießstand gerade angezeigt wird. Rein informativ, kein Bedienelement.
-2. **Video-aus-Symbol** (Auge mit Schrägstrich, oben rechts, linkes der beiden kleinen Symbole) – blendet das Kamerabild aus und zeigt stattdessen das Vereinswappen auf schwarzem Grund (siehe Abschnitt „Video aus“ im Detail unten). Ein erneuter Klick schaltet das Bild wieder ein. Solange das Bild ausgeblendet ist, sind Zoom, Blinken und Timer nicht bedienbar.
+2. **Video-aus-Symbol** (Auge mit Schrägstrich, oben rechts, linkes der beiden kleinen Symbole) – blendet das Kamerabild aus und zeigt stattdessen das Vereinswappen auf schwarzem Grund (siehe Abschnitt „Video aus“ im Detail unten). Ein erneuter Klick schaltet das Bild wieder ein. Solange das Bild ausgeblendet ist, sind Zoom, Blinken, Timer und Replay nicht bedienbar.
 3. **Einstellungen-Symbol** (Zahnrad mit Schloss, oben rechts, rechtes der beiden kleinen Symbole) – öffnet den PIN-geschützten Administrativen Bereich, siehe Kapitel 3.
 
 **Gruppe „Zoom“ (blau)**
@@ -41,12 +41,14 @@ Die Nummerierung startet in jeder Gruppe neu bei 1 – gemeint ist immer die Pos
 2. **Referenz** – nimmt eine neue Referenzaufnahme auf, ohne den Blinken-Modus zu verlassen.
 3. **Stop** – beendet das Blinken, es wird wieder ausschließlich das Live-Bild gezeigt.
 
-**Gruppe „Timer“ (rot)** – eingebaute Wettkampf-Countdowns, Details siehe Abschnitt 2.3 unten.
+**Gruppe „Timer“ (rot)** – eingebaute Wettkampf-Countdowns und das Replay, Details siehe Abschnitte 2.3 und 2.4 unten.
 
 1. **5 x 3 Sek.** – fünf Durchgänge im Wechsel, Scheibe 3 Sekunden sichtbar, 7 Sekunden verdeckt.
 2. **20 Sek.** – eine einzelne Zeitscheibe von 20 Sekunden.
 3. **10 Sek.** – eine einzelne Zeitscheibe von 10 Sekunden.
 4. **Timer Stop** – bricht einen laufenden Timer vorzeitig ab. Nur während eines laufenden Timers farbig/aktiv.
+5. **Replay** – spielt die aufgezeichneten Sichtzeiten des letzten Timers ab, erneutes Tippen startet es von vorn. Farbig/aktiv, sobald eine Aufnahme vorliegt.
+6. **Replay Ende** – beendet das Replay und kehrt zum Live-Bild zurück. Die Aufnahme bleibt erhalten. Nur während des Replays farbig/aktiv.
 
 **Fußbereich (unten)**
 
@@ -77,7 +79,7 @@ Das Bild wechselt sekündlich zwischen dem festgehaltenen Referenzbild und dem a
 
 **5 x 3 Sek.** beginnt ebenfalls mit der 7-Sekunden-Vorbereitungszeit in Rot, wiederholt danach aber fünfmal denselben Wechsel: 3 Sekunden **grün** (Scheibe sichtbar, mit Countdown und Durchgangszähler), gefolgt von 7 Sekunden **rot** (Scheibe verdeckt, ebenfalls mit Countdown und Durchgangszähler). Nach der fünften grünen Phase entfällt die 7-Sekunden-Pause: Es folgt direkt, genau wie bei den anderen beiden Varianten, die kurze (3 Sekunden) rote Stopp-Phase ohne Zahl, danach schaltet der Timer automatisch ab und die Scheibe ist sofort wieder zu sehen. Die ganze Serie dauert 53 Sekunden.
 
-Während eines laufenden Timers wird kein Kamerabild angezeigt und Zoom/Blinken/Video-aus sind gesperrt. War vor dem Start „Blinken“ aktiv, läuft es nach dem Timer automatisch weiter (siehe Abschnitt 2.2).
+Während eines laufenden Timers wird kein Kamerabild angezeigt und Zoom/Blinken/Video-aus sind gesperrt. War vor dem Start „Blinken“ aktiv, läuft es nach dem Timer automatisch weiter (siehe Abschnitt 2.2). Die grünen Phasen werden dabei für das Replay aufgezeichnet (siehe Abschnitt 2.4).
 
 ![Timer – Vorbereitungsphase (rot)](screenshots/04_timer_vorbereitung_rot.png)
 
@@ -87,7 +89,22 @@ Während eines laufenden Timers wird kein Kamerabild angezeigt und Zoom/Blinken/
 
 **Abb. 5:** Sichtzeit läuft (grün).
 
-### 2.4 „Video aus“ im Detail
+### 2.4 Replay im Detail
+
+Während jedes Timers zeichnet das Gerät die grünen Phasen (Sichtzeiten) im Hintergrund auf: bei **5 x 3 Sek.** die fünf Durchgänge, bei **20 Sek.** und **10 Sek.** die eine Sichtzeit. Die Aufnahme liegt nur im Arbeitsspeicher und wird nirgends gespeichert.
+
+- **Replay** spielt die Aufnahme in Echtzeit ab. Erneutes Tippen startet sie wieder von vorn, beliebig oft. Am Ende bleibt das letzte Bild stehen.
+- **Replay Ende** kehrt zum Live-Bild zurück. Die Aufnahme bleibt erhalten und lässt sich später erneut abspielen.
+- Das Replay ist deutlich gekennzeichnet: violetter Rahmen, „REPLAY“ oben links und oben rechts ein Zähler in Zehntelsekunden, der in jeder Sichtzeit bei 0,0 beginnt (z. B. „7,3 s“, bei 5 x 3 „Durchgang 2/5  1,4 s“).
+- Bei **5 x 3 Sek.** werden die roten Phasen übersprungen. Zwischen zwei Durchgängen erscheint für eine halbe Sekunde ein rotes Trennbild „Durchgang 2/5“ usw.
+- Alle Zoomfunktionen (Ganze Scheibe, Innen Scheibe, Tippen ins Bild, Reset) wirken im Replay wie im Live-Bild.
+- Blinken, Timer und Video aus sind während des Replays gesperrt. Ein aktives Blinken läuft nach **Replay Ende** mit derselben Referenz weiter.
+- Die Aufnahme wird erst beim Start des nächsten Timers verworfen und durch die neue ersetzt. Ein Neustart des Geräts löscht sie ebenfalls.
+- Wird ein Timer mit **Timer Stop** vorzeitig beendet, lässt sich das bis dahin Aufgezeichnete abspielen.
+- **Replay** ist gesperrt, solange keine Aufnahme vorliegt, während eines Timers und bei ausgeblendetem Video.
+- Fiel die Kamera während der Aufnahme aus, zeigt das Replay an dieser Stelle „kein Bild“.
+
+### 2.5 „Video aus“ im Detail
 
 Ein Klick auf das Augen-Symbol in der Kopfzeile (Punkt 2) blendet das Kamerabild aus und zeigt stattdessen das Vereinswappen auf schwarzem Grund – etwa wenn zwischen zwei Trainingseinheiten niemand am Stand ist. Die Uhrzeit/Datumsanzeige läuft normal weiter. Das Symbol wechselt dabei auf ein Auge ohne Schrägstrich; ein erneuter Klick darauf schaltet das Live-Bild wieder ein.
 
