@@ -46,3 +46,49 @@ def draw_timer_countdown(frame, seconds_left):
     x = (frame.shape[1] - tw) // 2
     y = (frame.shape[0] + th) // 2
     cv2.putText(frame, text, (x, y), font, font_scale, (0, 0, 0), thickness, cv2.LINE_AA)
+
+
+# Kennfarbe des Replays (BGR): violett, um nicht mit den Timer-Farben
+# Gruen/Rot oder den Akzentfarben der Bediengruppen verwechselt zu werden.
+REPLAY_COLOR = (179, 75, 123)
+REPLAY_BORDER = 10
+
+
+def _label(frame, text, anchor_right, font_scale=0.9, thickness=2):
+    font = cv2.FONT_HERSHEY_SIMPLEX
+    (tw, th), base = cv2.getTextSize(text, font, font_scale, thickness)
+    pad = 8
+    y0 = REPLAY_BORDER
+    x0 = frame.shape[1] - REPLAY_BORDER - tw - 2 * pad if anchor_right else REPLAY_BORDER
+    cv2.rectangle(frame, (x0, y0), (x0 + tw + 2 * pad, y0 + th + base + 2 * pad), REPLAY_COLOR, -1)
+    cv2.putText(frame, text, (x0 + pad, y0 + pad + th), font, font_scale, (255, 255, 255), thickness, cv2.LINE_AA)
+
+
+def draw_replay_marker(frame, counter):
+    # Rahmen, "REPLAY" oben links und der Zaehler oben rechts. Wird nach dem
+    # Zoom gezeichnet und bleibt deshalb bei jeder Zoomstufe gleich gross.
+    h, w = frame.shape[:2]
+    cv2.rectangle(frame, (0, 0), (w - 1, h - 1), REPLAY_COLOR, 2 * REPLAY_BORDER)
+    _label(frame, 'REPLAY', anchor_right=False)
+    _label(frame, counter, anchor_right=True)
+    return frame
+
+
+def replay_separator(size, text):
+    # Rotes Trennbild zwischen zwei Durchgaengen, Schrift wie beim Timer.
+    frame = np.zeros((size[1], size[0], 3), np.uint8)
+    frame[:] = (0, 0, 255)
+    font = cv2.FONT_HERSHEY_SIMPLEX
+    (tw, th), _ = cv2.getTextSize(text, font, 2, 5)
+    cv2.putText(frame, text, ((size[0] - tw) // 2, (size[1] + th) // 2), font, 2, (0, 0, 0), 5, cv2.LINE_AA)
+    return frame
+
+
+def replay_no_frame(size):
+    # Durchgang ohne Kamerabild (Stream war waehrend der Aufnahme weg).
+    frame = np.zeros((size[1], size[0], 3), np.uint8)
+    font = cv2.FONT_HERSHEY_SIMPLEX
+    text = 'kein Bild'
+    (tw, th), _ = cv2.getTextSize(text, font, 1.5, 3)
+    cv2.putText(frame, text, ((size[0] - tw) // 2, (size[1] + th) // 2), font, 1.5, (200, 200, 200), 3, cv2.LINE_AA)
+    return frame
