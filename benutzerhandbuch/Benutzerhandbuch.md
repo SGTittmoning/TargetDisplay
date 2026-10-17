@@ -94,7 +94,7 @@ Während jedes Timers zeichnet das Gerät die grünen Phasen (Sichtzeiten) im Hi
 
 ![Replay](screenshots/06_replay.png)
 
-**Abb. 6:** Replay in der Zoomstufe „Innen Scheibe“: violetter Rahmen, „REPLAY“ und Zähler in Zehntelsekunden. Der Knopf heißt jetzt **Replay Ende**.
+**Abb. 6:** Replay in der Zoomstufe „Innen Scheibe“: violetter Rahmen, „REPLAY“ und Zähler in Zehntelsekunden. Der Knopf zeigt jetzt **Replay Ende**.
 
 - **Replay** spielt die Aufnahme in Echtzeit ab, beliebig oft. Zu Beginn erscheint eine Sekunde lang ein rotes Startbild mit dem Timer-Modus (z. B. „5 x 3 Sek.“). Am Ende erscheint eine Sekunde lang ein rotes Schlussbild, danach kehrt die Anzeige von selbst zum Live-Bild zurück.
 - Während des Replays heißt der Knopf **Replay Ende**. Er kehrt sofort zum Live-Bild zurück, ohne das Ende abzuwarten. Die Aufnahme bleibt erhalten und lässt sich später erneut abspielen.
