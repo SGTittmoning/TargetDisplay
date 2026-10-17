@@ -41,19 +41,7 @@ from settings_store import (
     save_sections_override,
 )
 from transformlib import VIDEO_ZOOM_FACTOR, clamp_zoom_center
-from ui import (
-    WIN_CLOSED,
-    blink_buttons,
-    blink_disabled,
-    replay_buttons,
-    set_icon_buttons,
-    set_stand_name,
-    show_page,
-    sync_reset_button,
-    timer_disabled,
-    video_filter_disabled,
-    zoom_disabled,
-)
+from ui import WIN_CLOSED, apply_controls, set_stand_name, show_page
 from watchdog import stale_check_due
 
 # Takt der Hauptschleife (Neuzeichnen, Timer, Uhr). Tasteneingaben wecken
@@ -216,6 +204,7 @@ class MainScreen:
         }
         for key in timerlib.TIMER_KEYS:
             self._handlers[key] = self.timer_start_clicked
+        self.update_controls()
 
     # -- Hilfen ------------------------------------------------------------
 
@@ -230,6 +219,19 @@ class MainScreen:
 
     def has_recording(self):
         return self.recording is not None and self.recording.has_frames()
+
+    def mode(self):
+        if self.replay_active:
+            return 'replay'
+        if self.display_timer:
+            return 'timer'
+        if not self.display_video:
+            return 'blank'
+        return 'live'
+
+    def update_controls(self):
+        apply_controls(self.mode(), blink=self.blink, zoom_level=self.zoom_level,
+                       zoom_center=self.zoom_center, has_recording=self.has_recording())
 
     # -- Stream-Ueberwachung -----------------------------------------------
 
@@ -258,32 +260,23 @@ class MainScreen:
     # -- Bedienereignisse --------------------------------------------------
 
     def handle(self, event, values):
+        # Die Handler aendern nur den Zustand; welche Buttons danach bedienbar
+        # sind, ergibt sich daraus an einer Stelle (update_controls).
         handler = self._handlers.get(event)
         if handler is not None:
             handler(event, values)
+            self.update_controls()
 
     def toggle_video(self, event, values):
         self.display_video = not self.display_video
         if self.display_video:
-            self.video_resumed_at = time.monotonic()
-            self.window['-TOGGLEVIDEO-'].widget.config(image=self.window._icon('eye_slash_neutral'))
             # frame_count/frame_timestamps laufen weiter, die FPS-Anzeige
             # pausiert nur (wie beim Timer).
-            zoom_disabled(False)
-            sync_reset_button(self.zoom_level, self.zoom_center)
-            blink_disabled(False)
-            timer_disabled(False)
-            replay_buttons(self.has_recording(), False)
+            self.video_resumed_at = time.monotonic()
         else:
-            self.window['-TOGGLEVIDEO-'].widget.config(image=self.window._icon('eye_neutral'))
             self.window.draw_image(blank_frame(self.video_size, self.blank_logo))
             # FPS-Anzeige nur leeren, die Zaehler bleiben (siehe oben).
             self.window_fps.update('')
-            zoom_disabled(True)
-            sync_reset_button(self.zoom_level, self.zoom_center, globally_disabled=True)
-            blink_disabled(True)
-            timer_disabled(True)
-            replay_buttons(False, False)
 
     def open_settings(self, event, values):
         if check_pin(self.settings_pin):
@@ -295,12 +288,10 @@ class MainScreen:
     def zoom_full(self, event, values):
         self.zoom_level = 'full'
         self.zoom_center = []
-        sync_reset_button(self.zoom_level, self.zoom_center)
 
     def zoom_detail(self, event, values):
         self.zoom_level = 'detail'
         self.zoom_center = []
-        sync_reset_button(self.zoom_level, self.zoom_center)
 
     def tap_video(self, event, values):
         x, y = values['-VIDEO-']
@@ -320,13 +311,10 @@ class MainScreen:
                 cy += PAN_STEP
             center = (cx, cy)
         self.zoom_center = clamp_zoom_center(center)
-        sync_reset_button(self.zoom_level, self.zoom_center)
 
     def blink_start(self, event, values):
         # Zoom bleibt bedienbar, er wirkt auf Referenz und Livebild gleich.
         # Die Timer bleiben startbar (siehe timer_start_clicked).
-        video_filter_disabled(True)
-        blink_buttons(True)
         self.blink_ref = []
         self.blink = True
 
@@ -335,8 +323,6 @@ class MainScreen:
         self.blink = True
 
     def blink_stop(self, event, values):
-        blink_disabled(False)
-        video_filter_disabled(False)
         self.blink_ref = []
         self.blink = False
 
@@ -346,13 +332,7 @@ class MainScreen:
         # Ein laufendes Blinken pausiert nur: blink und blink_ref bleiben
         # unveraendert, nach dem Timer blinkt das Bild mit der Referenz von
         # vor der Serie weiter und zeigt so die Treffer der Serie.
-        zoom_disabled(True)
-        sync_reset_button(self.zoom_level, self.zoom_center, globally_disabled=True)
-        blink_disabled(True)
-        video_filter_disabled(True)
         self.display_timer = True
-        set_icon_buttons(timerlib.TIMER_KEYS, False)
-        set_icon_buttons(('-TIMER_STOP-',), True)
         self.display_video = False
         self.timer_type = event
         self.timer_start = time.monotonic()
@@ -363,48 +343,29 @@ class MainScreen:
         self.recording = replay.Recording(timerlib.green_windows(event), self.replay_latency, self.replay_budget)
         self.replay_type = event
         self.last_rec_frame_id, _, _ = self.cap.snapshot()
-        replay_buttons(False, False)
 
     def timer_stop(self, event, values):
-        zoom_disabled(False)
-        sync_reset_button(self.zoom_level, self.zoom_center)
-        blink_buttons(self.blink)
-        # Video aus bleibt gesperrt, solange Blinken weiterlaeuft - wie
-        # nach -BLINK_START-.
-        video_filter_disabled(self.blink)
         self.display_timer = False
         self.display_video = True
         self.video_resumed_at = time.monotonic()
-        set_icon_buttons(timerlib.TIMER_KEYS, True)
-        set_icon_buttons(('-TIMER_STOP-',), False)
         if self.recording is not None:
             print(f"Replay-Aufnahme: {self.recording.frame_count()} Bilder, "
                   f"{self.recording.bytes / 1024 / 1024:.0f} MB, jedes {self.recording.step}. Bild", file=sys.stderr)
-        replay_buttons(self.has_recording(), False)
 
     def replay_start_clicked(self, event, values):
         # Startet das Replay von vorn. Waehrend des Replays sendet derselbe
-        # Button "-REPLAY_END-" (siehe ui.replay_buttons()). Zoom bleibt
-        # bedienbar, Blinken pausiert (Zustand und Referenz bleiben), Timer
-        # und Video aus sind gesperrt. Bei "Video aus" und waehrend eines
-        # Timers ist der Button gesperrt.
+        # Button "-REPLAY_END-". Blinken pausiert (Zustand und Referenz
+        # bleiben). Die Sperren stehen in ui.apply_controls(); die Pruefung
+        # hier faengt zusaetzlich ein Ereignis ab, das trotz Sperre ankommt.
         if self.has_recording() and self.display_video and not self.display_timer:
             self.replay_active = True
             self.replay_start = time.monotonic()
             self.last_replay_key = None
-            blink_disabled(True)
-            timer_disabled(True)
-            video_filter_disabled(True)
-            replay_buttons(True, True)
 
     def replay_end(self, event, values):
         # Zurueck zum Livebild. Die Aufnahme bleibt fuer ein weiteres Replay
         # erhalten.
         self.replay_active = False
-        blink_buttons(self.blink)
-        timer_disabled(False)
-        video_filter_disabled(self.blink)
-        replay_buttons(True, False)
         self.video_resumed_at = time.monotonic()
         self.last_frame_id = -1
 

@@ -667,35 +667,33 @@ def set_icon_buttons(keys, enabled):
                 c.config(bg=cfg['bg'])
 
 
-def zoom_disabled(disable):
-    set_icon_buttons(('-FULL_VIDEO-', '-DETAIL_VIDEO-'), not disable)
-    # Reset schaltet sync_reset_button(), weil er vom aktuellen Zoom abhaengt.
+def apply_controls(mode, blink=False, zoom_level='full', zoom_center=(), has_recording=False):
+    """Setzt alle Buttons des Hauptbildschirms passend zum Zustand.
+
+    mode: 'live' (Kamerabild), 'blank' (Video aus), 'timer' oder 'replay'.
+    Alle Sperren stehen hier an einer Stelle; main.py ruft das nach jedem
+    Bedienereignis auf.
+    """
+    live, replay = mode == 'live', mode == 'replay'
+    zoom = live or replay
+    set_icon_buttons(('-FULL_VIDEO-', '-DETAIL_VIDEO-'), zoom)
+    # Reset nur, wenn der Zoom vom Standard abweicht (Innen Scheibe oder
+    # manueller Ausschnitt).
+    set_icon_buttons(('-RESETZOOM-',), zoom and (zoom_level != 'full' or bool(zoom_center)))
+    # Blinken nur im Livebild; laeuft es, sind Referenz und Stop bedienbar
+    # statt Start. Die Timer bleiben auch beim Blinken startbar.
+    set_icon_buttons(('-BLINK_START-',), live and not blink)
+    set_icon_buttons(('-BLINK_REF-', '-BLINK_STOP-'), live and blink)
+    set_icon_buttons(timerlib.TIMER_KEYS, live)
+    set_icon_buttons(('-TIMER_STOP-',), mode == 'timer')
+    _replay_button(available=(live and has_recording) or replay, active=replay)
+    # Video aus: im Livebild (nicht beim Blinken), Video ein: bei Video aus.
+    _video_toggle(enabled=(live and not blink) or mode == 'blank', video_on=mode != 'blank')
 
 
-def sync_reset_button(zoom_level, zoom_center, globally_disabled=False):
-    # Reset ist nur bedienbar, wenn der Zoom vom Standard abweicht (Innen
-    # Scheibe oder manueller Ausschnitt). main() ruft dies nach jeder
-    # Zoom-Aenderung und beim Sperren und Entsperren des Zooms auf.
-    enabled = (not globally_disabled) and (zoom_level != 'full' or bool(zoom_center))
-    set_icon_buttons(('-RESETZOOM-',), enabled)
-
-
-def blink_disabled(disable):
-    set_icon_buttons(('-BLINK_START-',), not disable)
-    set_icon_buttons(('-BLINK_STOP-', '-BLINK_REF-'), False)
-
-
-def blink_buttons(active):
-    # Bedienbare Blinken-Buttons passend zum Blinkzustand: laeuft Blinken,
-    # sind Referenz/Stop aktiv und Start gesperrt, sonst umgekehrt.
-    set_icon_buttons(('-BLINK_START-',), not active)
-    set_icon_buttons(('-BLINK_STOP-', '-BLINK_REF-'), active)
-
-
-def replay_buttons(available, active):
-    # Ein Button fuer beides: bedienbar, sobald eine Aufnahme vorliegt. Ausser
-    # im Replay heisst er "Replay" (startet es), im Replay "Replay Ende"
-    # (zurueck zum Livebild).
+def _replay_button(available, active):
+    # Ein Button fuer beides: ausser im Replay "Replay" (startet es), im
+    # Replay "Replay Ende" (zurueck zum Livebild).
     st = window._btn_style['-REPLAY-']
     st['label'].config(text='Replay Ende' if active else 'Replay')
     st['icon_on'] = window._icon('exit_white' if active else 'play_white')
@@ -704,13 +702,11 @@ def replay_buttons(available, active):
     set_icon_buttons(('-REPLAY-',), available)
 
 
-def timer_disabled(disable):
-    set_icon_buttons(timerlib.TIMER_KEYS, not disable)
-    set_icon_buttons(('-TIMER_STOP-',), False)
-
-
-def video_filter_disabled(disable):
-    # Nicht ueber state=DISABLED, der Button hat ein Bild (siehe
-    # _make_accent_button()). Gesperrt ist er ueber ein command, das nichts tut.
+def _video_toggle(enabled, video_on):
+    # Das Symbol zeigt, was ein Klick bewirkt: Auge mit Schraegstrich bei
+    # laufendem Video. Gesperrt nicht ueber state=DISABLED (der Button hat ein
+    # Bild, siehe _make_accent_button()), sondern ueber ein command, das
+    # nichts tut.
     window['-TOGGLEVIDEO-'].widget.config(
-        command=(lambda: None) if disable else (lambda: window.post('-TOGGLEVIDEO-')))
+        image=window._icon('eye_slash_neutral' if video_on else 'eye_neutral'),
+        command=(lambda: window.post('-TOGGLEVIDEO-')) if enabled else (lambda: None))

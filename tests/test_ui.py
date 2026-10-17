@@ -26,24 +26,24 @@ def test_sperren_und_entsperren_verschiebt_keine_buttons(win):
     for key, style in win._btn_style.items():
         outer = style['containers'][1]
         outer.bind('<Configure>', lambda e, key=key: changes.append((key, e.height)), add='+')
-    for disable in (True, False, True, False):
-        ui.zoom_disabled(disable)
-        ui.sync_reset_button('full', [], globally_disabled=disable)
-        ui.blink_disabled(disable)
-        ui.timer_disabled(disable)
-        ui.replay_buttons(not disable, disable)
+    for mode in ('timer', 'live', 'replay', 'blank', 'live'):
+        ui.apply_controls(mode, has_recording=True)
         win.root.update()
     assert changes == []
+
+
+def drain(win):
+    events = []
+    while not win._queue.empty():
+        events.append(win._queue.get_nowait()[0])
+    return events
 
 
 def posted_by_click(win, widget):
     # Klick wie mit dem Finger auf genau dieses Widget.
     widget.event_generate('<Button-1>')
     win.root.update()
-    events = []
-    while not win._queue.empty():
-        events.append(win._queue.get_nowait()[0])
-    return events
+    return drain(win)
 
 
 @pytest.mark.parametrize('part', ['frame', 'inner', 'label', 'button'])
@@ -58,30 +58,57 @@ def test_klick_auf_die_ganze_flaeche_loest_aus(win, part):
         assert posted_by_click(win, widget) == ['-TIMER_10-']
 
 
-@pytest.mark.parametrize('lock, keys', [
-    (lambda: ui.zoom_disabled(True), ('-FULL_VIDEO-', '-DETAIL_VIDEO-')),
-    (lambda: ui.blink_disabled(True), ('-BLINK_START-', '-BLINK_REF-', '-BLINK_STOP-')),
-    (lambda: ui.timer_disabled(True), ('-TIMER_5_3_7-', '-TIMER_20-', '-TIMER_10-', '-TIMER_STOP-')),
-    (lambda: ui.replay_buttons(False, False), ('-REPLAY-',)),
-    (lambda: ui.video_filter_disabled(True), ('-TOGGLEVIDEO-',)),
-])
-def test_gesperrte_buttons_loesen_nichts_aus(win, lock, keys):
-    lock()
-    for key in keys:
+ALL = ('-FULL_VIDEO-', '-DETAIL_VIDEO-', '-RESETZOOM-', '-BLINK_START-', '-BLINK_REF-',
+       '-BLINK_STOP-', '-TIMER_5_3_7-', '-TIMER_20-', '-TIMER_10-', '-TIMER_STOP-',
+       '-REPLAY-', '-TOGGLEVIDEO-')
+ZOOM = ('-FULL_VIDEO-', '-DETAIL_VIDEO-')
+TIMERS = ('-TIMER_5_3_7-', '-TIMER_20-', '-TIMER_10-')
+
+
+def clicked(win):
+    # Welche Buttons loesen per Klick (Icon und Flaeche) ein Ereignis aus?
+    result = set()
+    for key in ALL:
         win[key].widget.invoke()
+        events = drain(win)
         if key in win._btn_style:
-            posted_by_click(win, win._btn_style[key]['containers'][1])
-    assert win._queue.empty()
+            events += posted_by_click(win, win._btn_style[key]['containers'][1])
+        if events:
+            result.add(key)
+    return result
+
+
+@pytest.mark.parametrize('state, expected', [
+    (dict(mode='live'), {*ZOOM, '-BLINK_START-', *TIMERS, '-TOGGLEVIDEO-'}),
+    (dict(mode='live', has_recording=True), {*ZOOM, '-BLINK_START-', *TIMERS, '-REPLAY-', '-TOGGLEVIDEO-'}),
+    (dict(mode='live', zoom_level='detail'), {*ZOOM, '-RESETZOOM-', '-BLINK_START-', *TIMERS, '-TOGGLEVIDEO-'}),
+    (dict(mode='live', zoom_center=(40, 50)), {*ZOOM, '-RESETZOOM-', '-BLINK_START-', *TIMERS, '-TOGGLEVIDEO-'}),
+    (dict(mode='live', blink=True), {*ZOOM, '-BLINK_REF-', '-BLINK_STOP-', *TIMERS}),
+    (dict(mode='blank', has_recording=True, zoom_level='detail'), {'-TOGGLEVIDEO-'}),
+    (dict(mode='timer', blink=True, zoom_level='detail'), {'-TIMER_STOP-'}),
+    (dict(mode='replay', blink=True, zoom_level='detail'), {*ZOOM, '-RESETZOOM-', '-REPLAY-'}),
+])
+def test_bedienbare_buttons_je_zustand(win, state, expected):
+    ui.apply_controls(**state)
+    assert clicked(win) == expected
 
 
 def test_replay_knopf_wechselt_zu_replay_ende(win):
-    ui.replay_buttons(True, True)
+    ui.apply_controls('replay')
     win['-REPLAY-'].widget.invoke()
     assert win._queue.get_nowait()[0] == '-REPLAY_END-'
     assert win._btn_style['-REPLAY-']['label'].cget('text') == 'Replay Ende'
-    ui.replay_buttons(True, False)
+    ui.apply_controls('live', has_recording=True)
     win['-REPLAY-'].widget.invoke()
     assert win._queue.get_nowait()[0] == '-REPLAY-'
+    assert win._btn_style['-REPLAY-']['label'].cget('text') == 'Replay'
+
+
+def test_video_symbol_zeigt_den_zustand(win):
+    ui.apply_controls('blank')
+    blank = str(win['-TOGGLEVIDEO-'].widget.cget('image'))
+    ui.apply_controls('live')
+    assert str(win['-TOGGLEVIDEO-'].widget.cget('image')) != blank
 
 
 def test_langer_standname_wird_gekuerzt(win):
