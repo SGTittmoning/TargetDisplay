@@ -1,13 +1,7 @@
 #!/bin/bash
 # Wartungs-Update-Zyklus fuer den TargetDisplay-Pi mit aktivem OverlayFS.
 #
-# OverlayFS (raspi-config) macht das Root-Dateisystem nur zur Boot-Zeit
-# beschreibbar/unbeschreibbar (Kernel-Cmdline-Parameter) - ein Toggle wirkt
-# erst nach einem Reboot. Die Boot-Partition (/boot/firmware) dagegen kann
-# live per remount umgeschaltet werden, die persistente fstab-Einstellung
-# (raspi-config disable_bootro/enable_bootro) verweigert aber die Arbeit,
-# solange das Root-Overlay live aktiv ist - deshalb der zweiphasige Ablauf
-# mit genau einem Zwischen-Reboot.
+# Mechanik, Statusdatei und gemeinsame Funktionen: targetdisplay-overlay-lib.sh.
 #
 # Nutzung:
 #   sudo targetdisplay-update.sh status   Aktuellen Zustand anzeigen
@@ -21,100 +15,16 @@
 #
 # Nach demselben Muster wie im oeffentlichen CamDisplay-Repo:
 # https://github.com/SGTittmoning/CamDisplay
-#
-# WICHTIG (siehe targetdisplay-reboot-guard.sh fuer Details): "[ cond ] &&
-# cmd" als LETZTE Anweisung einer Funktion liefert
-# unter "set -e" bei falschem cond Exit-Code 1 - und da write_state()/
-# clear_state() unten als blanke Anweisungen (nicht in if/||) aufgerufen
-# werden, bricht das den jeweiligen Aufrufer sofort ab, sobald die
-# Boot-Partition beim Aufruf NICHT bereits read-only ist. Besonders
-# kritisch bei clear_state() in cmd_apply(): das haette die abschliessenden
-# "Fertig, bitte final rebooten"-Hinweise verschluckt. Deshalb ueberall ein
-# abschliessendes "return 0".
 
 set -euo pipefail
 
-BOOT_DIR="/boot/firmware"
-# WICHTIG: State-Datei liegt bewusst auf der Boot-Partition, nicht unter
-# /var/lib (Root-Dateisystem)! Wenn OverlayFS beim Aufruf von 'begin' noch
-# aktiv ist, landet jeder Schreibzugriff auf das Root-FS im fluechtigen
-# tmpfs-Upper-Layer und ist nach dem noetigen Zwischen-Reboot wieder weg.
-# /boot/firmware wird vom Overlay nie erfasst (overlayroot behandelt vfat als
-# "fs-unsupported"), bleibt also ueber den Reboot hinweg garantiert
-# erhalten.
-STATE_FILE="$BOOT_DIR/.targetdisplay-update.state"
+STATE_FILE="/boot/firmware/.targetdisplay-update.state"
 
-overlay_now() { raspi-config nonint get_overlay_now; }   # 0=aktiv, 1=inaktiv
-bootro_now()  { raspi-config nonint get_bootro_now; }     # 0=aktiv, 1=inaktiv
-
-require_root() {
-  if [ "$(id -u)" -ne 0 ]; then
-    echo "Bitte mit sudo ausfuehren." >&2
-    exit 1
-  fi
-}
-
-write_state() {
-  local was_ro=0
-  [ "$(bootro_now)" -eq 0 ] && was_ro=1
-  [ "$was_ro" -eq 1 ] && mount -o remount,rw "$BOOT_DIR"
-  echo "$1" > "$STATE_FILE"
-  [ "$was_ro" -eq 1 ] && mount -o remount,ro "$BOOT_DIR"
-  return 0
-}
-
-clear_state() {
-  [ -f "$STATE_FILE" ] || return 0
-  local was_ro=0
-  [ "$(bootro_now)" -eq 0 ] && was_ro=1
-  [ "$was_ro" -eq 1 ] && mount -o remount,rw "$BOOT_DIR"
-  rm -f "$STATE_FILE"
-  [ "$was_ro" -eq 1 ] && mount -o remount,ro "$BOOT_DIR"
-  return 0
-}
-
-# Overlay aktivieren und sicherstellen, dass das von der Firmware geladene
-# initramfs den overlayroot-Hook wirklich enthaelt. "overlayroot=tmpfs" in der
-# Kommandozeile allein macht kein Overlay - den Mount erledigt ein Skript IM
-# initramfs. Ist /boot/firmware dabei schon read-only gemountet, erzeugt apt das
-# neue initrd zwar, der Kopierschritt nach /boot/firmware scheitert aber
-# lautlos; das Root-FS bleibt beschreibbar, get_overlay_now meldet trotzdem
-# "aktiv". Deshalb: Aufruf NUR bei live beschreibbarer Boot-Partition, danach
-# Hook pruefen und bei Bedarf neu erzeugen. Rueckgabe 1, wenn der Hook auch
-# danach fehlt (die Boot-Partition setzt der Aufrufer in jedem Fall zurueck).
-overlay_initramfs_missing() {
-  local f n out=""
-  command -v lsinitramfs >/dev/null 2>&1 || return 0
-  for f in "$BOOT_DIR"/initramfs*; do
-    [ -e "$f" ] || continue
-    n=$(lsinitramfs "$f" 2>/dev/null | grep -c overlayroot) || true
-    [ "${n:-0}" -gt 0 ] || out="$out $f"
-  done
-  echo "$out"
-}
-
-enable_overlay_checked() {
-  raspi-config nonint enable_overlayfs
-  if [ -n "$(overlay_initramfs_missing)" ]; then
-    echo "initramfs ohne overlayroot-Hook - erzeuge neu..."
-    update-initramfs -u -k all
-    if [ -n "$(overlay_initramfs_missing)" ]; then
-      echo "FEHLER: overlayroot-Hook fehlt in$(overlay_initramfs_missing) - das Overlay waere nach dem Reboot NICHT wirksam." >&2
-      return 1
-    fi
-  fi
-  return 0
-}
+# shellcheck source=targetdisplay-overlay-lib.sh
+. "$(dirname "$(readlink -f "$0")")/targetdisplay-overlay-lib.sh"
 
 print_status() {
-  echo "OverlayFS laut Kommandozeile: $([ "$(overlay_now)" -eq 0 ] && echo ja || echo nein)"
-  echo "Root-Dateisystem (Mount-Typ):   $(findmnt -n -o FSTYPE / 2>/dev/null || echo unbekannt)  (wirksam nur bei: overlay)"
-  echo "Boot-Partition read-only:    $([ "$(bootro_now)" -eq 0 ] && echo ja || echo nein)"
-  if [ -f "$STATE_FILE" ]; then
-    echo "Update-Zyklus-Status:         $(cat "$STATE_FILE")"
-  else
-    echo "Update-Zyklus-Status:         idle"
-  fi
+  print_overlay_status "Update-Zyklus-Status:         "
   if systemctl is-active --quiet targetdisplay.service; then
     echo "Hinweis: targetdisplay.service laeuft aktiv - waehrend der beiden Reboots ist die Scheiben-Anzeige kurz unterbrochen."
   fi
