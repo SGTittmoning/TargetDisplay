@@ -3,18 +3,10 @@ import numpy as np
 
 
 def compute_perspective_matrix(pts, dsize):
-    # Liefert die 3x3-Homographie-Matrix, die das per pts definierte Viereck
-    # (perspektivische Ansicht der flachen Scheibe) auf ein dsize-grosses
-    # Rechteck abbildet ("Keystone"-Entzerrung des Kamerawinkels - KEINE
-    # Fischauge-/Objektivverzeichnungs-Korrektur, dafuer braeuchte es eine
-    # eigene, radiale Entzerrung per cv2.undistort() mit einer per
-    # Schachbrett-Kalibrierung ermittelten Kamera-Matrix, die es hier nicht
-    # gibt). pts_full/pts_detail aendern sich zur Laufzeit nie (nur ein
-    # Neustart nach einer Settings-Aenderung setzt sie neu) - die Matrix wird
-    # deshalb bewusst einmalig in main() berechnet und pro Frame nur noch
-    # mit cv2.warpPerspective() angewendet - warpPerspective() skaliert direkt
-    # auf dsize mit, eine zusaetzliche separate cv2.resize()-Skalierung auf
-    # VideoSize ist damit nicht noetig.
+    # 3x3-Homographie, die das Viereck pts (schraeg gesehene Scheibe) auf ein
+    # Rechteck der Groesse dsize abbildet. Das korrigiert den Blickwinkel, nicht
+    # die Objektivverzeichnung. main() berechnet sie einmal, je Frame wird sie
+    # nur mit warpPerspective() angewendet.
     rect = order_points(pts)
     dst = np.array([
       [0, 0],
@@ -54,10 +46,9 @@ def is_valid_quad(pts, min_area = 100.0):
     return area >= min_area
 
 def crop_bounds(point_sets, margin):
-    # point_sets: Liste von Nx2-Punkt-Arrays (z.B. [pts_full, pts_detail])
-    # liefert (x0, y0, x1, y1) - x0/y0 nach unten auf 0 geclamped,
-    # x1/y1 werden vom Aufrufer/camera.py zur Laufzeit gegen die echte
-    # Framegroesse geclamped, da die hier oft noch nicht bekannt ist.
+    # Umschliessendes Rechteck (x0, y0, x1, y1) aller Punkte plus margin.
+    # x0/y0 werden auf 0 begrenzt, x1/y1 begrenzt camera.py gegen die echte
+    # Bildgroesse.
     all_pts = np.vstack(point_sets)
     min_xy = all_pts.min(axis=0)
     max_xy = all_pts.max(axis=0)
@@ -70,12 +61,12 @@ def crop_bounds(point_sets, margin):
 def crop(cv2Object, zoomSize, center):
     height, width = cv2Object.shape[0], cv2Object.shape[1]
 
-    # center is (x%, y%): x scales with width, y scales with height
+    # center ist (x %, y %) der Bildbreite bzw. -hoehe.
     center = int(width / 100 * center[0]), int(height / 100 * center[1])
-    # offset is the half-extent of the crop box: x-extent from width, y-extent from height
+    # offset ist die halbe Kantenlaenge des Ausschnitts.
     offset = int(width / (2*zoomSize)), int(height / (2*zoomSize))
 
-    # check if out of bound
+    # Ausschnitt innerhalb des Bilds halten.
     if offset[0] > center[0]:
         center = offset[0], center[1]
     if offset[1] > center[1]:
@@ -85,33 +76,23 @@ def crop(cv2Object, zoomSize, center):
     if offset[1] + center[1] > height:
         center = center[0], height - offset[1]
 
-    # The image/video frame is cropped to the center with a size of the original picture
-    # image[y1:y2,x1:x2] is used to iterate and grab a portion of an image
-    # (y1,x1) is the top left corner and (y2,x1) is the bottom right corner of new cropped frame.
+    # Ausschnitt um center herausschneiden (image[y1:y2, x1:x2]) und erst
+    # dann auf die Originalgroesse hochskalieren - billiger, als das ganze Bild
+    # zu vergroessern und das meiste zu verwerfen.
     cv2Object = cv2Object[center[1]-offset[1]:center[1] + offset[1], center[0]-offset[0]:center[0] + offset[0]]
-    # scale the small cropped window up to the target size now, instead of
-    # upscaling the whole frame first and immediately discarding most of it
     cv2Object = cv2.resize(cv2Object, (width, height))
     return cv2Object
 
-# Zoomfaktor fuer den manuellen Pan-per-Klick im Videobild (tl.crop() weiter
-# unten) - als Konstante herausgezogen, damit dieselbe Zahl auch fuer die
-# Grenzen von zoom_center (Prozent-Koordinaten) verwendet werden kann, siehe
-# clamp_zoom_center().
+# Zoomfaktor des manuellen Ausschnitts (Tippen ins Bild, siehe crop()).
+# clamp_zoom_center() braucht denselben Wert.
 VIDEO_ZOOM_FACTOR = 3
 
 
 def clamp_zoom_center(center, zoom_factor=VIDEO_ZOOM_FACTOR):
-    # zoom_center lebt in main() als (x%, y%) und muss hier explizit geclampt
-    # werden: tl.crop() clampt nur seine EIGENE, rein lokale Kopie in
-    # Pixelkoordinaten fuers Anzeigen, gibt den geclampten Wert aber nie an
-    # zoom_center in main() zurueck - ohne diesen Clamp koennte der Wert bei
-    # wiederholten Rand-Klicks beliebig weit ueber 100/unter 0 hinauswandern,
-    # sodass mehrere Klicks in die Gegenrichtung noetig waeren, bevor sich
-    # wieder sichtbar etwas bewegt. Die Grenze haengt nur von zoom_factor ab
-    # (nicht von der tatsaechlichen Bildgroesse: offset/width ist immer
-    # 1/(2*zoom_factor)), kann hier also unabhaengig von tl.crop() berechnet
-    # werden.
+    # Begrenzt zoom_center (x %, y %) dauerhaft. crop() begrenzt nur fuer die
+    # Anzeige; ohne diese Grenze wuerde zoom_center bei wiederholtem Tippen an
+    # den Rand immer weiter wandern, und der Rueckweg braeuchte entsprechend
+    # viele Tipps. Die Grenze haengt nur vom Zoomfaktor ab.
     lo = 100 / (2 * zoom_factor)
     hi = 100 - lo
     return (min(max(center[0], lo), hi), min(max(center[1], lo), hi))
