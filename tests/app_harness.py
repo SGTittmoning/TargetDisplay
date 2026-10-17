@@ -1,5 +1,6 @@
 """Gemeinsames Geruest der Oberflaechen-Tests: startet main.main() unter Xvfb
 mit einer Fake-Kamera und steuert die Oberflaeche ueber die Ereignis-Queue."""
+import contextlib
 import importlib
 import os
 import sys
@@ -170,10 +171,8 @@ def run_app(app, steps, monkeypatch, watchdog_sec=40, probes=None):
         guard.cancel()
         # Bei sys.exit() aus main() bleibt das Fenster offen.
         if ui.window is not None:
-            try:
+            with contextlib.suppress(tk.TclError):
                 ui.window.close()
-            except tk.TclError:
-                pass
         ui.window = None
     assert driver.error is None
     return draws

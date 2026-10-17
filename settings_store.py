@@ -1,3 +1,11 @@
+"""Einstellungen auf der Boot-Partition: Ausschnitte, Stand-Liste und
+-Auswahl, PIN.
+
+Alle Lesefunktionen fangen jeden Fehler ab (except Exception) und liefern
+dann "nicht eingerichtet" bzw. den Standard: eine kaputte oder unerwartete
+Datei darf die App nie zum Absturz bringen, der Assistent fragt den Schritt
+stattdessen neu ab.
+"""
 import json
 import os
 import subprocess
@@ -38,7 +46,7 @@ def load_sections(cfg):
     section_detail = cfg.get_property_with_default('video.section_detail', None)
     if os.path.exists(SECTIONS_OVERRIDE_FILE):
         try:
-            with open(SECTIONS_OVERRIDE_FILE) as f:
+            with open(SECTIONS_OVERRIDE_FILE, encoding='utf-8') as f:
                 override = json.load(f)
             section_full = override.get('section_full', section_full)
             section_detail = override.get('section_detail', section_detail)
@@ -88,7 +96,7 @@ def load_stands():
     if not os.path.exists(STANDS_FILE):
         return []
     try:
-        with open(STANDS_FILE) as f:
+        with open(STANDS_FILE, encoding='utf-8') as f:
             data = json.load(f)
         return [s for s in data.get('stands', []) if s.get('id') and s.get('displayName') and s.get('url')]
     except Exception as e:
@@ -106,7 +114,7 @@ def load_active_stand(stands, cfg):
     if not os.path.exists(ACTIVE_STAND_FILE):
         return fallback
     try:
-        with open(ACTIVE_STAND_FILE) as f:
+        with open(ACTIVE_STAND_FILE, encoding='utf-8') as f:
             active = json.load(f)
         stand_id = active.get('id')
         for s in stands:
@@ -137,7 +145,7 @@ def load_settings_pin(cfg):
     pin = cfg.get_property_with_default('settingsPin', DEFAULT_PIN)
     if os.path.exists(PIN_FILE):
         try:
-            with open(PIN_FILE) as f:
+            with open(PIN_FILE, encoding='utf-8') as f:
                 override = json.load(f)
             pin = override.get('pin', pin)
         except Exception as e:

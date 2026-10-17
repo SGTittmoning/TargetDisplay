@@ -144,11 +144,11 @@ def main():
 
     duration = times[-1] - times[0]
     fps = (len(times) - 1) / duration if duration > 0 else 0.0
-    with open(os.path.join(args.out, 'wechsel.csv'), 'w') as f:
+    with open(os.path.join(args.out, 'wechsel.csv'), 'w', encoding='utf-8') as f:
         f.write('ankunft_unix;nachkomma\n')
         for t in transitions:
             f.write(f'{t:.3f};{t % 1:.3f}\n')
-    with open(os.path.join(args.out, 'bilder.csv'), 'w') as f:
+    with open(os.path.join(args.out, 'bilder.csv'), 'w', encoding='utf-8') as f:
         f.write('ankunft_unix;score\n')
         for t, s in zip(times, score):
             f.write(f'{t:.3f};{s:.4f}\n')
