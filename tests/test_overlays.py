@@ -1,5 +1,6 @@
 import numpy as np
 
+import overlays as ov
 from overlays import blend_logo_centered
 
 
@@ -55,3 +56,20 @@ def test_replay_schlussbild_ganz_rot():
     from overlays import replay_separator
     frame = replay_separator((200, 100), '')
     assert (frame == [0, 0, 255]).all()
+
+
+def test_timer_bild_mit_durchgang_und_countdown():
+    import timerlib
+    green = ov.timer_frame((600, 400), timerlib.TimerState('green', 2, 3, False))
+    assert green.shape == (400, 600, 3)
+    assert tuple(green[390, 300]) == (0, 255, 0)
+    assert (green[30:140, 15:140] == 0).all(axis=2).any()   # Durchgangszahl
+    red = ov.timer_frame((600, 400), timerlib.TimerState('red', None, None, False))
+    assert (red == (0, 0, 255)).all()
+
+
+def test_video_aus_bild_ohne_und_mit_logo():
+    assert not ov.blank_frame((300, 200), None).any()
+    logo = np.full((50, 50, 4), 255, np.uint8)
+    with_logo = ov.blank_frame((300, 200), logo)
+    assert with_logo[100, 150].max() == 255 and not with_logo[0, 0].any()

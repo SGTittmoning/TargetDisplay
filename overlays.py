@@ -48,6 +48,25 @@ def draw_timer_countdown(frame, seconds_left):
     cv2.putText(frame, text, (x, y), font, font_scale, (0, 0, 0), thickness, cv2.LINE_AA)
 
 
+def timer_frame(size, state):
+    # Vollbild eines Timer-Zustands (timerlib.TimerState): gruen oder rot,
+    # oben links die Nummer des Durchgangs, in der Mitte der Countdown.
+    # numpy erwartet (Hoehe, Breite), size ist (Breite, Hoehe).
+    frame = np.zeros((size[1], size[0], 3), np.uint8)
+    frame[:] = (0, 255, 0) if state.color == 'green' else (0, 0, 255)
+    if state.number is not None:
+        cv2.putText(frame, str(state.number), (20, 130), cv2.FONT_HERSHEY_SIMPLEX, 5, (0, 0, 0), 10, cv2.LINE_AA)
+    if state.countdown is not None:
+        draw_timer_countdown(frame, state.countdown)
+    return frame
+
+
+def blank_frame(size, logo):
+    # "Video aus": schwarz, mit dem Logo als Wasserzeichen, falls vorhanden.
+    frame = np.zeros((size[1], size[0], 3), np.uint8)
+    return blend_logo_centered(frame, logo) if logo is not None else frame
+
+
 # Kennfarbe des Replays (BGR): violett, um nicht mit den Timer-Farben
 # Gruen/Rot oder den Akzentfarben der Bediengruppen verwechselt zu werden.
 REPLAY_COLOR = (179, 75, 123)
