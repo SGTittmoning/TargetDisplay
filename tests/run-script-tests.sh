@@ -258,6 +258,33 @@ reset; "$BIN/targetdisplay-nm-timesync.sh" eth0 dhcp4-change
 check "dhcp4-change: nichts" 0 "$(calls 'systemctl')"
 
 
+# ============================================ writable.sh / update.sh (Status, Ablauf)
+echo "writable.sh / update.sh: Status und Zwischen-Reboot (gemeinsame Bibliothek)"
+
+reset; out=$(OVERLAY=0 BOOTRO=0 "$BIN/targetdisplay-writable.sh" status 2>&1)
+check "writable status: Vorgang idle" 1 "$(echo "$out" | grep -c 'rw-Vorgang-Status:            idle')"
+check "writable status: Overlay laut Kommandozeile" 1 "$(echo "$out" | grep -c 'OverlayFS laut Kommandozeile: ja')"
+
+reset; OVERLAY=0 BOOTRO=0 "$BIN/targetdisplay-writable.sh" rw >/dev/null 2>&1; rc=$?
+check "writable rw bei aktivem Overlay: Exit 0" 0 "$rc"
+check "writable rw: Overlay abgeschaltet" 1 "$(calls 'disable_overlayfs')"
+check "writable rw: Status awaiting-reboot" "awaiting-reboot" "$(cat "$BOOT/.targetdisplay-writable.state" 2>/dev/null)"
+out=$(OVERLAY=0 BOOTRO=0 "$BIN/targetdisplay-writable.sh" status 2>&1)
+check "writable status zeigt den Vorgang" 1 "$(echo "$out" | grep -c 'rw-Vorgang-Status:            awaiting-reboot')"
+
+: > "$STUB_LOG"; OVERLAY=1 BOOTRO=0 "$BIN/targetdisplay-writable.sh" rw >/dev/null 2>&1; rc=$?
+check "writable rw nach Reboot: Exit 0" 0 "$rc"
+check "writable rw nach Reboot: Boot-RO aufgehoben" 1 "$(calls 'disable_bootro')"
+check "writable rw nach Reboot: Status geloescht" 0 "$([ -f "$BOOT/.targetdisplay-writable.state" ] && echo 1 || echo 0)"
+
+reset; OVERLAY=0 BOOTRO=0 "$BIN/targetdisplay-update.sh" begin >/dev/null 2>&1; rc=$?
+check "update begin bei aktivem Overlay: Exit 0" 0 "$rc"
+check "update begin: Status awaiting-reboot-1" "awaiting-reboot-1" "$(cat "$BOOT/.targetdisplay-update.state" 2>/dev/null)"
+out=$(OVERLAY=1 BOOTRO=0 "$BIN/targetdisplay-update.sh" status 2>&1)
+check "update status zeigt den Zyklus" 1 "$(echo "$out" | grep -c 'Update-Zyklus-Status:         awaiting-reboot-1')"
+OVERLAY=0 BOOTRO=0 "$BIN/targetdisplay-update.sh" begin >/dev/null 2>&1; rc=$?
+check "update begin doppelt: Exit != 0" 1 "$([ "$rc" -ne 0 ] && echo 1 || echo 0)"
+
 # ============================================ writable.sh ro (initramfs)
 echo "writable.sh ro: Reihenfolge Overlay/initramfs/read-only"
 
