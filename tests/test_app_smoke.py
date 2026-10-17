@@ -5,6 +5,7 @@ Bediener: Timer, Video aus/ein, PIN-Eingabe mit falscher und richtiger PIN,
 Einstellungsmenue. Ausfuehren mit:  xvfb-run -a python -m pytest tests
 """
 import importlib
+import itertools
 import os
 import sys
 import threading
@@ -62,19 +63,23 @@ class FakeCamera:
         pass
 
 
-@pytest.fixture
-def app(tmp_path, monkeypatch):
-    (tmp_path / 'config.yml').write_text(CONFIG)
+def load_app(tmp_path, monkeypatch, config):
+    (tmp_path / 'config.yml').write_text(config)
     monkeypatch.chdir(tmp_path)
     monkeypatch.syspath_prepend(ROOT)
     for name in ('main', 'ui', 'flows', 'settings_store'):
         sys.modules.pop(name, None)
     settings_store = importlib.import_module('settings_store')
     for attr in ('SECTIONS_OVERRIDE_FILE', 'STANDS_FILE', 'ACTIVE_STAND_FILE', 'PIN_FILE'):
-        monkeypatch.setattr(settings_store, attr, str(tmp_path / 'nicht-vorhanden.json'))
+        monkeypatch.setattr(settings_store, attr, str(tmp_path / f'{attr.lower()}.json'))
     main = importlib.import_module('main')
     monkeypatch.setattr(main, 'Camera', FakeCamera)
     return main
+
+
+@pytest.fixture
+def app(tmp_path, monkeypatch):
+    return load_app(tmp_path, monkeypatch, CONFIG)
 
 
 class Driver(threading.Thread):
@@ -322,3 +327,128 @@ def test_kein_replay_ohne_aufnahme(app, monkeypatch):
     states = _button_states(monkeypatch, ('-REPLAY-',))
     run_app(app, [(1.0, '-FULL_VIDEO-')], monkeypatch)
     assert not states['-REPLAY-'] and states['replay_text'] == 'Replay'
+
+
+# ------------------------------------------------- Ersteinrichtungs-Assistent
+
+WIZARD_CONFIG = """\
+screenSize: [1024, 768]
+video:
+  size:
+    x: 600
+    y: 600
+"""
+
+WIZARD_STANDS = [{'id': 'stand1', 'displayName': 'Stand 1', 'url': 'rtmp://eins'},
+                 {'id': 'stand2', 'displayName': 'Stand 2', 'url': 'rtmp://zwei'}]
+WIZARD_FULL = [[100, 100], [500, 100], [100, 500], [500, 500]]
+WIZARD_DETAIL = [[200, 200], [400, 200], [200, 400], [400, 400]]
+
+
+def test_ersteinrichtung_stand_ausschnitte_pin(tmp_path, monkeypatch):
+    # Neues Geraet ohne Stand, Ausschnitte und PIN. Ablauf: Stand 1 waehlen,
+    # Kamera antwortet nicht -> zurueck, Stand 2 waehlen, Ganze und Innen
+    # Scheibe kalibrieren, PIN festlegen, danach der Hauptbildschirm.
+    import json
+    main = load_app(tmp_path, monkeypatch, WIZARD_CONFIG)
+    import settings_store
+    with open(settings_store.STANDS_FILE, 'w') as f:
+        json.dump({'stands': WIZARD_STANDS}, f)
+
+    log = []
+    cameras = []
+
+    class Cam(FakeCamera):
+        def __init__(self, url, **kwargs):
+            super().__init__(url)
+            self.stopped = False
+            cameras.append(self)
+
+        def stop(self):
+            self.stopped = True
+
+    chosen = iter(WIZARD_STANDS)
+    frames = itertools.chain(['back'], itertools.repeat(np.zeros((700, 700, 3), np.uint8)))
+    edits = iter([WIZARD_FULL, WIZARD_DETAIL])
+
+    def stand_select(stands, forced):
+        log.append(('stand', forced, [s['id'] for s in stands]))
+        return next(chosen)
+
+    def save_active_stand(stand_id):
+        log.append(('stand gespeichert', stand_id))
+        with open(settings_store.ACTIVE_STAND_FILE, 'w') as f:
+            json.dump({'id': stand_id}, f)
+        return True
+
+    def wait_for_frame(cap):
+        log.append(('warten', cap.url))
+        return next(frames)
+
+    def edit(label, cap, points, other_points=None, allow_cancel=True, will_restart=True):
+        log.append(('editor', label, other_points, allow_cancel, will_restart))
+        return next(edits)
+
+    def save_sections(full, detail):
+        log.append(('ausschnitte gespeichert', full, detail))
+        with open(settings_store.SECTIONS_OVERRIDE_FILE, 'w') as f:
+            json.dump({'section_full': full, 'section_detail': detail}, f)
+        return True
+
+    def change_pin(current, forced):
+        log.append(('pin', current, forced))
+        return '2580'
+
+    monkeypatch.setattr(main, 'Camera', Cam)
+    monkeypatch.setattr(main, 'run_stand_select', stand_select)
+    monkeypatch.setattr(main, 'save_active_stand', save_active_stand)
+    monkeypatch.setattr(main, 'wait_for_camera_frame', wait_for_frame)
+    monkeypatch.setattr(main, 'edit_section_points', edit)
+    monkeypatch.setattr(main, 'save_sections_override', save_sections)
+    monkeypatch.setattr(main, 'change_pin_flow', change_pin)
+
+    draws = run_app(main, [(1.0, '-FULL_VIDEO-')], monkeypatch)
+
+    assert log == [
+        ('stand', True, ['stand1', 'stand2']),
+        ('stand gespeichert', 'stand1'),
+        ('warten', 'rtmp://eins'),
+        ('stand', True, ['stand1', 'stand2']),
+        ('stand gespeichert', 'stand2'),
+        ('warten', 'rtmp://zwei'),
+        ('editor', 'Ganze Scheibe', None, False, False),
+        ('ausschnitte gespeichert', WIZARD_FULL, None),
+        ('warten', 'rtmp://zwei'),
+        ('editor', 'Innen Scheibe', WIZARD_FULL, False, False),
+        ('ausschnitte gespeichert', WIZARD_FULL, WIZARD_DETAIL),
+        ('pin', '1234', True),
+    ]
+    # Die Verbindung zum verworfenen Stand wurde beendet.
+    assert [(c.url, c.stopped) for c in cameras] == [('rtmp://eins', True), ('rtmp://zwei', False)]
+    # Danach laeuft der Hauptbildschirm mit Livebild und dem Zuschnitt aus
+    # beiden Ausschnitten (plus Rand).
+    assert len(draws) > 3
+    assert cameras[1].crop_region == (85, 85, 515, 515)
+
+
+def test_ersteinrichtung_ueberspringt_vorhandene_schritte(tmp_path, monkeypatch):
+    # Stand, Ausschnitte und PIN sind schon gespeichert (z.B. Neustart nach
+    # Stromausfall): kein Schritt des Assistenten erscheint.
+    import json
+    main = load_app(tmp_path, monkeypatch, WIZARD_CONFIG)
+    import settings_store
+    for path, data in ((settings_store.STANDS_FILE, {'stands': WIZARD_STANDS}),
+                       (settings_store.ACTIVE_STAND_FILE, {'id': 'stand2'}),
+                       (settings_store.SECTIONS_OVERRIDE_FILE,
+                        {'section_full': WIZARD_FULL, 'section_detail': WIZARD_DETAIL}),
+                       (settings_store.PIN_FILE, {'pin': '2580'})):
+        with open(path, 'w') as f:
+            json.dump(data, f)
+
+    def unexpected(*args, **kwargs):
+        raise AssertionError('Assistent haette nicht erscheinen duerfen')
+
+    for name in ('run_stand_select', 'wait_for_camera_frame', 'edit_section_points', 'change_pin_flow'):
+        monkeypatch.setattr(main, name, unexpected)
+    draws = run_app(main, [(1.0, '-FULL_VIDEO-')], monkeypatch)
+    assert len(draws) > 3
