@@ -92,6 +92,10 @@ Während eines laufenden Timers wird kein Kamerabild angezeigt und Zoom/Blinken/
 
 Während jedes Timers zeichnet das Gerät die grünen Phasen (Sichtzeiten) im Hintergrund auf: bei **5 x 3 Sek.** die fünf Durchgänge, bei **20 Sek.** und **10 Sek.** die eine Sichtzeit. Die Aufnahme liegt nur im Arbeitsspeicher und wird nirgends gespeichert.
 
+![Replay](screenshots/06_replay.png)
+
+**Abb. 6:** Replay in der Zoomstufe „Innen Scheibe“: violetter Rahmen, „REPLAY“ und Zähler in Zehntelsekunden. Der Knopf heißt jetzt **Replay Ende**.
+
 - **Replay** spielt die Aufnahme in Echtzeit ab, beliebig oft. Zu Beginn erscheint eine Sekunde lang ein rotes Startbild mit dem Timer-Modus (z. B. „5 x 3 Sek.“). Am Ende erscheint eine Sekunde lang ein rotes Schlussbild, danach kehrt die Anzeige von selbst zum Live-Bild zurück.
 - Während des Replays heißt der Knopf **Replay Ende**. Er kehrt sofort zum Live-Bild zurück, ohne das Ende abzuwarten. Die Aufnahme bleibt erhalten und lässt sich später erneut abspielen.
 - Das Replay ist deutlich gekennzeichnet: violetter Rahmen, „REPLAY“ oben links und oben rechts ein Zähler in Zehntelsekunden, der in jeder Sichtzeit bei 0,0 beginnt (z. B. „7,3 s“, bei 5 x 3 „Durchgang 2/5  1,4 s“).
@@ -107,9 +111,9 @@ Während jedes Timers zeichnet das Gerät die grünen Phasen (Sichtzeiten) im Hi
 
 Ein Klick auf das Augen-Symbol in der Kopfzeile (Punkt 2) blendet das Kamerabild aus und zeigt stattdessen das Vereinswappen auf schwarzem Grund – etwa wenn zwischen zwei Trainingseinheiten niemand am Stand ist. Die Uhrzeit/Datumsanzeige läuft normal weiter. Das Symbol wechselt dabei auf ein Auge ohne Schrägstrich; ein erneuter Klick darauf schaltet das Live-Bild wieder ein.
 
-![Video aus – Wasserzeichen](screenshots/06_video_aus_logo.png)
+![Video aus – Wasserzeichen](screenshots/07_video_aus_logo.png)
 
-**Abb. 6:** Video ausgeblendet, Vereinswappen als Wasserzeichen auf schwarzem Grund.
+**Abb. 7:** Video ausgeblendet, Vereinswappen als Wasserzeichen auf schwarzem Grund.
 
 ---
 
@@ -123,9 +127,9 @@ Der PIN-Schutz ist bewusst kein Hochsicherheitsmechanismus gegen gezielte Angrif
 
 Nach Klick auf das Zahnrad-Symbol erscheint das PIN-Tastenfeld:
 
-![PIN-Eingabe](screenshots/07_pin_eingabe.png)
+![PIN-Eingabe](screenshots/08_pin_eingabe.png)
 
-**Abb. 7:** PIN-Tastenfeld.
+**Abb. 8:** PIN-Tastenfeld.
 
 1. **Ziffernblock 0–9** – Eingabe der PIN (4–6-stellig). Eingegebene Ziffern werden als Sternchen dargestellt.
 2. **Löschen** – setzt die aktuelle Eingabe zurück auf leer.
@@ -136,9 +140,9 @@ Nach korrekter Eingabe öffnet sich das Einstellungen-Menü.
 
 ### 3.2 Einstellungen-Menü
 
-![Einstellungen-Menü](screenshots/08_einstellungen_menue.png)
+![Einstellungen-Menü](screenshots/09_einstellungen_menue.png)
 
-**Abb. 8:** Einstellungen-Menü.
+**Abb. 9:** Einstellungen-Menü.
 
 1. **Ganze Scheibe** – öffnet den Ausschnitte-Editor (siehe 3.3) zur Neukalibrierung des Bildausschnitts „Ganze Scheibe“.
 2. **Innen Scheibe** – öffnet denselben Editor für den Ausschnitt „Innen Scheibe“ (Detailzoom).
@@ -153,9 +157,9 @@ Nach korrekter Eingabe öffnet sich das Einstellungen-Menü.
 
 Hier werden die vier Eckpunkte festgelegt, die den schrägen Kamerablick auf die Zielscheibe in ein gerades, top-down-Bild umrechnen – getrennt für „Ganze Scheibe“ und „Innen Scheibe“. Das ist nötig, wenn sich die Kamera oder die Scheibe verschoben hat, oder bei der Ersteinrichtung eines neuen Standes.
 
-![Ausschnitte-Editor mit Lupe](screenshots/09_ausschnitte_editor_lupe.png)
+![Ausschnitte-Editor mit Lupe](screenshots/10_ausschnitte_editor_lupe.png)
 
-**Abb. 9:** Ausschnitte-Editor, Lupe beim Ziehen eines Eckpunkts eingeblendet.
+**Abb. 10:** Ausschnitte-Editor, Lupe beim Ziehen eines Eckpunkts eingeblendet.
 
 1. **Titel** (oben) – zeigt an, welcher Ausschnitt gerade bearbeitet wird.
 2. **Kamerabild mit vier nummerierten Eckpunkten (1–4, rot/gelb)** – jeder Punkt kann per Fingertipp gegriffen und gezogen werden, um ihn exakt auf eine Ecke der Zielscheibe zu positionieren. Eine gelbe Linie verbindet die vier Punkte zur Kontrolle. Ist der jeweils andere Ausschnitt (z. B. „Innen Scheibe“, während „Ganze Scheibe“ bearbeitet wird) bereits kalibriert, wird er zusätzlich hellgrau zur Orientierung eingeblendet.
@@ -168,9 +172,9 @@ Hier werden die vier Eckpunkte festgelegt, die den schrägen Kamerablick auf die
 
 Erlaubt es, ein und dasselbe Gerät auf einen anderen Schießstand (mit eigener Kamera) umzustellen. Die Liste der verfügbaren Stände wird zentral gepflegt und ist auf allen Geräten der Vereinsflotte identisch – welcher Stand tatsächlich angezeigt wird, wird pro Gerät einzeln hier ausgewählt.
 
-![Stand auswählen](screenshots/10_stand_auswaehlen.png)
+![Stand auswählen](screenshots/11_stand_auswaehlen.png)
 
-**Abb. 10:** Stand-Auswahl.
+**Abb. 11:** Stand-Auswahl.
 
 1. **Liste der verfügbaren Stände** – ein Fingertipp markiert einen Eintrag.
 2. **Auswählen** (blau hervorgehoben) – übernimmt den markierten Stand. Das Gerät verbindet sich anschließend mit dessen Kamera und startet neu.
@@ -185,9 +189,9 @@ Anders als die übrigen Unterabschnitte hier ist dies kein einzelner Bildschirm 
 1. Zunächst muss die **aktuell gültige PIN** eingegeben werden (dasselbe Tastenfeld wie in 3.1) – so lässt sich verhindern, dass jemand, der zufällig kurz an das offene Einstellungen-Menü gelangt, die PIN einfach überschreibt.
 2. Danach erscheint das Tastenfeld erneut mit dem Titel **„Neuen PIN eingeben (4-6 Ziffern)“**. Der Standard-PIN „1234“ wird nicht angenommen (Hinweis „zu einfach“); bitte eine andere PIN wählen:
 
-![Neuen PIN eingeben](screenshots/11_neuen_pin_eingeben.png)
+![Neuen PIN eingeben](screenshots/12_neuen_pin_eingeben.png)
 
-**Abb. 11:** Neuen PIN eingeben.
+**Abb. 12:** Neuen PIN eingeben.
 
 3. Anschließend muss die neue PIN zur Kontrolle ein zweites Mal eingegeben werden („PIN wiederholen“). Stimmen beide Eingaben nicht überein, erscheint kurz der Hinweis „PINs stimmen nicht überein“, und es geht zurück zu Schritt 2 (neue PIN eingeben) – die bereits bestätigte aktuelle PIN aus Schritt 1 muss dafür nicht erneut eingegeben werden.
 4. Nach zweimal übereinstimmender Eingabe wird die neue PIN gespeichert. Genau wie bei den anderen Einstellungsänderungen (siehe 3.2) startet das Gerät danach automatisch neu, damit der neue PIN sauber übernommen wird.
@@ -197,9 +201,9 @@ Anders als die übrigen Unterabschnitte hier ist dies kein einzelner Bildschirm 
 
 Über „Neu starten“ im Einstellungen-Menü lässt sich das Gerät gezielt neu booten, z. B. wenn die Kamera-Verbindung dauerhaft hängt.
 
-![Neustart bestätigen](screenshots/12_neustart_bestaetigen.png)
+![Neustart bestätigen](screenshots/13_neustart_bestaetigen.png)
 
-**Abb. 12:** Neustart-Bestätigung.
+**Abb. 13:** Neustart-Bestätigung.
 
 1. **Ja, neu starten** (blau hervorgehoben) – startet das Gerät sofort neu. Zunächst erscheint das Boot-Logo (Vereinswappen), danach der Hauptbildschirm.
 2. **Abbrechen** – kehrt ohne Neustart zum Einstellungen-Menü zurück.
