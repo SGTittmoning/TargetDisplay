@@ -128,6 +128,9 @@ def probe(window, draws):
         'draws': len(draws),
         'replay_text': window._btn_style['-REPLAY-']['label'].cget('text'),
         'fps': window['-FPS-'].widget.cget('text'),
+        'date': window['-DATE-'].widget.cget('text'),
+        'time': window['-TIME-'].widget.cget('text'),
+        'stand': window['-STANDNAME-'].widget.cget('text'),
         'video_icon': str(window['-TOGGLEVIDEO-'].widget.cget('image')),
     }
 
