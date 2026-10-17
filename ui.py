@@ -839,59 +839,59 @@ def set_icon_buttons(keys, enabled):
 
 
 def zoom_disabled(disable):
-  set_icon_buttons(('-FULL_VIDEO-', '-DETAIL_VIDEO-'), not disable)
-  # Reset wird hier bewusst NICHT angefasst - waehrend Zoom global deaktiviert
-  # ist (Blinken/Timer/Video aus laeuft), muss der Aufrufer zusaetzlich
-  # explizit sync_reset_button(..., globally_disabled=True) rufen; beim
-  # Zurueckschalten auf verfuegbar entscheidet sync_reset_button() anhand
-  # des tatsaechlichen Zoom-Zustands (nicht einfach "wieder an"), siehe dort.
+    set_icon_buttons(('-FULL_VIDEO-', '-DETAIL_VIDEO-'), not disable)
+    # Reset wird hier bewusst NICHT angefasst - waehrend Zoom global deaktiviert
+    # ist (Blinken/Timer/Video aus laeuft), muss der Aufrufer zusaetzlich
+    # explizit sync_reset_button(..., globally_disabled=True) rufen; beim
+    # Zurueckschalten auf verfuegbar entscheidet sync_reset_button() anhand
+    # des tatsaechlichen Zoom-Zustands (nicht einfach "wieder an"), siehe dort.
 
 
 def sync_reset_button(zoom_level, zoom_center, globally_disabled=False):
-  # Reset ist nur dann sinnvoll klickbar, wenn der Zoom vom Standard
-  # abweicht (nicht "Ganze Scheibe" und/oder ein manueller Pan aktiv).
-  # "Reset" selbst muss dabei sowohl einen aktiven manuellen Pan als auch
-  # einen aktiven "Innen Scheibe"-Zoom zuruecksetzen - siehe die vier
-  # Aufrufstellen unten (Full/Detail/Video-Pan/Reset selbst) sowie an jeder
-  # zoom_disabled()-Stelle im Hauptloop.
-  enabled = (not globally_disabled) and (zoom_level != 'full' or bool(zoom_center))
-  set_icon_buttons(('-RESETZOOM-',), enabled)
+    # Reset ist nur dann sinnvoll klickbar, wenn der Zoom vom Standard
+    # abweicht (nicht "Ganze Scheibe" und/oder ein manueller Pan aktiv).
+    # "Reset" selbst muss dabei sowohl einen aktiven manuellen Pan als auch
+    # einen aktiven "Innen Scheibe"-Zoom zuruecksetzen - siehe die vier
+    # Aufrufstellen unten (Full/Detail/Video-Pan/Reset selbst) sowie an jeder
+    # zoom_disabled()-Stelle im Hauptloop.
+    enabled = (not globally_disabled) and (zoom_level != 'full' or bool(zoom_center))
+    set_icon_buttons(('-RESETZOOM-',), enabled)
 
 
 def blink_disabled(disable):
-  set_icon_buttons(('-BLINK_START-',), not disable)
-  set_icon_buttons(('-BLINK_STOP-', '-BLINK_REF-'), False)
+    set_icon_buttons(('-BLINK_START-',), not disable)
+    set_icon_buttons(('-BLINK_STOP-', '-BLINK_REF-'), False)
 
 
 def blink_buttons(active):
-  # Bedienbare Blinken-Buttons passend zum Blinkzustand: laeuft Blinken,
-  # sind Referenz/Stop aktiv und Start gesperrt, sonst umgekehrt.
-  set_icon_buttons(('-BLINK_START-',), not active)
-  set_icon_buttons(('-BLINK_STOP-', '-BLINK_REF-'), active)
+    # Bedienbare Blinken-Buttons passend zum Blinkzustand: laeuft Blinken,
+    # sind Referenz/Stop aktiv und Start gesperrt, sonst umgekehrt.
+    set_icon_buttons(('-BLINK_START-',), not active)
+    set_icon_buttons(('-BLINK_STOP-', '-BLINK_REF-'), active)
 
 
 def replay_buttons(available, active):
-  # Ein Button fuer beides: bedienbar, sobald eine Aufnahme vorliegt; ausser
-  # dem Replay "Replay" (startet es), waehrend des Replays "Replay Ende"
-  # (kehrt zum Livebild zurueck).
-  st = window._btn_style['-REPLAY-']
-  st['label'].config(text='Replay Ende' if active else 'Replay')
-  st['icon_on'] = window._icon('exit_white' if active else 'play_white')
-  st['icon_off'] = window._icon('exit_timer_muted' if active else 'play_timer_muted')
-  st['command_on'] = (lambda: window.post('-REPLAY_END-')) if active else (lambda: window.post('-REPLAY-'))
-  set_icon_buttons(('-REPLAY-',), available)
+    # Ein Button fuer beides: bedienbar, sobald eine Aufnahme vorliegt; ausser
+    # dem Replay "Replay" (startet es), waehrend des Replays "Replay Ende"
+    # (kehrt zum Livebild zurueck).
+    st = window._btn_style['-REPLAY-']
+    st['label'].config(text='Replay Ende' if active else 'Replay')
+    st['icon_on'] = window._icon('exit_white' if active else 'play_white')
+    st['icon_off'] = window._icon('exit_timer_muted' if active else 'play_timer_muted')
+    st['command_on'] = (lambda: window.post('-REPLAY_END-')) if active else (lambda: window.post('-REPLAY-'))
+    set_icon_buttons(('-REPLAY-',), available)
 
 
 def timer_disabled(disable):
-  set_icon_buttons(('-TIMER_5_3_7-', '-TIMER_20-', '-TIMER_10-'), not disable)
-  set_icon_buttons(('-TIMER_STOP-',), False)
+    set_icon_buttons(('-TIMER_5_3_7-', '-TIMER_20-', '-TIMER_10-'), not disable)
+    set_icon_buttons(('-TIMER_STOP-',), False)
 
 
 def video_filter_disabled(disable):
-  # Bewusst NICHT ueber Elem.update(disabled=...)/state=DISABLED (siehe
-  # Kommentar in Window._make_accent_button()) - dieser Button hat ein
-  # -image, ein disabled Tk-Button wuerde es mit einem Schachbrett-Stipple
-  # ueberzeichnen. Command auf No-Op umschalten hat denselben functionalen
-  # Effekt (Klick tut nichts), ohne den Rendering-Fehler.
-  window['-TOGGLEVIDEO-'].widget.config(
-      command=(lambda: None) if disable else (lambda: window.post('-TOGGLEVIDEO-')))
+    # Bewusst NICHT ueber Elem.update(disabled=...)/state=DISABLED (siehe
+    # Kommentar in Window._make_accent_button()) - dieser Button hat ein
+    # -image, ein disabled Tk-Button wuerde es mit einem Schachbrett-Stipple
+    # ueberzeichnen. Command auf No-Op umschalten hat denselben functionalen
+    # Effekt (Klick tut nichts), ohne den Rendering-Fehler.
+    window['-TOGGLEVIDEO-'].widget.config(
+        command=(lambda: None) if disable else (lambda: window.post('-TOGGLEVIDEO-')))
