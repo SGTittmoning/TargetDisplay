@@ -10,6 +10,8 @@ TIMER_5_3_7 = '-TIMER_5_3_7-'
 TIMER_20 = '-TIMER_20-'
 TIMER_10 = '-TIMER_10-'
 
+TIMER_KEYS = (TIMER_5_3_7, TIMER_20, TIMER_10)
+
 # Beschriftung der Timer-Buttons, auch im Startbild des Replays.
 TITLES = {TIMER_5_3_7: '5 x 3 Sek.', TIMER_20: '20 Sek.', TIMER_10: '10 Sek.'}
 

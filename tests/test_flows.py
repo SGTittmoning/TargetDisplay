@@ -483,3 +483,8 @@ def test_menue_neustart_abbrechen(win, monkeypatch, saved):
     script(win, monkeypatch, ['-MENU_RESTART-', '-CONFIRM_NO-', '-MENU_BACK-'])
     assert flows.run_settings_flow(FrameCam(), POINTS, DETAIL, STANDS, '4711') is False
     assert calls == []
+
+
+def test_with_section_ersetzt_nur_den_gewaehlten_ausschnitt():
+    assert flows.with_section('full', 'neu', 'ganz', 'innen') == ('neu', 'innen')
+    assert flows.with_section('detail', 'neu', 'ganz', 'innen') == ('ganz', 'neu')

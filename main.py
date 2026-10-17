@@ -15,12 +15,14 @@ import ui
 import yamlconfig
 from camera import STREAM_STALE_TIMEOUT_SEC, STREAM_STARTUP_TIMEOUT_SEC, Camera
 from flows import (
+    SECTION_LABELS,
     change_pin_flow,
     check_pin,
     edit_section_points,
     run_settings_flow,
     run_stand_select,
     wait_for_camera_frame,
+    with_section,
 )
 from overlays import (
     blend_logo_centered,
@@ -116,13 +118,19 @@ def main():
     # Dateien auf /boot/firmware, nie nur In-Memory-Zustand: ein
     # Stromausfall/Neustart zu JEDEM Zeitpunkt fuehrt beim naechsten Start
     # einfach wieder zu genau dem Schritt, der noch fehlt.
+    def choose_stand():
+        # Pflichtauswahl, bis ein Stand gespeichert ist.
+        nonlocal stands
+        while True:
+            stands = load_stands()
+            chosen = run_stand_select(stands, forced=True)
+            if chosen is not None and save_active_stand(chosen['id']):
+                return chosen
+
     stands = load_stands()
     active_stand = load_active_stand(stands, cfg)
-    while active_stand is None:
-        stands = load_stands()
-        chosen = run_stand_select(stands, forced=True)
-        if chosen is not None and save_active_stand(chosen['id']):
-            active_stand = chosen
+    if active_stand is None:
+        active_stand = choose_stand()
 
     StreamPath = active_stand['url']
     set_stand_name(active_stand['displayName'])
@@ -140,12 +148,7 @@ def main():
             # Zurueck zur Stand-Auswahl, z.B. weil die URL falsch war -
             # danach muss diese Kamera-Verbindung durch eine neue ersetzt
             # werden, sobald ein (ggf. anderer) Stand feststeht.
-            active_stand = None
-            while active_stand is None:
-                stands = load_stands()
-                chosen = run_stand_select(stands, forced=True)
-                if chosen is not None and save_active_stand(chosen['id']):
-                    active_stand = chosen
+            active_stand = choose_stand()
             StreamPath = active_stand['url']
             set_stand_name(active_stand['displayName'])
             # Alte Verbindung beenden, sonst versucht ihr Lesethread endlos,
@@ -154,17 +157,15 @@ def main():
             cap = Camera(StreamPath)
             continue
         which = 'full' if section_full_orig is None else 'detail'
-        label = 'Ganze Scheibe' if which == 'full' else 'Innen Scheibe'
         # other_points: falls der jeweils ANDERE Bereich schon feststeht
         # (z.B. "Innen Scheibe" nach bereits gespeicherter "Ganze Scheibe"),
         # wird er als graue Referenz mitgezeichnet - gleiches Verhalten wie
         # im freiwilligen Settings-Menue.
         other = section_detail_orig if which == 'full' else section_full_orig
-        result = edit_section_points(label, cap, None, other_points=other, allow_cancel=False, will_restart=False)
+        result = edit_section_points(SECTION_LABELS[which], cap, None, other_points=other,
+                                     allow_cancel=False, will_restart=False)
         if result is not None:
-            new_full = result if which == 'full' else section_full_orig
-            new_detail = result if which == 'detail' else section_detail_orig
-            save_sections_override(new_full, new_detail)
+            save_sections_override(*with_section(which, result, section_full_orig, section_detail_orig))
             section_full_orig, section_detail_orig = load_sections(cfg)
 
     SettingsPin = load_settings_pin(cfg)
@@ -260,7 +261,9 @@ def main():
                     # Gespeichert: Prozess beenden (Exit 0), systemd startet
                     # ihn mit den neuen Werten neu.
                     sys.exit(0)
-        elif event == '-FULL_VIDEO-':
+        elif event in ('-FULL_VIDEO-', '-RESETZOOM-'):
+            # Reset setzt Zoomstufe und manuellen Ausschnitt zurueck, wirkt
+            # also wie "Ganze Scheibe".
             zoom_level = 'full'
             zoom_center = []
             sync_reset_button(zoom_level, zoom_center)
@@ -285,13 +288,6 @@ def main():
                     zoom_center = zoom_center[0],zoom_center[1]+move_speed
             zoom_center = clamp_zoom_center(zoom_center)
             sync_reset_button(zoom_level, zoom_center)
-        elif event == '-RESETZOOM-':
-            # Setzt nicht nur den manuellen Pan zurueck, sondern auch den
-            # Zoom-Modus auf "Ganze Scheibe" - sonst wuerde ein aktiver "Innen
-            # Scheibe"-Zoom nach Reset bestehen bleiben.
-            zoom_level = 'full'
-            zoom_center = []
-            sync_reset_button(zoom_level, zoom_center)
         elif event == '-BLINK_START-':
             # Zoom bleibt bedienbar, er wirkt auf Referenz und Livebild gleich.
             # Die Timer bleiben startbar (siehe Timer-Start unten).
@@ -307,7 +303,7 @@ def main():
             video_filter_disabled(False)
             blink_ref = []
             blink = False
-        elif event in ('-TIMER_5_3_7-', '-TIMER_20-', '-TIMER_10-'):
+        elif event in timerlib.TIMER_KEYS:
             # Alle drei Timer-Varianten starten identisch - nur timerType
             # (=event) unterscheidet, welcher Ablauf (timerlib) gerendert wird.
             # Ein laufendes Blinken pausiert nur: blink und blink_ref bleiben
@@ -318,7 +314,7 @@ def main():
             blink_disabled(True)
             video_filter_disabled(True)
             displayTimer = True
-            set_icon_buttons(('-TIMER_5_3_7-', '-TIMER_20-', '-TIMER_10-'), False)
+            set_icon_buttons(timerlib.TIMER_KEYS, False)
             set_icon_buttons(('-TIMER_STOP-',), True)
             displayVideo = False
             timerType = event
@@ -341,7 +337,7 @@ def main():
             displayTimer = False
             displayVideo = True
             video_resumed_at = time.monotonic()
-            set_icon_buttons(('-TIMER_5_3_7-', '-TIMER_20-', '-TIMER_10-'), True)
+            set_icon_buttons(timerlib.TIMER_KEYS, True)
             set_icon_buttons(('-TIMER_STOP-',), False)
             if recording is not None:
                 print(f"Replay-Aufnahme: {recording.frame_count()} Bilder, "
@@ -426,12 +422,10 @@ def main():
                 frame_timestamps.append(now)
                 while frame_timestamps and (now - frame_timestamps[0]) > FPS_WINDOW_SECONDS:
                     frame_timestamps.popleft()
-                try:
-                    window_span = now - frame_timestamps[0]
+                window_span = now - frame_timestamps[0]
+                if window_span > 0:
                     fps = len(frame_timestamps) / window_span
                     window_fps.update(f'FPS: {str(round(fps,1)) } - Frame { str(frame_count) }')
-                except ZeroDivisionError:
-                    pass
         elif displayTimer:
             timer_elapsed = time.monotonic() - timerStart
             # Aufnahme: jedes neue Kamerabild geht an die Aufnahme, die nur
