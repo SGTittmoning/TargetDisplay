@@ -2,6 +2,7 @@
 # (oder aus einer Fake-Kamera heraus) in die Warteschlange gelegt,
 # Window.read() liest sie vor allen Tk-Ereignissen.
 import subprocess
+import time
 
 import numpy as np
 import pytest
@@ -114,3 +115,371 @@ def test_pin_tastenfeld_zeigt_sternchen(win):
 @pytest.mark.parametrize('event', ['', '12', '0123456789'])
 def test_pin_tastenfeld_nimmt_nur_einzelne_ziffern(win, event):
     assert keypad(win, ['1', event, '2']) == '12'
+
+
+# ------------------------------------------------------------------ Hilfen
+
+def script(win, monkeypatch, steps):
+    """Ersetzt Window.read durch eine feste Abfolge. Ein Schritt ist ein
+    Ereignis, ein (Ereignis, Werte)-Paar oder eine Funktion, die vor dem
+    naechsten Ereignis im Tk-Thread laeuft (z.B. eine Listbox-Auswahl)."""
+    steps = list(steps)
+
+    def read(timeout=None):
+        while steps:
+            step = steps.pop(0)
+            if callable(step):
+                step()
+                continue
+            return step if isinstance(step, tuple) else (step, {})
+        return (ui.WIN_CLOSED, {})
+
+    monkeypatch.setattr(win, 'read', read)
+    return steps
+
+
+def visible(win, key):
+    return win[key].widget.winfo_manager() != ''
+
+
+class FakeLimiter:
+    def __init__(self):
+        self.failures = 0
+        self.successes = 0
+
+    def register_failure(self):
+        self.failures += 1
+        return 0
+
+    def register_success(self):
+        self.successes += 1
+
+
+@pytest.fixture
+def limiter(monkeypatch):
+    lim = FakeLimiter()
+    monkeypatch.setattr(flows, 'PIN_LIMITER', lim)
+    return lim
+
+
+# ------------------------------------------------------------- PIN pruefen
+
+def test_pin_richtig_oeffnet(win, monkeypatch, limiter):
+    script(win, monkeypatch, ['4', '7', '1', '1', '-PIN_OK-'])
+    assert flows.check_pin('4711') is True
+    assert (limiter.failures, limiter.successes) == (0, 1)
+
+
+def test_pin_falsch_oeffnet_nicht(win, monkeypatch, limiter):
+    script(win, monkeypatch, ['1', '2', '3', '4', '-PIN_OK-', '-PIN_CANCEL-'])
+    assert flows.check_pin('4711') is False
+    assert limiter.failures == 1
+
+
+def test_pin_erst_falsch_dann_richtig(win, monkeypatch, limiter):
+    script(win, monkeypatch, ['1', '1', '1', '1', '-PIN_OK-', '4', '7', '1', '1', '-PIN_OK-'])
+    assert flows.check_pin('4711') is True
+    assert limiter.failures == 1
+
+
+def test_pin_falsch_zeigt_hinweis(win, monkeypatch, limiter):
+    monkeypatch.setattr(limiter, 'register_failure', lambda: 1.0)
+    texts = []
+    script(win, monkeypatch, ['1', '-PIN_OK-',
+                              lambda: texts.append(win['-PINDISPLAY-'].widget.cget('text')),
+                              '-PIN_CANCEL-'])
+    flows.check_pin('4711')
+    assert texts == ['falsch']
+
+
+# ---------------------------------------------------------- PIN aendern
+
+@pytest.fixture
+def saved_pins(monkeypatch):
+    pins = []
+    monkeypatch.setattr(flows, 'save_pin', lambda pin: pins.append(pin) or True)
+    return pins
+
+
+def test_pin_aendern(win, monkeypatch, limiter, saved_pins):
+    script(win, monkeypatch, ['4', '7', '1', '1', '-PIN_OK-',          # aktuelle PIN
+                              '2', '5', '8', '0', '-PIN_OK-',          # neue PIN
+                              '2', '5', '8', '0', '-PIN_OK-'])         # Wiederholung
+    assert flows.change_pin_flow('4711', forced=False) == '2580'
+    assert saved_pins == ['2580']
+
+
+def test_pin_aendern_ungleiche_wiederholung_fragt_neu(win, monkeypatch, limiter, saved_pins):
+    # Nach "PINs stimmen nicht ueberein" geht es mit der neuen PIN weiter,
+    # die aktuelle PIN wird nicht erneut abgefragt.
+    script(win, monkeypatch, ['4', '7', '1', '1', '-PIN_OK-',
+                              '2', '5', '8', '0', '-PIN_OK-',
+                              '9', '9', '9', '9', '-PIN_OK-',
+                              '3', '6', '9', '0', '-PIN_OK-',
+                              '3', '6', '9', '0', '-PIN_OK-'])
+    assert flows.change_pin_flow('4711', forced=False) == '3690'
+    assert saved_pins == ['3690']
+    assert limiter.successes == 1
+
+
+@pytest.mark.parametrize('steps', [
+    ['-PIN_CANCEL-'],
+    ['4', '7', '1', '1', '-PIN_OK-', '-PIN_CANCEL-'],
+    ['4', '7', '1', '1', '-PIN_OK-', '2', '5', '8', '0', '-PIN_OK-', '-PIN_CANCEL-'],
+])
+def test_pin_aendern_abbrechen_in_jedem_schritt(win, monkeypatch, limiter, saved_pins, steps):
+    script(win, monkeypatch, steps)
+    assert flows.change_pin_flow('4711', forced=False) is None
+    assert saved_pins == []
+
+
+def test_pin_aendern_speicherfehler(win, monkeypatch, limiter):
+    messages = []
+    monkeypatch.setattr(flows, 'save_pin', lambda pin: False)
+    monkeypatch.setattr(flows, 'popup', messages.append)
+    script(win, monkeypatch, ['4', '7', '1', '1', '-PIN_OK-',
+                              '2', '5', '8', '0', '-PIN_OK-',
+                              '2', '5', '8', '0', '-PIN_OK-'])
+    assert flows.change_pin_flow('4711', forced=False) is None
+    assert messages == ['PIN konnte nicht gespeichert werden.']
+
+
+def test_pin_pflicht_ohne_abbrechen_danach_wieder_mit(win, monkeypatch, saved_pins):
+    seen = []
+    script(win, monkeypatch, [lambda: seen.append(visible(win, '-PIN_CANCEL-')),
+                              '2', '5', '8', '0', '-PIN_OK-',
+                              '2', '5', '8', '0', '-PIN_OK-'])
+    assert flows.change_pin_flow('1234', forced=True) == '2580'
+    assert seen == [False]
+    win.root.update_idletasks()
+    assert visible(win, '-PIN_CANCEL-')
+
+
+def test_standard_pin_als_neue_pin_abgelehnt(win, monkeypatch, saved_pins):
+    # Waehrend der 1,5 s Hinweis "zu einfach" verworfene Eingaben: die
+    # Funktion wartet die Zeit ab, danach geht es mit leerer Eingabe weiter.
+    texts = []
+    script(win, monkeypatch, ['1', '2', '3', '4', '-PIN_OK-',
+                              lambda: texts.append(win['-PINDISPLAY-'].widget.cget('text')),
+                              lambda: time.sleep(1.6), '-VERWORFEN-',
+                              '2', '5', '8', '0', '-PIN_OK-',
+                              '2', '5', '8', '0', '-PIN_OK-'])
+    assert flows.change_pin_flow('1234', forced=True) == '2580'
+    assert texts == ['zu einfach']
+    assert saved_pins == ['2580']
+
+
+# ---------------------------------------------------------- Stand-Auswahl
+
+STANDS = [{'id': 'stand1', 'displayName': 'Stand 1', 'url': 'rtmp://a'},
+          {'id': 'stand2', 'displayName': 'Stand 2', 'url': 'rtmp://b'}]
+
+
+def select(win, index):
+    return lambda: win['-STAND_LIST-'].widget.selection_set(index)
+
+
+def test_stand_auswahl_nach_position(win, monkeypatch):
+    script(win, monkeypatch, [select(win, 1), '-STAND_SELECT-'])
+    assert flows.run_stand_select(STANDS, forced=False) == STANDS[1]
+
+
+def test_stand_auswahl_ohne_markierung_bleibt_offen(win, monkeypatch):
+    script(win, monkeypatch, ['-STAND_SELECT-', select(win, 0), '-STAND_SELECT-'])
+    assert flows.run_stand_select(STANDS, forced=False) == STANDS[0]
+
+
+def test_stand_auswahl_abbrechen(win, monkeypatch):
+    script(win, monkeypatch, ['-STAND_BACK-'])
+    assert flows.run_stand_select(STANDS, forced=False) is None
+
+
+def test_stand_auswahl_pflicht_ohne_abbrechen(win, monkeypatch):
+    seen = []
+    script(win, monkeypatch, [lambda: seen.append(visible(win, '-STAND_BACK-')),
+                              '-STAND_BACK-', select(win, 0), '-STAND_SELECT-'])
+    assert flows.run_stand_select(STANDS, forced=True) == STANDS[0]
+    assert seen == [False]
+
+
+def test_stand_auswahl_ohne_liste(win, monkeypatch):
+    script(win, monkeypatch, [select(win, 0), '-STAND_SELECT-', '-STAND_BACK-'])
+    assert flows.run_stand_select([], forced=False) is None
+    assert 'keine Stand-Liste' in win['-STAND_LIST-'].widget.get(0)
+
+
+# ------------------------------------------------------ Ausschnitte-Editor
+
+class FrameCam:
+    # 1000x620 fuellt den Editor-Canvas genau: Massstab 1, kein Versatz,
+    # Canvas- und Bildkoordinaten sind gleich.
+    def __init__(self, value=80):
+        self.value = value
+
+    def getFrame(self, full=False):
+        return np.full((620, 1000, 3), self.value, np.uint8)
+
+
+POINTS = [[200, 100], [800, 110], [210, 500], [790, 490]]
+
+
+def drag(start, end):
+    return [('-EDITGRAPH-', {'-EDITGRAPH-': start}),
+            ('-EDITGRAPH-', {'-EDITGRAPH-': end}),
+            '-EDITGRAPH-+UP']
+
+
+def test_editor_speichern_ohne_aenderung(win, monkeypatch):
+    script(win, monkeypatch, ['-EDIT_SAVE-'])
+    assert np.allclose(flows.edit_section_points('Ganze Scheibe', FrameCam(), POINTS), POINTS)
+
+
+def test_editor_ziehen_verschiebt_nur_den_gegriffenen_punkt(win, monkeypatch):
+    script(win, monkeypatch, drag((205, 105), (250, 140)) + ['-EDIT_SAVE-'])
+    result = flows.edit_section_points('Ganze Scheibe', FrameCam(), POINTS)
+    assert np.allclose(result[0], [250, 140])
+    assert np.allclose(result[1:], POINTS[1:])
+
+
+def test_editor_klick_neben_die_punkte_verschiebt_nichts(win, monkeypatch):
+    script(win, monkeypatch, drag((500, 300), (520, 320)) + ['-EDIT_SAVE-'])
+    assert np.allclose(flows.edit_section_points('Ganze Scheibe', FrameCam(), POINTS), POINTS)
+
+
+def test_editor_ziehen_bleibt_im_bild(win, monkeypatch):
+    script(win, monkeypatch, drag((200, 100), (-50, -80)) + ['-EDIT_SAVE-'])
+    assert np.allclose(flows.edit_section_points('Ganze Scheibe', FrameCam(), POINTS)[0], [0, 0])
+
+
+def test_editor_neues_bild_behaelt_die_punkte(win, monkeypatch):
+    cam = FrameCam()
+    script(win, monkeypatch, drag((200, 100), (230, 120)) + [lambda: setattr(cam, 'value', 200),
+                                                              '-EDIT_REFRESH-', '-EDIT_SAVE-'])
+    result = flows.edit_section_points('Ganze Scheibe', cam, POINTS)
+    assert np.allclose(result[0], [230, 120])
+
+
+def test_editor_ungueltiges_viereck_bleibt_im_editor(win, monkeypatch):
+    messages = []
+    monkeypatch.setattr(flows, 'popup', messages.append)
+    # Punkt 1 ueber Punkt 4 hinaus: ueberkreuztes Viereck.
+    script(win, monkeypatch, drag((200, 100), (900, 550)) + ['-EDIT_SAVE-'] +
+           drag((900, 550), (200, 100)) + ['-EDIT_SAVE-'])
+    result = flows.edit_section_points('Ganze Scheibe', FrameCam(), POINTS)
+    assert len(messages) == 1 and 'kein gültiges Viereck' in messages[0]
+    assert np.allclose(result, POINTS)
+
+
+def test_editor_abbrechen(win, monkeypatch):
+    script(win, monkeypatch, drag((200, 100), (230, 120)) + ['-EDIT_CANCEL-'])
+    assert flows.edit_section_points('Ganze Scheibe', FrameCam(), POINTS) is None
+
+
+def test_editor_ohne_punkte_startet_mit_rechteck(win, monkeypatch):
+    script(win, monkeypatch, ['-EDIT_SAVE-'])
+    result = flows.edit_section_points('Ganze Scheibe', FrameCam(), None, allow_cancel=False, will_restart=False)
+    assert np.allclose(result, [[200, 124], [800, 124], [200, 496], [800, 496]])
+
+
+def test_editor_beschriftung_und_abbrechen_im_assistenten(win, monkeypatch):
+    seen = []
+    script(win, monkeypatch, [lambda: seen.append((win['-EDIT_SAVE-'].widget.cget('text'),
+                                                   visible(win, '-EDIT_CANCEL-'))),
+                              '-EDIT_SAVE-'])
+    flows.edit_section_points('Ganze Scheibe', FrameCam(), POINTS, allow_cancel=False, will_restart=False)
+    assert seen == [('Speichern', False)]
+
+
+def test_editor_beschriftung_im_menue(win, monkeypatch):
+    seen = []
+    script(win, monkeypatch, [lambda: seen.append(win['-EDIT_SAVE-'].widget.cget('text')), '-EDIT_SAVE-'])
+    flows.edit_section_points('Ganze Scheibe', FrameCam(), POINTS)
+    assert seen == ['Speichern und\nneu starten']
+
+
+def test_editor_ohne_kamerabild(win, monkeypatch):
+    messages = []
+    monkeypatch.setattr(flows, 'popup', messages.append)
+
+    class NoCam:
+        def getFrame(self, full=False):
+            return None
+
+    assert flows.edit_section_points('Ganze Scheibe', NoCam(), POINTS) is None
+    assert len(messages) == 1
+
+
+# ------------------------------------------------------ Einstellungen-Menue
+
+@pytest.fixture
+def saved(monkeypatch):
+    calls = {'sections': [], 'stand': [], 'popup': []}
+    monkeypatch.setattr(flows, 'save_sections_override',
+                        lambda full, detail: calls['sections'].append((full, detail)) or True)
+    monkeypatch.setattr(flows, 'save_active_stand', lambda sid: calls['stand'].append(sid) or True)
+    monkeypatch.setattr(flows, 'popup', calls['popup'].append)
+    return calls
+
+
+DETAIL = [[400, 200], [600, 200], [400, 400], [600, 400]]
+
+
+def test_menue_zurueck(win, monkeypatch, saved):
+    script(win, monkeypatch, ['-MENU_BACK-'])
+    assert flows.run_settings_flow(FrameCam(), POINTS, DETAIL, STANDS, '4711') is False
+
+
+@pytest.mark.parametrize('event, which', [('-MENU_FULL-', 0), ('-MENU_DETAIL-', 1)])
+def test_menue_ausschnitt_speichern(win, monkeypatch, saved, event, which):
+    script(win, monkeypatch, [event] + drag(tuple(POINTS[0]) if which == 0 else tuple(DETAIL[0]),
+                                            (190, 95) if which == 0 else (390, 190)) + ['-EDIT_SAVE-'])
+    assert flows.run_settings_flow(FrameCam(), POINTS, DETAIL, STANDS, '4711') is True
+    full, detail = saved['sections'][0]
+    changed, kept = (full, detail) if which == 0 else (detail, full)
+    assert np.allclose(changed[0], (190, 95) if which == 0 else (390, 190))
+    assert np.allclose(kept, DETAIL if which == 0 else POINTS)
+
+
+def test_menue_ausschnitt_abbrechen_zurueck_ins_menue(win, monkeypatch, saved):
+    script(win, monkeypatch, ['-MENU_FULL-', '-EDIT_CANCEL-', '-MENU_BACK-'])
+    assert flows.run_settings_flow(FrameCam(), POINTS, DETAIL, STANDS, '4711') is False
+    assert saved['sections'] == []
+
+
+def test_menue_ausschnitt_speicherfehler_bleibt_im_menue(win, monkeypatch, saved):
+    monkeypatch.setattr(flows, 'save_sections_override', lambda full, detail: False)
+    script(win, monkeypatch, ['-MENU_FULL-', '-EDIT_SAVE-', '-MENU_BACK-'])
+    assert flows.run_settings_flow(FrameCam(), POINTS, DETAIL, STANDS, '4711') is False
+    assert saved['popup'] == ['Speichern fehlgeschlagen - Änderung wurde NICHT übernommen.']
+
+
+def test_menue_stand_wechseln(win, monkeypatch, saved):
+    script(win, monkeypatch, ['-MENU_STAND-', select(win, 1), '-STAND_SELECT-'])
+    assert flows.run_settings_flow(FrameCam(), POINTS, DETAIL, STANDS, '4711') is True
+    assert saved['stand'] == ['stand2']
+
+
+def test_menue_stand_abbrechen_und_speicherfehler(win, monkeypatch, saved):
+    monkeypatch.setattr(flows, 'save_active_stand', lambda sid: False)
+    script(win, monkeypatch, ['-MENU_STAND-', '-STAND_BACK-',
+                              '-MENU_STAND-', select(win, 0), '-STAND_SELECT-',
+                              '-MENU_BACK-'])
+    assert flows.run_settings_flow(FrameCam(), POINTS, DETAIL, STANDS, '4711') is False
+    assert saved['popup'] == ['Stand konnte nicht gespeichert werden.']
+
+
+def test_menue_pin_aendern(win, monkeypatch, saved, limiter, saved_pins):
+    script(win, monkeypatch, ['-MENU_PIN-',
+                              '4', '7', '1', '1', '-PIN_OK-',
+                              '2', '5', '8', '0', '-PIN_OK-',
+                              '2', '5', '8', '0', '-PIN_OK-'])
+    assert flows.run_settings_flow(FrameCam(), POINTS, DETAIL, STANDS, '4711') is True
+    assert saved_pins == ['2580']
+
+
+def test_menue_neustart_abbrechen(win, monkeypatch, saved):
+    calls = []
+    monkeypatch.setattr(flows.subprocess, 'run', lambda *a, **k: calls.append(a))
+    script(win, monkeypatch, ['-MENU_RESTART-', '-CONFIRM_NO-', '-MENU_BACK-'])
+    assert flows.run_settings_flow(FrameCam(), POINTS, DETAIL, STANDS, '4711') is False
+    assert calls == []

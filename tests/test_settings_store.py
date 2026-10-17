@@ -133,3 +133,66 @@ def test_save_schlaegt_fehl_bei_exitcode(monkeypatch):
 def test_clamp_zoom_center():
     assert tl.clamp_zoom_center((0, 100)) == (100 / 6, 100 - 100 / 6)
     assert tl.clamp_zoom_center((50, 50)) == (50, 50)
+
+
+# ---------------------------------------------------------- Fehlerpfade
+
+@pytest.mark.parametrize('content', ['{kaputt', '[1, 2]', '"text"'])
+def test_kaputte_ausschnittsdatei_gilt_als_nicht_eingerichtet(files, content):
+    files['SECTIONS_OVERRIDE_FILE'].write_text(content)
+    assert store.load_sections(FakeCfg()) == (None, None)
+
+
+@pytest.mark.parametrize('content', ['{kaputt', '[1, 2]'])
+def test_kaputte_auswahldatei_gilt_als_nicht_ausgewaehlt(files, content):
+    files['STANDS_FILE'].write_text(json.dumps(STANDS))
+    files['ACTIVE_STAND_FILE'].write_text(content)
+    assert store.load_active_stand(store.load_stands(), FakeCfg()) is None
+
+
+def test_kaputte_pin_datei_behaelt_den_pin_aus_der_config(files):
+    files['PIN_FILE'].write_text('{kaputt')
+    assert store.load_settings_pin(FakeCfg({'settingsPin': '4711'})) == '4711'
+
+
+def test_stand_liste_ohne_stands_schluessel(files):
+    files['STANDS_FILE'].write_text('{"andere": []}')
+    assert store.load_stands() == []
+
+
+class Result:
+    def __init__(self, returncode, stderr=''):
+        self.returncode = returncode
+        self.stderr = stderr
+
+
+@pytest.mark.parametrize('outcome', [
+    Result(1, 'Partition voll'),
+    store.subprocess.TimeoutExpired('sudo', 15),
+    FileNotFoundError('sudo'),
+])
+def test_speicher_skript_fehler_liefert_false(monkeypatch, capsys, outcome):
+    def run(*args, **kwargs):
+        if isinstance(outcome, Exception):
+            raise outcome
+        return outcome
+    monkeypatch.setattr(store.subprocess, 'run', run)
+    assert store.save_active_stand('stand1') is False
+    assert 'targetdisplay-save-active-stand.sh' in capsys.readouterr().err
+
+
+def test_ausschnitte_speichern_als_ganze_pixel(monkeypatch):
+    # Der Editor liefert Kommazahlen (Canvas-Massstab); gespeichert werden
+    # ganze Pixel (abgeschnitten), ein noch fehlender Ausschnitt als null.
+    payloads = []
+    monkeypatch.setattr(store.subprocess, 'run',
+                        lambda cmd, input, **kw: payloads.append((cmd, input)) or Result(0))
+    assert store.save_sections_override([[10.7, 20.2], [30.0, 40.9]], None) is True
+    cmd, payload = payloads[0]
+    assert cmd == ['/usr/bin/sudo', '/root/bin/targetdisplay-save-sections.sh']
+    assert json.loads(payload) == {'section_full': [[10, 20], [30, 40]], 'section_detail': None}
+
+
+def test_ausschnitte_mit_null_gelten_als_fehlend(files):
+    files['SECTIONS_OVERRIDE_FILE'].write_text('{"section_full": [[1, 2]], "section_detail": null}')
+    assert store.load_sections(FakeCfg()) == ([[1, 2]], None)
