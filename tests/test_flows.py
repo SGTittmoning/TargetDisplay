@@ -12,7 +12,7 @@ import ui
 
 
 class Cfg:
-    def getProperty(self, key):
+    def get_property(self, key):
         return {'screenSize': [1024, 768]}[key]
 
 
@@ -34,7 +34,7 @@ def test_kamera_warten_erneut_versuchen_startet_die_wartezeit_neu(win):
     texts = []
 
     class Cam:
-        def getFrame(self, full=False):
+        def get_frame(self, full=False):
             texts.append(camwait_text())
             if texts[-1].startswith('Kamera nicht erreichbar'):
                 win.post('-CAMWAIT_RETRY-')
@@ -49,7 +49,7 @@ def test_kamera_warten_erneut_versuchen_startet_die_wartezeit_neu(win):
 
 def test_kamera_warten_zurueck(win):
     class Cam:
-        def getFrame(self, full=False):
+        def get_frame(self, full=False):
             return None
 
     win.post('-CAMWAIT_BACK-')
@@ -316,7 +316,7 @@ class FrameCam:
     def __init__(self, value=80):
         self.value = value
 
-    def getFrame(self, full=False):
+    def get_frame(self, full=False):
         return np.full((620, 1000, 3), self.value, np.uint8)
 
 
@@ -402,7 +402,7 @@ def test_editor_ohne_kamerabild(win, monkeypatch):
     monkeypatch.setattr(flows, 'popup', messages.append)
 
     class NoCam:
-        def getFrame(self, full=False):
+        def get_frame(self, full=False):
             return None
 
     assert flows.edit_section_points('Ganze Scheibe', NoCam(), POINTS) is None

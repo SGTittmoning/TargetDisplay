@@ -211,7 +211,7 @@ def wait_for_camera_frame(cap, max_wait_sec=STREAM_STARTUP_TIMEOUT_SEC):
     deadline = start_waiting()
     timed_out = False
     while True:
-        frame = cap.getFrame(full=True)
+        frame = cap.get_frame(full=True)
         if frame is not None:
             return frame
         if not timed_out and time.monotonic() >= deadline:
@@ -226,17 +226,24 @@ def wait_for_camera_frame(cap, max_wait_sec=STREAM_STARTUP_TIMEOUT_SEC):
             timed_out = False
 
 
+# Ausschnitte-Editor: Trefferbereich fuer Finger (Display-Pixel), Seitenlaenge
+# der Lupe und des darin vergroesserten Kamera-Ausschnitts (Pixel).
+HIT_RADIUS = 35
+MAG_SIZE = 220
+MAG_SRC = 70
+
+
 def edit_section_points(region_label, cap, points, other_points=None, allow_cancel=True, will_restart=True):
     # points: 4 Punkte [x, y] in Kamerakoordinaten des vollen Bilds, oder None
     # (Assistent, noch keine Kalibrierung): dann dient ein zentriertes
-    # Rechteck als Startwert. getFrame(full=True) liefert das unbeschnittene
+    # Rechteck als Startwert. get_frame(full=True) liefert das unbeschnittene
     # Bild, damit sich Ausschnitte auch ueber die bisherigen Grenzen hinaus
     # setzen lassen. Liefert beim Speichern die neuen Punkte, sonst None.
     #
     # will_restart bestimmt nur die Beschriftung des Speichern-Buttons: aus dem
     # Menue startet die App nach dem Speichern neu ("Speichern und neu
     # starten"), im Assistenten laeuft sie weiter ("Speichern").
-    frame = cap.getFrame(full=True)
+    frame = cap.get_frame(full=True)
     if frame is None:
         popup('Kein Kamerabild verfügbar - bitte später erneut versuchen.')
         return None
@@ -251,10 +258,6 @@ def edit_section_points(region_label, cap, points, other_points=None, allow_canc
     # Der Canvas hat eine feste Groesse (EDITOR_MAX_W x EDITOR_MAX_H). Das
     # skalierte Bild wird darin zentriert (off_x/off_y).
     off_x, off_y = (EDITOR_MAX_W - disp_w) // 2, (EDITOR_MAX_H - disp_h) // 2
-
-    HIT_RADIUS = 35   # grosszuegiger Trefferbereich fuer Finger, in Display-Pixeln
-    MAG_SIZE = 220    # Seitenlaenge des Lupen-Overlays in Pixeln
-    MAG_SRC = 70       # Seitenlaenge des vergroesserten Kamera-Ausschnitts (Quelle)
 
     def to_display_frame(f):
         return cv2.resize(f, (disp_w, disp_h)) if scale != 1.0 else f.copy()
@@ -346,7 +349,7 @@ def edit_section_points(region_label, cap, points, other_points=None, allow_canc
         if event in (WIN_CLOSED, '-EDIT_CANCEL-'):
             return None
         elif event == '-EDIT_REFRESH-':
-            new_frame = cap.getFrame(full=True)
+            new_frame = cap.get_frame(full=True)
             if new_frame is not None:
                 frame = new_frame
                 disp_frame = to_display_frame(frame)

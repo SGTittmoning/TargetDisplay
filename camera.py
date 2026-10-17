@@ -150,7 +150,7 @@ class Camera:
         # meist schon geschlossen, ein zweites close() schadet nicht.
         _close_quietly(container)
 
-    def getFrame(self, full=False):
+    def get_frame(self, full=False):
         with self.lock:
             src = self.last_frame_full if full else self.last_frame
             if src is not None:

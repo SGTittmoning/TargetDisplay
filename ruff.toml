@@ -20,6 +20,7 @@ select = [
     "PLW1510",         # subprocess.run ohne ausdrueckliches check=
     "RUF100",          # ueberfluessige noqa-Kommentare
     "C901",            # zyklomatische Komplexitaet
+    "N802", "N803", "N806",  # Namen von Funktionen, Argumenten, Variablen in snake_case
 ]
 
 [lint.mccabe]

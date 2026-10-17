@@ -58,13 +58,13 @@ def crop_bounds(point_sets, margin):
     y1 = int(max_xy[1]) + margin
     return x0, y0, x1, y1
 
-def crop(cv2Object, zoomSize, center):
-    height, width = cv2Object.shape[0], cv2Object.shape[1]
+def crop(image, zoom_factor, center):
+    height, width = image.shape[0], image.shape[1]
 
     # center ist (x %, y %) der Bildbreite bzw. -hoehe.
     center = int(width / 100 * center[0]), int(height / 100 * center[1])
     # offset ist die halbe Kantenlaenge des Ausschnitts.
-    offset = int(width / (2*zoomSize)), int(height / (2*zoomSize))
+    offset = int(width / (2*zoom_factor)), int(height / (2*zoom_factor))
 
     # Ausschnitt innerhalb des Bilds halten.
     if offset[0] > center[0]:
@@ -79,9 +79,9 @@ def crop(cv2Object, zoomSize, center):
     # Ausschnitt um center herausschneiden (image[y1:y2, x1:x2]) und erst
     # dann auf die Originalgroesse hochskalieren - billiger, als das ganze Bild
     # zu vergroessern und das meiste zu verwerfen.
-    cv2Object = cv2Object[center[1]-offset[1]:center[1] + offset[1], center[0]-offset[0]:center[0] + offset[0]]
-    cv2Object = cv2.resize(cv2Object, (width, height))
-    return cv2Object
+    image = image[center[1]-offset[1]:center[1] + offset[1], center[0]-offset[0]:center[0] + offset[0]]
+    image = cv2.resize(image, (width, height))
+    return image
 
 # Zoomfaktor des manuellen Ausschnitts (Tippen ins Bild, siehe crop()).
 # clamp_zoom_center() braucht denselben Wert.

@@ -4,7 +4,7 @@ import ui
 
 
 class Cfg:
-    def getProperty(self, key):
+    def get_property(self, key):
         return {'screenSize': [1280, 800]}[key]
 
 

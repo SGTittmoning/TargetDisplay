@@ -34,8 +34,8 @@ PIN_FILE = '/boot/firmware/targetdisplay-pin.json'
 def load_sections(cfg):
     # Fehlen die Ausschnitte in config.yml und der Datei, ist das kein Fehler:
     # (None, None) startet den Assistenten.
-    section_full = cfg.getPropertyWithDefault('video.section_full', None)
-    section_detail = cfg.getPropertyWithDefault('video.section_detail', None)
+    section_full = cfg.get_property_with_default('video.section_full', None)
+    section_detail = cfg.get_property_with_default('video.section_detail', None)
     if os.path.exists(SECTIONS_OVERRIDE_FILE):
         try:
             with open(SECTIONS_OVERRIDE_FILE) as f:
@@ -99,8 +99,8 @@ def load_stands():
 def load_active_stand(stands, cfg):
     # Ohne Auswahl-Datei gilt der Stand aus config.yml (Einzel-Stand-Betrieb,
     # siehe config.yml.dist). Gibt es die Datei, hat sie Vorrang.
-    cfg_url = cfg.getPropertyWithDefault('video.url', None)
-    cfg_name = cfg.getPropertyWithDefault('standName', None)
+    cfg_url = cfg.get_property_with_default('video.url', None)
+    cfg_name = cfg.get_property_with_default('standName', None)
     fallback = {'id': None, 'displayName': cfg_name, 'url': cfg_url} if cfg_url else None
 
     if not os.path.exists(ACTIVE_STAND_FILE):
@@ -134,7 +134,7 @@ def load_settings_pin(cfg):
     # Ein PIN, der sich nicht eingeben laesst (z.B. der Platzhalter
     # "CHANGEME" aus config.yml.dist), gilt als DEFAULT_PIN. main() erzwingt
     # dann eine Aenderung, statt die Standaufsicht auszusperren.
-    pin = cfg.getPropertyWithDefault('settingsPin', DEFAULT_PIN)
+    pin = cfg.get_property_with_default('settingsPin', DEFAULT_PIN)
     if os.path.exists(PIN_FILE):
         try:
             with open(PIN_FILE) as f:

@@ -10,15 +10,15 @@ class Config:
     def __init__(self, data):
         self._data = data or {}
 
-    def getProperty(self, path):
+    def get_property(self, path):
         node = self._data
         for part in path.split('.'):
             node = node[part]
         return node
 
-    def getPropertyWithDefault(self, path, default):
+    def get_property_with_default(self, path, default):
         try:
-            return self.getProperty(path)
+            return self.get_property(path)
         except (KeyError, TypeError):
             # TypeError zusaetzlich zu KeyError: eine Zwischenebene kann in
             # der YAML-Datei auch "null" oder ein Skalar statt eines

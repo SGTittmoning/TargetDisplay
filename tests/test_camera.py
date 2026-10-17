@@ -51,8 +51,8 @@ def test_liefert_bilder_und_zuschnitt(monkeypatch):
     cam.set_crop_region((2, 1, 6, 5))
     try:
         assert wait_for_frames(cam, 3)
-        assert cam.getFrame().shape == (4, 4, 3)
-        assert cam.getFrame(full=True).shape == (8, 8, 3)
+        assert cam.get_frame().shape == (4, 4, 3)
+        assert cam.get_frame(full=True).shape == (8, 8, 3)
     finally:
         cam.stop()
 

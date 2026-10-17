@@ -126,7 +126,7 @@ class FakeCfg:
     def __init__(self, values):
         self.values = values
 
-    def getPropertyWithDefault(self, key, default):
+    def get_property_with_default(self, key, default):
         return self.values.get(key, default)
 
 

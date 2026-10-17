@@ -33,6 +33,11 @@ EDITOR_MAX_W, EDITOR_MAX_H = 1000, 620
 STANDNAME_MAX_PX = 310
 
 
+# Abstand zwischen Touch-Buttons (gegen Fehltreffer) und zwischen den
+# Gruppen Zoom/Blinken/Timer, in Pixeln.
+BTN_GAP = 10
+GROUP_GAP = 20
+
 # Helles Farbschema. Jede Funktionsgruppe (Zoom/Blinken/Timer) hat eine
 # eigene Akzentfarbe und dazu eine blasse "Muted"-Variante fuer gesperrte
 # Buttons (siehe _make_accent_button(), set_icon_buttons()).
@@ -111,7 +116,7 @@ class Window:
     def __init__(self, cfg, video_size, version):
         self.video_size = video_size
         self.version = version
-        self.screen_size = cfg.getProperty('screenSize')
+        self.screen_size = cfg.get_property('screenSize')
         self._queue = queue.Queue()
         self.widgets = {}
         self.pages = {}
@@ -365,12 +370,8 @@ class Window:
                                                 lambda: self.post('-SETTINGS-'))
         settings_btn.pack(side='left')
 
-        # BTN_GAP: Abstand zwischen Touch-Buttons gegen Fehltreffer.
-        # GROUP_GAP: Abstand zwischen den Gruppen. Statt Rahmen traegt jede Gruppe
-        # eine Ueberschrift in ihrer Akzentfarbe.
-        BTN_GAP = 10
-        GROUP_GAP = 20
-
+        # Statt Rahmen traegt jede Gruppe eine Ueberschrift in ihrer
+        # Akzentfarbe, Abstaende siehe BTN_GAP/GROUP_GAP.
         groups = tk.Frame(left, bg=BG)
         groups.pack(side='top', fill='x')
 
