@@ -86,7 +86,7 @@ sys.excepthook = _handle_uncaught
 # erscheint.
 MAIN_LOOP_TICK_MS = 33
 
-version = '0.13.0'
+version = '0.13.1'
 
 cfg = yamlconfig.load("config.yml")
 
