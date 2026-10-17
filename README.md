@@ -58,7 +58,7 @@ For unattended kiosk operation on a Raspberry Pi, `play_it` is the launcher scri
 | Setting | Description |
 |---|---|
 | `screenSize` | Window size in pixels, e.g. `[1024, 768]` |
-| `settingsPin` | 4-6 digit numeric PIN gating the in-app Settings/Restart buttons. Optional — omitted, it falls back to the built-in default `"1234"`, and the app forces a PIN change on first run rather than staying on that default |
+| `settingsPin` | 4-6 digit numeric PIN gating the in-app Settings/Restart buttons. Optional — omitted, or not 4-6 digits (e.g. the `"CHANGEME"` placeholder, which the keypad could never enter), it falls back to the built-in default `"1234"`, and the app forces a PIN change on first run rather than staying on that default |
 | `standName` | Label shown in the top-left corner. Optional, see below |
 | `video.url` | RTSP/RTMP URL of the camera. Optional, see below |
 | `video.section_full` | Four corner points `[[x,y], ...]` for the full-overview perspective transform. Optional, see below |

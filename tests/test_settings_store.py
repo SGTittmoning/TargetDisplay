@@ -87,6 +87,22 @@ def test_settings_pin_prioritaet(files):
     assert store.load_settings_pin(FakeCfg({'settingsPin': '4711'})) == '9999'
 
 
+@pytest.mark.parametrize('configured', ['CHANGEME', '', '123', '1234567', '12a4', '１２３４'])
+def test_ungueltiger_pin_gilt_als_standard_pin(files, configured):
+    # Ueber das Ziffernfeld nicht eingebbar - ohne Rueckfall waere die
+    # Standaufsicht ausgesperrt. Als Standard-PIN erzwingt main() die Aenderung.
+    assert store.load_settings_pin(FakeCfg({'settingsPin': configured})) == store.DEFAULT_PIN
+
+
+def test_ungueltiger_pin_in_der_pin_datei_gilt_als_standard_pin(files):
+    files['PIN_FILE'].write_text('{"pin": "CHANGEME"}')
+    assert store.load_settings_pin(FakeCfg({'settingsPin': '4711'})) == store.DEFAULT_PIN
+
+
+def test_pin_als_zahl_aus_yaml(files):
+    assert store.load_settings_pin(FakeCfg({'settingsPin': 4711})) == '4711'
+
+
 def test_save_pin_ruft_das_sudo_skript_mit_json(monkeypatch):
     calls = []
 
