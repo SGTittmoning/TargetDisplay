@@ -76,10 +76,14 @@ def crop(cv2Object, zoomSize, center):
     offset = int(width / (2*zoomSize)), int(height / (2*zoomSize))
 
     # check if out of bound
-    if (offset[0] > center[0]): center=offset[0],center[1]
-    if (offset[1] > center[1]): center=center[0],offset[1]
-    if ((offset[0] + center[0]) > width): center=(width - offset[0]),center[1]
-    if ((offset[1] + center[1]) > height): center=center[0],(height - offset[1])
+    if offset[0] > center[0]:
+        center = offset[0], center[1]
+    if offset[1] > center[1]:
+        center = center[0], offset[1]
+    if offset[0] + center[0] > width:
+        center = width - offset[0], center[1]
+    if offset[1] + center[1] > height:
+        center = center[0], height - offset[1]
 
     # The image/video frame is cropped to the center with a size of the original picture
     # image[y1:y2,x1:x2] is used to iterate and grab a portion of an image

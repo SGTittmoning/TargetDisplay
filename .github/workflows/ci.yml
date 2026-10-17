@@ -64,7 +64,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install ruff
-        run: pip install "ruff==0.16.9"
+        run: pip install "ruff==0.17.1"
       - name: ruff (Syntaxfehler und echte Fehler, siehe ruff.toml)
         run: ruff check .
       - name: Compile check

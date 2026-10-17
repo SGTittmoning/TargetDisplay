@@ -62,7 +62,8 @@ def test_default_bei_skalarer_zwischenebene(tmp_path):
 
 
 def test_leere_datei():
-    import tempfile, os
+    import os
+    import tempfile
     fd, path = tempfile.mkstemp()
     os.close(fd)
     try:

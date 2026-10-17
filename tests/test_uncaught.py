@@ -18,7 +18,7 @@ def test_unbehandelte_exception_endet_mit_exit_code_3(tmp_path):
         + source[start:end]
         + 'sys.excepthook = _handle_uncaught\n'
         + 'raise RuntimeError("kaputt")\n')
-    result = subprocess.run([sys.executable, str(script)], capture_output=True, text=True)
+    result = subprocess.run([sys.executable, str(script)], capture_output=True, text=True, check=False)
     assert result.returncode == 3
     assert 'RuntimeError: kaputt' in result.stderr
 
@@ -29,4 +29,4 @@ def test_sys_exit_bleibt_unberuehrt(tmp_path):
         import sys
         sys.exit(2)
     '''))
-    assert subprocess.run([sys.executable, str(script)]).returncode == 2
+    assert subprocess.run([sys.executable, str(script)], check=False).returncode == 2

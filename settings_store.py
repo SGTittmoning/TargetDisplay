@@ -68,7 +68,7 @@ def _run_save_script(script_name, payload):
     try:
         result = subprocess.run(
             ['/usr/bin/sudo', f'/root/bin/{script_name}'],
-            input=payload, text=True, capture_output=True, timeout=15
+            input=payload, text=True, capture_output=True, timeout=15, check=False
         )
         if result.returncode != 0:
             print(f"{script_name} fehlgeschlagen (Exit {result.returncode}): {result.stderr}", file=sys.stderr)
