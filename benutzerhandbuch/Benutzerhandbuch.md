@@ -1,6 +1,6 @@
 # TargetDisplay – Benutzerhandbuch
 
-*Version des Handbuchs: Oktober 2026, bezogen auf TargetDisplay v0.12.x*
+*Version des Handbuchs: Oktober 2026, bezogen auf TargetDisplay v0.13.x*
 
 ## 1. Einleitung
 
