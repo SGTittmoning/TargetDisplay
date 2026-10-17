@@ -1,50 +1,17 @@
-# Diese Datei listet nur noch av (siehe Kommentar dort, bewusst ohne
-# Versionspin). PyYAML und Pillow sind ebenfalls echte Laufzeit-
-# Abhaengigkeiten, stehen aber bewusst NICHT hier, sondern kommen wie
-# opencv/numpy ueber apt (python3-yaml, python3-pil/-imagetk) - siehe
-# die jeweiligen Kommentare unten.
-# Install with: pip3 install -r requirements.txt
-
-# GUI is plain Tkinter (stdlib, via the python3-tk apt package) - no separate
-# GUI package to pip-install/pin anymore. Previously PySimpleGUI, which had
-# to be pinned to 4.60.5.1 because 4.32.1 was pulled from PyPI without
-# replacement and anything past 4.60.5.1 required a paid license - permanent
-# independence from exactly that kind of third-party-package risk was the
-# reason for the Tkinter rewrite.
-
-# PyYAML: yaml.safe_load() in yamlconfig.py. Kommt ueber apt als
-# python3-yaml, wie opencv/numpy unten - keine pip-Installation auf den
-# Pis noetig. Nur fuer eine lokale venv (z.B. macOS) separat per
-# "pip3 install pyyaml" installieren.
-
-# Pillow: PIL.ImageTk.PhotoImage in ui.py::draw_image() fuer das
-# Video-Frame-Rendering (ein einmalig angelegtes Tk-Bildobjekt wird pro
-# Frame per .paste() aktualisiert statt jedes Mal neu erzeugt zu werden).
-# Kommt ueber apt als python3-pil UND python3-pil.imagetk (auf Debian ein
-# separates Paket) - wie opencv/numpy unten keine pip-Installation auf den
-# Pis noetig. Nur fuer eine lokale venv separat per "pip3 install pillow"
-# installieren.
-
-av
-# Bewusst ohne Versionspin: welche av-Version ein fertiges Wheel hat, haengt
-# stark von Python-Version/Architektur ab (z.B. Bullseye/Python 3.9/armv7l
-# ueber piwheels.org: nur bis av==10.0.0, danach nur noch Sourcebuilds;
-# aktuelles Raspberry Pi OS mit Python 3.11+/aarch64 bekommt ueber piwheels
-# bzw. PyPI-manylinux-Wheels dagegen deutlich neuere Versionen fertig
-# gebaut). Ein fixer Pin waere je nach Zielsystem falsch. Zusaetzlich
-# noetig (apt, nicht pip): die passende
-# libavdevice-Laufzeitbibliothek (Paketname/SONAME variiert je nach FFmpeg-
-# Version der jeweiligen OS-Generation, z.B. libavdevice58 auf Bullseye vs.
-# libavdevice61 auf Trixie) - PyAV verlinkt dagegen auch wenn Device-I/O
-# nicht genutzt wird. Am robustesten: das generische "ffmpeg"-Paket
-# installieren statt eine konkrete libavdevice-Version zu pinnen.
-
-# opencv and numpy are intentionally NOT listed here: on the Pis they come from
-# apt (python3-opencv, python3-numpy), not pip, and are tied to the OS release
-# (Bullseye -> opencv 4.5.1, numpy 1.19.5). Installing them via pip alongside
-# the apt versions risks two conflicting cv2/numpy installs on the same system.
-# Update them via `apt upgrade` (or an OS upgrade), not pip.
+# Per pip installiert wird nur av (PyAV). Alles andere kommt auf den Pis
+# ueber apt und passt damit zur jeweiligen OS-Version:
+#   python3-tk                       Oberflaeche (Tkinter)
+#   python3-opencv, python3-numpy    Bildverarbeitung
+#   python3-yaml                     config.yml
+#   python3-pil, python3-pil.imagetk Videoanzeige (ImageTk)
+# Diese per pip zusaetzlich zu installieren, ergaebe zwei konkurrierende
+# Fassungen auf demselben System.
 #
-# For a local venv (e.g. on macOS) where there's no system opencv/numpy to
-# conflict with, install them separately:
-#   pip3 install opencv-python numpy
+# Fuer eine lokale venv (ohne apt-Pakete):
+#   pip3 install -r requirements.txt opencv-python numpy pyyaml pillow
+
+# Ohne Versionsangabe: welche Version als fertiges Wheel existiert, haengt
+# von Python-Version und Architektur ab (Bullseye/armv7l ueber piwheels nur
+# bis 10.0.0, aktuelle aarch64-Systeme deutlich neuer). Zusaetzlich per apt
+# noetig: ffmpeg (bringt die passende libavdevice mit).
+av
