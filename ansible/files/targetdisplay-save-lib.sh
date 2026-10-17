@@ -31,8 +31,10 @@ _save_was_ro=0
 
 _save_cleanup() {
   [ -z "$_save_payload" ] || rm -f "$_save_payload"
+  # Nach einem erfolgreichen mv existiert die temp-Datei nicht mehr; nach
+  # einem Fehler wird sie entfernt, egal ob die Partition vorher ro war.
+  [ -z "$_save_tmp" ] || rm -f "$_save_tmp"
   if [ "$_save_was_ro" -eq 1 ]; then
-    [ -z "$_save_tmp" ] || rm -f "$_save_tmp"
     mount -o remount,ro "$BOOT_DIR"
   fi
   return 0
