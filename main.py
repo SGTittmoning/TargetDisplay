@@ -86,7 +86,7 @@ sys.excepthook = _handle_uncaught
 # erscheint.
 MAIN_LOOP_TICK_MS = 33
 
-version = '0.13.0'
+version = '0.13.1'
 
 cfg = yamlconfig.load("config.yml")
 
@@ -118,8 +118,7 @@ def main():
     replay_active = False
     replay_start = time.monotonic()
     last_replay_key = None
-    replay_latency = cfg.getPropertyWithDefault('replay.latency_sec', replay.DEFAULT_LATENCY_SEC)
-    replay_budget = int(cfg.getPropertyWithDefault('replay.budget_mb', replay.DEFAULT_BUDGET_MB)) * 1024 * 1024
+    replay_latency, replay_budget = replay.read_settings(cfg)
 
     window = ui.window = ui.Window(cfg, VideoSize, version)
 

@@ -36,6 +36,17 @@ STREAM_STALE_TIMEOUT_SEC = 10
 # einen Ausfall WAEHREND eines bereits laufenden Streams.
 STREAM_STARTUP_TIMEOUT_SEC = 30
 
+def _close_quietly(container):
+    # Ein Fehler beim Schliessen einer ohnehin verworfenen Verbindung darf
+    # weder stop() noch den Lesethread abbrechen.
+    if container is None:
+        return
+    try:
+        container.close()
+    except Exception as e:
+        print(f"camera.py: Fehler beim Schliessen ignoriert ({type(e).__name__})", file=sys.stderr)
+
+
 class Camera:
     def __init__(self, rtsp_link, reconnect_delay=2, crop_region=None):
         self.rtsp_link = rtsp_link
@@ -73,11 +84,7 @@ class Camera:
         # container.close() ausserhalb des Locks: unterbricht ein gerade
         # blockierendes next(frame_iter) im Hintergrund-Thread, damit stop()
         # nicht bis zum naechsten Frame/Reconnect-Versuch warten muss.
-        if container is not None:
-            try:
-                container.close()
-            except Exception:
-                pass
+        _close_quietly(container)
 
     def set_crop_region(self, crop_region):
         # Setzt crop_region unter demselben Lock, das _buffer_loop beim
@@ -123,7 +130,11 @@ class Camera:
                     print(f"camera.py: Container geoeffnet nach {time.monotonic() - connect_started:.1f}s", file=sys.stderr)
                 av_frame = next(frame_iter)
                 frame = av_frame.to_ndarray(format="bgr24")
-            except (av.error.FFmpegError, StopIteration, OSError) as e:
+            except Exception as e:
+                # Jeder Fehler fuehrt zu einem neuen Verbindungsversuch, auch
+                # ein unerwarteter (z.B. aus to_ndarray). Sonst endete der
+                # Lesethread still, und erst die Stale-Erkennung in main.py
+                # beendete die App mit irrefuehrender Meldung.
                 if self._stop_event.is_set():
                     # stop() hat den Container absichtlich geschlossen, um
                     # genau dieses next(frame_iter) zu unterbrechen - kein
@@ -137,8 +148,7 @@ class Camera:
                 # PyAV nimmt die URL in die Fehlermeldung auf; Zugangsdaten
                 # duerfen nicht im Journal landen.
                 print(f"camera.py: Verbindungs-/Decode-Fehler ({type(e).__name__}: {mask_credentials(e)}), naechster Versuch in {self.reconnect_delay}s", file=sys.stderr)
-                if container is not None:
-                    container.close()
+                _close_quietly(container)
                 container = None
                 with self.lock:
                     self._container = None
@@ -163,11 +173,7 @@ class Camera:
         # container ist dann meist schon durch stop() geschlossen, ein
         # zweiter close()-Versuch auf einem bereits geschlossenen Container
         # ist bei PyAV ungefaehrlich, daher hier ohne Sonderfall-Pruefung.
-        if container is not None:
-            try:
-                container.close()
-            except Exception:
-                pass
+        _close_quietly(container)
 
     def getFrame(self, full=False):
         with self.lock:

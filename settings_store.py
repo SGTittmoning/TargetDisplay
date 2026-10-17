@@ -146,7 +146,15 @@ def save_active_stand(stand_id):
     return _run_save_script('targetdisplay-save-active-stand.sh', json.dumps({'id': stand_id}))
 
 
+def is_valid_pin(pin):
+    # Nur was sich ueber das Ziffernfeld eingeben laesst: 4-6 Ziffern 0-9.
+    return pin.isascii() and pin.isdigit() and 4 <= len(pin) <= 6
+
+
 def load_settings_pin(cfg):
+    # Ein PIN, der sich nicht eingeben laesst (z.B. der Platzhalter
+    # "CHANGEME" aus config.yml.dist), gilt als DEFAULT_PIN. main() erzwingt
+    # dann eine Aenderung, statt die Standaufsicht auszusperren.
     pin = cfg.getPropertyWithDefault('settingsPin', DEFAULT_PIN)
     if os.path.exists(PIN_FILE):
         try:
@@ -155,7 +163,11 @@ def load_settings_pin(cfg):
             pin = override.get('pin', pin)
         except Exception as e:
             print(f"Konnte {PIN_FILE} nicht lesen ({e}), nutze bisherigen PIN.", file=sys.stderr)
-    return str(pin)
+    pin = str(pin)
+    if not is_valid_pin(pin):
+        print('Konfigurierter PIN ist keine 4-6-stellige Zahl, Standard-PIN gilt.', file=sys.stderr)
+        return DEFAULT_PIN
+    return pin
 
 
 def save_pin(new_pin):

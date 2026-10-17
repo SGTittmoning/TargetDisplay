@@ -5,6 +5,8 @@ Gespeichert wird das rohe, auf den Scheibenbereich zugeschnittene Kamerabild
 Scheibe, Innen Scheibe und der manuelle Zoom im Replay genau wie live. Die
 Aufnahme liegt nur im RAM.
 """
+import math
+import sys
 from collections import namedtuple
 
 # Rotes Startbild mit dem Timer-Modus vor dem ersten Durchgang.
@@ -32,6 +34,28 @@ DEFAULT_BUDGET_MB = 600
 # offset: Sekunden seit Beginn des Durchgangs; frame: Rohbild oder None;
 # key: wechselt genau dann, wenn ein anderes Bild zu zeigen ist.
 ReplayView = namedtuple('ReplayView', 'kind segment offset frame key')
+
+
+def read_settings(cfg):
+    """(Verzoegerung in s, Speicherrahmen in Bytes) aus config.yml.
+
+    Ein ungueltiger Wert faellt mit Hinweis im Journal auf den Standard
+    zurueck, statt die App beim Start oder beim ersten Timer abzubrechen.
+    """
+    def number(key, default, convert, valid):
+        value = cfg.getPropertyWithDefault(key, default)
+        try:
+            value = convert(value)
+        except (TypeError, ValueError):
+            value = None
+        if value is None or not valid(value):
+            print(f"replay: {key} ungültig, Standard {default} gilt.", file=sys.stderr)
+            return default
+        return value
+
+    latency = number('replay.latency_sec', DEFAULT_LATENCY_SEC, float, math.isfinite)
+    budget_mb = number('replay.budget_mb', DEFAULT_BUDGET_MB, int, lambda v: v > 0)
+    return latency, budget_mb * 1024 * 1024
 
 
 class Recording:

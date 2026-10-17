@@ -1,6 +1,7 @@
 """Dialog-Ablaeufe auf der Oberflaeche: PIN, Stand-Auswahl, Ausschnitt-Editor, Einstellungen."""
 import math
 import subprocess
+import sys
 import time
 import tkinter as tk
 
@@ -36,6 +37,11 @@ def _wait_after_error(error_text, wait_s):
             return False
 
 
+# Ereignisse der Zifferntasten. Eine Menge statt eines Strings: "in" auf
+# einem String traefe auch Teilstrings wie '12'.
+PIN_DIGITS = frozenset('0123456789')
+
+
 def _run_pin_keypad(title, show_cancel, validate):
     # Gemeinsames Tastenfeld-Grundgeruest fuer check_pin() und
     # _enter_new_pin() - beide sammeln Ziffern/-PIN_CLEAR- identisch und
@@ -68,7 +74,7 @@ def _run_pin_keypad(title, show_cancel, validate):
                 entered = ''
                 if not _wait_after_error(error_text, sleep_s):
                     break
-        elif event in '0123456789':
+        elif event in PIN_DIGITS:
             if len(entered) < 6:
                 entered += event
         ui.window['-PINDISPLAY-'].update('*' * len(entered), text_color=FG_DARK)
@@ -95,6 +101,20 @@ def check_pin(correct_pin):
     result = _run_pin_keypad('PIN eingeben', True, validate)
     show_page('-MAINVIEW-')
     return bool(result)
+
+
+def _reboot():
+    # True, wenn der Neustart ausgeloest wurde. Scheitert sudo, bliebe die
+    # Standaufsicht sonst ohne Rueckmeldung im Menue.
+    try:
+        result = subprocess.run(['/usr/bin/sudo', '/usr/sbin/reboot'], check=False)
+    except OSError as e:
+        print(f"Neustart fehlgeschlagen: {e}", file=sys.stderr)
+        return False
+    if result.returncode != 0:
+        print(f"Neustart fehlgeschlagen: Exit-Code {result.returncode}", file=sys.stderr)
+        return False
+    return True
 
 
 def confirm_reboot():
@@ -196,23 +216,20 @@ def run_stand_select(stands, forced):
 
 
 def wait_for_camera_frame(cap, max_wait_sec=STREAM_STARTUP_TIMEOUT_SEC):
-    # Gnadenfrist fuer den allerersten Frame direkt nach der Stand-Auswahl -
-    # dieselbe Grosszuegigkeit wie STREAM_STARTUP_TIMEOUT_SEC (av.open() hat
-    # keinen expliziten Verbindungs-Timeout, ein frischer Connect kann
-    # vereinzelt 30s+ dauern, siehe Camera.is_stale-Kommentar; live am
-    # Test-Pi hat allein der Container-Open schon 8s gebraucht). Anders als
-    # ein erster Entwurf (blockierendes time.sleep() bis zum Ablauf, DANACH
-    # erst eine interaktive Seite) pollt diese Version durchgehend ueber
-    # window.read(timeout=...) - das Fenster bleibt die ganze Wartezeit über
-    # reaktionsfaehig (Zurueck-Knopf funktioniert sofort, kein bis zu 30s
-    # eingefroren wirkender Bildschirm) UND erkennt eine zwischenzeitlich
-    # doch noch erfolgreiche Verbindung automatisch, ganz ohne Klick auf
-    # "Erneut versuchen". Gibt den Frame zurueck, oder den String 'back'
-    # wenn der Nutzer zur Stand-Auswahl zurueck moechte.
+    # Wartet auf den ersten Frame nach der Stand-Auswahl. Die Kamera versucht
+    # im Hintergrund laufend neu zu verbinden; diese Seite bleibt dabei
+    # bedienbar und kehrt zurueck, sobald ein Frame da ist. Nach
+    # max_wait_sec erscheint ein Hinweis, "Erneut versuchen" startet die
+    # Wartezeit neu. Gibt den Frame zurueck, oder 'back' fuer die
+    # Stand-Auswahl.
     show_page('-CAMWAITVIEW-')
-    ui.window['-CAMWAIT_TEXT-'].update('Verbinde mit Kamera...')
-    ui.window.refresh()
-    deadline = time.monotonic() + max_wait_sec
+
+    def start_waiting():
+        ui.window['-CAMWAIT_TEXT-'].update('Verbinde mit Kamera...')
+        ui.window.refresh()
+        return time.monotonic() + max_wait_sec
+
+    deadline = start_waiting()
     timed_out = False
     while True:
         frame = cap.getFrame(full=True)
@@ -225,6 +242,9 @@ def wait_for_camera_frame(cap, max_wait_sec=STREAM_STARTUP_TIMEOUT_SEC):
         event, _ = ui.window.read(timeout=300)
         if event in (WIN_CLOSED, '-CAMWAIT_BACK-'):
             return 'back'
+        if event == '-CAMWAIT_RETRY-':
+            deadline = start_waiting()
+            timed_out = False
 
 
 def edit_section_points(region_label, cap, points, other_points=None, allow_cancel=True, will_restart=True):
@@ -483,6 +503,6 @@ def run_settings_flow(cap, section_full, section_detail, stands, current_pin):
             # Hauptbildschirm-Button (siehe _build_menu_view) - der Zugang
             # ist bereits durch den vorgelagerten check_pin() in main()s
             # '-SETTINGS-'-Handler geschuetzt, keine zweite PIN-Abfrage noetig.
-            if confirm_reboot():
-                subprocess.run(['/usr/bin/sudo', '/usr/sbin/reboot'], check=False)
+            if confirm_reboot() and not _reboot():
+                popup('Neustart fehlgeschlagen.')
             continue

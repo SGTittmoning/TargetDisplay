@@ -65,6 +65,11 @@ case "$*" in
 esac
 exit 0
 STUB
+cat > "$STUBS/mv" <<'STUB'
+#!/bin/bash
+[ "${FAIL_MV:-0}" = 1 ] && exit 1
+exec /bin/mv "$@"
+STUB
 cat > "$STUBS/systemctl" <<'STUB'
 #!/bin/bash
 echo "systemctl $*" >> "$STUB_LOG"
@@ -90,7 +95,7 @@ done
 
 export STUB_LOG="$WORK/stub.log"
 export PATH="$STUBS:$PATH"
-reset() { : > "$STUB_LOG"; rm -rf "$BOOT"; mkdir -p "$BOOT"; unset BOOTRO OVERLAY FAIL_MOUNT_RW STUB_INACTIVE STUB_FAILED STUB_NRESTARTS STUB_ACTIVE_ENTER_US STUB_HOOK STUB_HOOK_STAYS_MISSING; rm -f "$STUB_LOG.rebuilt"; }
+reset() { : > "$STUB_LOG"; rm -rf "$BOOT"; mkdir -p "$BOOT"; unset BOOTRO OVERLAY FAIL_MOUNT_RW FAIL_MV STUB_INACTIVE STUB_FAILED STUB_NRESTARTS STUB_ACTIVE_ENTER_US STUB_HOOK STUB_HOOK_STAYS_MISSING; rm -f "$STUB_LOG.rebuilt"; }
 calls() { grep -c "$1" "$STUB_LOG" 2>/dev/null || true; }
 lineof() { grep -n -m1 "$1" "$STUB_LOG" 2>/dev/null | cut -d: -f1; }
 
@@ -141,6 +146,10 @@ fi
 reset; echo '{"pin": "1"}' | BOOTRO=0 FAIL_MOUNT_RW=1 "$BIN/targetdisplay-save-pin.sh" 2>/dev/null; rc=$?
 check "remount rw scheitert: Exit != 0" 1 "$([ "$rc" -ne 0 ] && echo 1 || echo 0)"
 check "remount rw scheitert: Partition wird read-only gehalten" 1 "$(calls 'remount,ro')"
+
+reset; echo '{"pin": "3333"}' | FAIL_MV=1 "$BIN/targetdisplay-save-pin.sh" 2>/dev/null; rc=$?
+check "mv scheitert (Boot rw): Exit != 0" 1 "$([ "$rc" -ne 0 ] && echo 1 || echo 0)"
+check "mv scheitert (Boot rw): keine temp-Datei uebrig" "" "$(find "$BOOT" -maxdepth 1 -name '*.tmp')"
 
 # ============================================== reboot-count-reset.sh
 echo "reboot-count-reset.sh"
