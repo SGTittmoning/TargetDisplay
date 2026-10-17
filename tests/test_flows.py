@@ -82,3 +82,35 @@ def test_neustart_ohne_fehler_ohne_meldung(win, monkeypatch):
     flows.run_settings_flow(None, None, None, [], '4711')
     assert calls == [['/usr/bin/sudo', '/usr/sbin/reboot']]
     assert messages == []
+
+
+def keypad(win, events):
+    # Liefert, was beim abschliessenden OK eingegeben war.
+    for event in events + ['-PIN_OK-']:
+        win.post(event)
+    return flows._run_pin_keypad('PIN eingeben', True, lambda entered: (True, entered))
+
+
+def test_pin_tastenfeld_sammelt_ziffern(win):
+    assert keypad(win, ['4', '7', '1', '1']) == '4711'
+
+
+def test_pin_tastenfeld_hoechstens_sechs_ziffern(win):
+    assert keypad(win, list('123456789')) == '123456'
+
+
+def test_pin_tastenfeld_loeschen(win):
+    assert keypad(win, ['9', '9', '-PIN_CLEAR-', '1', '2', '3', '4']) == '1234'
+
+
+def test_pin_tastenfeld_zeigt_sternchen(win):
+    for event in ['1', '2', '3']:
+        win.post(event)
+    win.post('-PIN_CANCEL-')
+    flows._run_pin_keypad('PIN eingeben', True, lambda entered: (True, entered))
+    assert win['-PINDISPLAY-'].widget.cget('text') == '***'
+
+
+@pytest.mark.parametrize('event', ['', '12', '0123456789'])
+def test_pin_tastenfeld_nimmt_nur_einzelne_ziffern(win, event):
+    assert keypad(win, ['1', event, '2']) == '12'

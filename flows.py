@@ -37,6 +37,11 @@ def _wait_after_error(error_text, wait_s):
             return False
 
 
+# Ereignisse der Zifferntasten. Eine Menge statt eines Strings: "in" auf
+# einem String traefe auch Teilstrings wie '12'.
+PIN_DIGITS = frozenset('0123456789')
+
+
 def _run_pin_keypad(title, show_cancel, validate):
     # Gemeinsames Tastenfeld-Grundgeruest fuer check_pin() und
     # _enter_new_pin() - beide sammeln Ziffern/-PIN_CLEAR- identisch und
@@ -69,7 +74,7 @@ def _run_pin_keypad(title, show_cancel, validate):
                 entered = ''
                 if not _wait_after_error(error_text, sleep_s):
                     break
-        elif event in '0123456789':
+        elif event in PIN_DIGITS:
             if len(entered) < 6:
                 entered += event
         ui.window['-PINDISPLAY-'].update('*' * len(entered), text_color=FG_DARK)
