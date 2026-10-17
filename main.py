@@ -60,8 +60,7 @@ from watchdog import stale_check_due
 # main.py ein SIGTERM (z.B. von "systemctl restart") ueberhaupt erreicht.
 # Reagiert main.py nicht rechtzeitig, greift systemd nach TimeoutStopSec
 # per SIGKILL ein - das zaehlt als eigener Fehlerzustand ("Failed with
-# result 'timeout'") und loest OnFailure=/den Reboot-Guard aus, unabhaengig
-# von der Staleness-Logik oben.
+# result 'timeout'") und loest OnFailure=/den Reboot-Guard aus.
 def _handle_sigterm(signum, frame):
     print("SIGTERM empfangen, beende main.py.", file=sys.stderr)
     sys.exit(0)
@@ -122,21 +121,15 @@ def main():
 
     window = ui.window = ui.Window(cfg, VideoSize, version)
 
-    #some speed optimisation - avoid searching every frame
+    # Einmal nachschlagen statt in jedem Schleifendurchlauf.
     window_date = window['-DATE-']
     window_time = window['-TIME-']
     window_fps = window['-FPS-']
 
     show_page('-MAINVIEW-')
-    # ressources/logo.png ist im Repo nur ein generisches Platzhalter-Logo
-    # (siehe README) - Ansible ueberschreibt es optional mit einem eigenen
-    # Vereinslogo (ansible/files/logo.png, gitignored, siehe .gitignore).
-    # Fehlt die Datei dennoch, bleibt das Blank-Screen-Wasserzeichen einfach
-    # leer statt abzustuerzen.
-    # Es gibt KEIN eigenes Sidebar-Logo - das Logo bleibt ausschliesslich dem
-    # Blank-Screen vorbehalten ("Video aus", siehe blend_logo_centered()
-    # unten), deshalb wird hier nur die unskalierte blank_logo-Variante
-    # gebraucht.
+    # Wasserzeichen fuer "Video aus". Im Repo liegt ein Platzhalter, Ansible
+    # ersetzt ihn optional durch das Vereinslogo (ansible/files/logo.png).
+    # Fehlt die Datei, bleibt der Bildschirm bei "Video aus" schwarz.
     blank_logo = cv2.imread('ressources/logo.png', cv2.IMREAD_UNCHANGED)
     if blank_logo is None:
         print("ressources/logo.png nicht gefunden - Blank-Screen-Wasserzeichen bleibt leer.", file=sys.stderr)
@@ -158,23 +151,15 @@ def main():
     StreamPath = active_stand['url']
     set_stand_name(active_stand['displayName'])
 
-    # Kamera bewusst noch OHNE crop_region konstruiert - waehrend der
-    # Ausschnitts-Kalibrierung unten wird ohnehin nur cap.getFrame(full=True)
-    # gebraucht (siehe edit_section_points), das ist von crop_region
-    # unabhaengig. crop_region wird weiter unten, sobald bekannt, direkt am
-    # laufenden Camera-Objekt gesetzt (kein Neuaufbau/Reconnect noetig -
-    # der Hintergrund-Thread liest das Attribut bei jedem Frame neu ein).
+    # Zunaechst ohne Zuschnitt: die Kalibrierung braucht das volle Bild. Der
+    # Zuschnitt wird unten am laufenden Objekt gesetzt, ohne neue Verbindung.
     cap = Camera(StreamPath)
 
     section_full_orig, section_detail_orig = load_sections(cfg)
     while section_full_orig is None or section_detail_orig is None:
         frame_or_back = wait_for_camera_frame(cap)
-        # isinstance-Check statt direktem "== 'back'": frame_or_back ist im
-        # Erfolgsfall ein numpy-Array (der Kamera-Frame) - ein Array mit
-        # einem String zu vergleichen wirft "ValueError: The truth value of
-        # an array... is ambiguous" statt einfach False zu liefern (live am
-        # Test-Pi als echter, durch SuccessExitStatus=1 verdeckter Absturz
-        # aufgefallen).
+        # Im Erfolgsfall ist frame_or_back ein numpy-Array; ein direkter
+        # Vergleich mit 'back' wuerde ValueError werfen.
         if isinstance(frame_or_back, str) and frame_or_back == 'back':
             # Zurueck zur Stand-Auswahl, z.B. weil die URL falsch war -
             # danach muss diese Kamera-Verbindung durch eine neue ersetzt
@@ -187,11 +172,8 @@ def main():
                     active_stand = chosen
             StreamPath = active_stand['url']
             set_stand_name(active_stand['displayName'])
-            # cap.stop() VOR dem Ersetzen: ohne das lief der Hintergrund-
-            # Thread des verworfenen (ggf. nicht erreichbaren) alten Standes
-            # als Daemon unbegrenzt weiter und versuchte alle 2s erfolglos,
-            # dessen URL erneut zu verbinden - gefunden beim Fresh-Install-
-            # Test, Fix uebernommen aus main (camera.py, Commit 0bbd28e).
+            # Alte Verbindung beenden, sonst versucht ihr Lesethread endlos,
+            # die verworfene URL zu erreichen.
             cap.stop()
             cap = Camera(StreamPath)
             continue
@@ -218,21 +200,17 @@ def main():
     pts_full = np.array(section_full_orig, dtype="int")
     pts_detail = np.array(section_detail_orig, dtype="int")
 
-    # nur den fuer section_full/section_detail benoetigten Bildausschnitt
-    # aus der Kamera holen statt des vollen Frames - spart Kopier-/
-    # Verarbeitungskosten, das Warp-Ergebnis bleibt dabei unveraendert
+    # Die Kamera liefert nur den Bereich, den die beiden Ausschnitte brauchen.
+    # Das spart Kopier- und Rechenzeit, das entzerrte Bild bleibt gleich.
     CROP_MARGIN = 15
     crop_x0, crop_y0, crop_x1, crop_y1 = tl.crop_bounds([pts_full, pts_detail], CROP_MARGIN)
     pts_full = pts_full - [crop_x0, crop_y0]
     pts_detail = pts_detail - [crop_x0, crop_y0]
     cap.set_crop_region((crop_x0, crop_y0, crop_x1, crop_y1))
 
-    # Perspektiv-Matrizen einmalig berechnen statt bei jedem Frame neu -
-    # pts_full/pts_detail aendern sich zur Laufzeit nie (nur ein Neustart
-    # nach einer Settings-Aenderung setzt sie neu). dsize=VideoSize direkt
-    # hier hineingerechnet spart ausserdem das bisher separate cv2.resize()
-    # auf VideoSize nach dem Warp - cv2.warpPerspective() liefert das Bild
-    # im Hot-Loop unten in einem Rutsch schon in der richtigen Groesse.
+    # Perspektiv-Matrizen einmal berechnen: die Ausschnitte aendern sich nur
+    # mit einem Neustart. Sie bilden direkt auf VideoSize ab, ein eigenes
+    # Skalieren entfaellt.
     M_full = tl.compute_perspective_matrix(pts_full, VideoSize)
     M_detail = tl.compute_perspective_matrix(pts_detail, VideoSize)
 
@@ -280,11 +258,8 @@ def main():
             if displayVideo:
                 video_resumed_at = time.monotonic()
                 window['-TOGGLEVIDEO-'].widget.config(image=window._icon('eye_slash_neutral'))
-                # frame_count/frame_timestamps bewusst NICHT zurueckgesetzt - Video
-                # aus/ein soll die FPS/Frame-Anzeige nur pausieren (sie friert waehrend
-                # des Blank-Screens einfach ein, da weder der displayVideo- noch der
-                # displayTimer-Zweig unten dann laeuft) und beim Wiedereinschalten
-                # nahtlos weiterzaehlen, genau wie beim Timer - kein Reset auf 1/leer.
+                # frame_count/frame_timestamps laufen weiter, die FPS-Anzeige
+                # pausiert nur (wie beim Timer).
                 zoom_disabled(False)
                 sync_reset_button(zoom_level, zoom_center)
                 blink_disabled(False)
@@ -296,9 +271,7 @@ def main():
                 if blank_logo is not None:
                     frame = blend_logo_centered(frame, blank_logo)
                 window.draw_image(frame)
-                # Ausgeblendet, nicht zurueckgesetzt (frame_count/frame_timestamps
-                # bleiben unangetastet, siehe oben) - analog zum Timer, der die
-                # Anzeige waehrend seiner eigenen Blank-Phase ebenso leert.
+                # FPS-Anzeige nur leeren, die Zaehler bleiben (siehe oben).
                 window_fps.update('')
                 zoom_disabled(True)
                 sync_reset_button(zoom_level, zoom_center, globally_disabled=True)
@@ -308,11 +281,8 @@ def main():
         elif event == '-SETTINGS-':
             if check_pin(SettingsPin):
                 if run_settings_flow(cap, section_full_orig, section_detail_orig, stands, SettingsPin):
-                    # Neue Werte sind persistiert (Boot-Partition-Override) -
-                    # sauberster Weg fuer einen neu berechneten Crop-Bereich
-                    # ist ein Neustart des Prozesses; Restart=always im
-                    # systemd-Unit startet main.py sofort mit den neuen
-                    # Werten neu (Exit-Code 0 = regulaeres Beenden).
+                    # Gespeichert: Prozess beenden (Exit 0), systemd startet
+                    # ihn mit den neuen Werten neu.
                     sys.exit(0)
         elif event == '-FULL_VIDEO-':
             zoom_level = 'full'
@@ -324,11 +294,11 @@ def main():
             sync_reset_button(zoom_level, zoom_center)
         elif event == '-VIDEO-':
             if zoom_center == []:
-            # init zoom
+                # Erster Tipp: Mittelpunkt des Ausschnitts.
                 zoom_center = values["-VIDEO-"]
             else:
+                # Tipp nahe am Rand: Ausschnitt in diese Richtung verschieben.
                 move_speed = 5
-                # move zoomed window
                 if values["-VIDEO-"][0] < 30:
                     zoom_center = zoom_center[0]-move_speed,zoom_center[1]
                 elif values["-VIDEO-"][0] > 70:
@@ -347,12 +317,8 @@ def main():
             zoom_center = []
             sync_reset_button(zoom_level, zoom_center)
         elif event == '-BLINK_START-':
-            # Zoom (Buttons, Klick-Pan UND Reset) bleibt waehrend Blinken
-            # bewusst fuer alle drei Bedienwege einheitlich nutzbar: Crop wird
-            # pro Frame nach der Referenz/Live-Auswahl angewendet, betrifft
-            # also beide Zoom-Zustaende gleich, funktioniert also einwandfrei
-            # waehrend des Blinkens. Die Timer bleiben ebenfalls startbar
-            # (siehe Timer-Start unten).
+            # Zoom bleibt bedienbar, er wirkt auf Referenz und Livebild gleich.
+            # Die Timer bleiben startbar (siehe Timer-Start unten).
             video_filter_disabled(True)
             blink_buttons(True)
             blink_ref = []
@@ -460,32 +426,17 @@ def main():
                 window.draw_image(draw_replay_marker(display_frame, counter))
                 window_fps.update('')
         elif displayVideo:
-            # skip reprocessing/redrawing if the camera hasn't delivered a new frame yet
+            # Nur neu zeichnen, wenn die Kamera ein neues Bild geliefert hat.
             current_frame_id, _, _ = cap.snapshot()
             frame = cap.getFrame() if current_frame_id != last_frame_id else None
             if frame is not None:
                 last_frame_id = current_frame_id
 
-                #ready to display, all image manipulations are done only display options from here
-                #--------------------------------------------------------------------------
-                #blink
-                # blink_ref haelt bewusst das ROHE, noch NICHT per
-                # warpPerspective() entzerrte Kamerabild fest, nicht das fertig
-                # entzerrte - Ganze/Innen Scheibe sind zwei VERSCHIEDENE
-                # Matrizen (M_full/M_detail) auf demselben Rohbild, keine
-                # ineinander verschachtelten Transformationen. Ein bereits
-                # entzerrtes Referenzbild wuerde nach einem Zoom-Stufen-Wechsel
-                # auf der alten Perspektive haengen bleiben, waehrend neue
-                # Live-Frames schon die neue zeigen - sichtbares Springen beim
-                # Blinken. Das ROHE Bild laesst sich dagegen bei JEDEM
-                # Zoom-Wechsel einfach mit der jeweils aktuellen Matrix neu
-                # entzerren, waehrend der tatsaechlich fotografierte Inhalt (und
-                # damit die Einschusslöcher zum Referenzzeitpunkt) unveraendert
-                # erhalten bleibt. WICHTIG: blink_ref wird NIE automatisch neu
-                # aufgenommen, nur bei explizitem -BLINK_START-/-BLINK_REF- -
-                # eine automatische Neuaufnahme (z.B. bei jedem Zoom-Wechsel)
-                # wuerde die eigentliche Referenz-Funktion (alte vs. neue
-                # Treffer vergleichen) zerstoeren.
+                # Blinken: blink_ref ist das rohe, noch nicht entzerrte Bild.
+                # So passt die Referenz nach einem Wechsel der Zoomstufe sofort
+                # zur neuen Perspektive. Neu aufgenommen wird sie nur mit Start
+                # oder Referenz, nie automatisch - sonst ginge der Vergleich
+                # alter und neuer Treffer verloren.
                 if blink and len(blink_ref) == 0:
                     blink_ref = frame
                 if blink and int(time.monotonic()) % 2 == 1:
@@ -506,9 +457,6 @@ def main():
                 except ZeroDivisionError:
                     pass
         elif displayTimer:
-            # VideoSize ist (Breite, Hoehe), numpy-Arrays erwarten
-            # (Hoehe, Breite, Kanaele) - deshalb hier bewusst vertauscht,
-            # analog zum Blank-Screen-Handler oben (-TOGGLEVIDEO-).
             timer_elapsed = time.monotonic() - timerStart
             # Aufnahme: jedes neue Kamerabild geht an die Aufnahme, die nur
             # behaelt, was in eine Gruenphase faellt.
@@ -525,6 +473,7 @@ def main():
             # identisch neu aufgebaut und an Tk uebergeben.
             if state != last_timer_state:
                 last_timer_state = state
+                # numpy erwartet (Hoehe, Breite), VideoSize ist (Breite, Hoehe).
                 frame = np.zeros((VideoSize[1],VideoSize[0],3), np.uint8)
                 frame[:] = (0, 255, 0) if state.color == 'green' else (0, 0, 255)
                 if state.number is not None:
@@ -537,10 +486,8 @@ def main():
                 window.post('-TIMER_STOP-')
 
         now = datetime.now()
-        # Nur bei tatsaechlicher Aenderung neu zeichnen (Datum/Uhrzeit
-        # aendern sich hoechstens einmal pro Sekunde, dieser Loop-Tick
-        # laeuft aber alle ~10ms) - spart bei rund 99% der Iterationen ein
-        # unnoetiges Tk-Redraw dieser beiden Labels.
+        # Datum und Uhrzeit nur neu zeichnen, wenn sich der Text aendert
+        # (hoechstens einmal pro Sekunde statt bei jedem Schleifendurchlauf).
         date_str = now.strftime("%d.%m.%Y")
         if date_str != last_date_str:
             window_date.update(date_str)
