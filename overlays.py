@@ -41,18 +41,19 @@ def blend_logo_centered(canvas, logo_rgba, margin_ratio=0.05):
     return canvas
 
 
-def draw_timer_countdown(frame, seconds_left):
-    # Zentriert und gross dargestellt. getTextSize() liefert die
-    # tatsaechliche Breite/Hoehe des gerenderten Textes, dadurch klappt die
-    # Zentrierung unabhaengig von Ziffernanzahl (1 vs. 2-stellig).
-    text = str(seconds_left)
+def put_centered(frame, text, font_scale, thickness, color):
+    # Text mittig ins Bild. getTextSize() liefert die tatsaechliche Groesse
+    # des gerenderten Textes, die Mitte stimmt also unabhaengig von dessen
+    # Laenge.
     font = cv2.FONT_HERSHEY_SIMPLEX
-    font_scale = 6.5
-    thickness = 11
     (tw, th), _ = cv2.getTextSize(text, font, font_scale, thickness)
     x = (frame.shape[1] - tw) // 2
     y = (frame.shape[0] + th) // 2
-    cv2.putText(frame, text, (x, y), font, font_scale, BLACK, thickness, cv2.LINE_AA)
+    cv2.putText(frame, text, (x, y), font, font_scale, color, thickness, cv2.LINE_AA)
+
+
+def draw_timer_countdown(frame, seconds_left):
+    put_centered(frame, str(seconds_left), 6.5, 11, BLACK)
 
 
 def timer_frame(size, state):
@@ -105,19 +106,13 @@ def replay_separator(size, text):
     # Ohne Text: rotes Schlussbild am Ende des Replays.
     frame = np.zeros((size[1], size[0], 3), np.uint8)
     frame[:] = RED
-    if not text:
-        return frame
-    font = cv2.FONT_HERSHEY_SIMPLEX
-    (tw, th), _ = cv2.getTextSize(text, font, 2, 5)
-    cv2.putText(frame, text, ((size[0] - tw) // 2, (size[1] + th) // 2), font, 2, BLACK, 5, cv2.LINE_AA)
+    if text:
+        put_centered(frame, text, 2, 5, BLACK)
     return frame
 
 
 def replay_no_frame(size):
     # Durchgang ohne Kamerabild (Stream war waehrend der Aufnahme weg).
     frame = np.zeros((size[1], size[0], 3), np.uint8)
-    font = cv2.FONT_HERSHEY_SIMPLEX
-    text = 'kein Bild'
-    (tw, th), _ = cv2.getTextSize(text, font, 1.5, 3)
-    cv2.putText(frame, text, ((size[0] - tw) // 2, (size[1] + th) // 2), font, 1.5, GRAY, 3, cv2.LINE_AA)
+    put_centered(frame, 'kein Bild', 1.5, 3, GRAY)
     return frame
