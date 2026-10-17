@@ -59,11 +59,10 @@ class Recording:
         """
         t = elapsed - self.latency
         self._clock = t if self._clock is None else max(self._clock, t)
-        for i, (start, end) in enumerate(self.windows):
-            if start <= t < end:
-                break
-        else:
+        i = self._window_index(t)
+        if i is None:
             return False
+        start = self.windows[i][0]
         self._offered += 1
         if (self._offered - 1) % self.step:
             return False
@@ -76,6 +75,12 @@ class Recording:
         self.segments[i].append((t - start, frame))
         self.bytes += frame.nbytes
         return True
+
+    def _window_index(self, t):
+        for i, (start, end) in enumerate(self.windows):
+            if start <= t < end:
+                return i
+        return None
 
     def _thin(self):
         # Jedes zweite Bild verwerfen und kuenftig nur noch jedes zweite

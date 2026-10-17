@@ -6,7 +6,6 @@ import traceback
 from collections import deque
 from datetime import datetime
 
-import yamlconfig
 import cv2
 import numpy as np
 
@@ -14,6 +13,7 @@ import replay
 import timerlib
 import transformlib as tl
 import ui
+import yamlconfig
 from camera import STREAM_STALE_TIMEOUT_SEC, STREAM_STARTUP_TIMEOUT_SEC, Camera
 from flows import (
     change_pin_flow,

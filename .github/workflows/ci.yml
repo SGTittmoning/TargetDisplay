@@ -52,7 +52,7 @@ jobs:
       - name: shellcheck
         run: |
           command -v shellcheck || { sudo apt-get -o Acquire::Retries=5 update && sudo apt-get -o Acquire::Retries=5 install -y shellcheck; }
-          shellcheck -S warning ansible/files/*.sh play_it tests/run-script-tests.sh
+          shellcheck -S warning ansible/files/*.sh play_it tests/run-script-tests.sh tools/*.sh
 
   python:
     if: github.event.repository.private == false
@@ -64,29 +64,51 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install ruff
-        run: pip install "ruff==0.16.9"
+        run: pip install "ruff==0.17.1"
       - name: ruff (Syntaxfehler und echte Fehler, siehe ruff.toml)
         run: ruff check .
       - name: Compile check
         run: python -m py_compile main.py camera.py transformlib.py
 
-  tests:
+  tests-python:
     if: github.event.repository.private == false
+    name: tests (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # Die Stände laufen noch auf Raspbian Bullseye (Python 3.9), Test-Pi und
+    # Neuinstallationen auf Debian Trixie (Python 3.13). Beide Versionen
+    # werden getestet.
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.9", "3.13"]
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
         with:
-          python-version: "3.12"
+          python-version: ${{ matrix.python-version }}
       - name: Install test dependencies
         run: |
           sudo apt-get -o Acquire::Retries=5 update && sudo apt-get -o Acquire::Retries=5 install -y xvfb
-          pip install pytest numpy opencv-python-headless av pyyaml pillow
+          pip install pytest pytest-timeout pytest-cov numpy opencv-python-headless av pyyaml pillow
+      # Zeitgrenze je Test: pytest.ini. Abdeckung und Untergrenze: .coveragerc.
       - name: pytest (Timer, Watchdog, PIN-Wartezeit, Perspektive, Rauchtest der Oberflaeche unter Xvfb, ...)
-        run: xvfb-run -a python -m pytest -q tests
+        run: xvfb-run -a python -m pytest -q tests --cov
       - name: Regression tests for the maintenance scripts (stubbed system commands, no hardware)
         run: tests/run-script-tests.sh
+
+  # Der Branch-Schutz verlangt einen Check namens "tests". Dieser Job fasst
+  # die Matrix zusammen und ist nur gruen, wenn alle Python-Versionen es sind.
+  tests:
+    if: always() && github.event.repository.private == false
+    needs: tests-python
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Ergebnis der Matrix
+        env:
+          RESULT: ${{ needs.tests-python.result }}
+        run: test "$RESULT" = success
 
   ansible:
     if: github.event.repository.private == false

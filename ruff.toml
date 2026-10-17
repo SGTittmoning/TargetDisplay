@@ -1,10 +1,33 @@
-# ruff fuer den gesamten Code (main.py und die daraus ausgelagerten Module,
-# ansible-unabhaengige Hilfsmodule, tests/).
+# ruff fuer den gesamten Code (App-Module, tools/, tests/).
 #
-# Bewusst nur die Regelgruppen E9 (Syntaxfehler) und F (pyflakes: undefinierte
-# Namen, ungenutzte Importe/Variablen, ...): Sie finden echte Fehler. Stil-
-# Regeln (Import-Sortierung, Zeilenlaenge, Namenskonventionen) wuerden am
-# gewachsenen, auf Hardware getesteten Code nur Massen-Umbauten ohne
-# inhaltlichen Nutzen verlangen.
+# Ausgewaehlt sind Regeln, die echte Fehler oder Fallen finden und kaum
+# Fehlalarme liefern. Reine Stilregeln (Anfuehrungszeichen, Zeilenlaenge,
+# Docstrings, Typannotationen) bleiben bewusst aus.
+
+# Aeltestes Python in der Flotte: Raspbian Bullseye (Python 3.9). ruff
+# meldet damit keine Umbauten, die erst ab einer neueren Version laufen.
+target-version = "py39"
+
 [lint]
-select = ["E9", "F"]
+select = [
+    "E4", "E7", "E9",  # Importfehler, mehrere Anweisungen pro Zeile u.ae., Syntaxfehler
+    "F",               # pyflakes: undefinierte Namen, ungenutzte Importe/Variablen
+    "W",               # Leerzeichen am Zeilenende u.ae.
+    "B",               # bugbear: veraenderliche Standardwerte, Schleifenvariablen, ...
+    "I",               # Sortierung der Importe
+    "UP",              # veraltete Schreibweisen (bis Python 3.9)
+    "PLE",             # pylint-Fehler
+    "PLW1510",         # subprocess.run ohne ausdrueckliches check=
+    "RUF100",          # ueberfluessige noqa-Kommentare
+    "C901",            # zyklomatische Komplexitaet
+]
+
+[lint.mccabe]
+max-complexity = 15
+
+[lint.per-file-ignores]
+# main(), edit_section_points() und das Messwerkzeug liegen ueber der
+# Grenze. Entfernen, sobald sie aufgeteilt sind.
+"main.py" = ["C901"]
+"flows.py" = ["C901"]
+"tools/*" = ["C901"]

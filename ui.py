@@ -260,7 +260,8 @@ class Window:
         icon = icon_on if start_enabled else icon_off
         bg = accent_bg if start_enabled else muted_bg
         fg = accent_fg if start_enabled else muted_fg
-        real_command = lambda: self.post(key)
+        def real_command():
+            self.post(key)
         command = real_command if start_enabled else (lambda: None)
 
         # Tks eigenes compound='top' (Bild+Text in EINEM Widget) packt zwischen Bild und Text einen deutlich groesseren,

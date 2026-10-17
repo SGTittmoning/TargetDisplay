@@ -10,7 +10,12 @@ import transformlib as tl
 import ui
 from camera import STREAM_STARTUP_TIMEOUT_SEC
 from pinlock import PinLimiter
-from settings_store import DEFAULT_PIN, save_active_stand, save_pin, save_sections_override
+from settings_store import (
+    DEFAULT_PIN,
+    save_active_stand,
+    save_pin,
+    save_sections_override,
+)
 from ui import EDITOR_MAX_H, EDITOR_MAX_W, FG_DARK, WIN_CLOSED, popup, show_page
 
 
@@ -479,5 +484,5 @@ def run_settings_flow(cap, section_full, section_detail, stands, current_pin):
             # ist bereits durch den vorgelagerten check_pin() in main()s
             # '-SETTINGS-'-Handler geschuetzt, keine zweite PIN-Abfrage noetig.
             if confirm_reboot():
-                subprocess.run(['/usr/bin/sudo', '/usr/sbin/reboot'])
+                subprocess.run(['/usr/bin/sudo', '/usr/sbin/reboot'], check=False)
             continue
