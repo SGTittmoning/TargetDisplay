@@ -64,7 +64,7 @@ CROP_MARGIN = 15
 PAN_STEP = 5
 PAN_EDGE_LOW, PAN_EDGE_HIGH = 30, 70
 
-version = '0.13.1'
+VERSION = '0.13.1'
 
 
 def run_setup_wizard(cfg):
@@ -415,7 +415,7 @@ class MainScreen:
     def draw_live(self):
         # Nur neu zeichnen, wenn die Kamera ein neues Bild geliefert hat.
         frame_id, _, _ = self.cap.snapshot()
-        frame = self.cap.getFrame() if frame_id != self.last_frame_id else None
+        frame = self.cap.get_frame() if frame_id != self.last_frame_id else None
         if frame is None:
             return
         self.last_frame_id = frame_id
@@ -451,7 +451,7 @@ class MainScreen:
             frame_id, _, _ = self.cap.snapshot()
             if frame_id != self.last_rec_frame_id:
                 self.last_rec_frame_id = frame_id
-                frame = self.cap.getFrame()
+                frame = self.cap.get_frame()
                 if frame is not None:
                     self.recording.add(frame, elapsed)
         state = timerlib.timer_state(self.timer_type, elapsed)
@@ -483,10 +483,10 @@ class MainScreen:
 def main():
     cfg = yamlconfig.load("config.yml")
     camera.log_version()
-    video_size = (cfg.getProperty('video.size.x'), cfg.getProperty('video.size.y'))
+    video_size = (cfg.get_property('video.size.x'), cfg.get_property('video.size.y'))
     replay_settings = replay.read_settings(cfg)
 
-    window = ui.window = ui.Window(cfg, video_size, version)
+    window = ui.window = ui.Window(cfg, video_size, VERSION)
     show_page('-MAINVIEW-')
     # Wasserzeichen fuer "Video aus". Im Repo liegt ein Platzhalter, Ansible
     # ersetzt ihn optional durch das Vereinslogo (ansible/files/logo.png).

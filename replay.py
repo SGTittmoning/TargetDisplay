@@ -43,7 +43,7 @@ def read_settings(cfg):
     zurueck, statt die App beim Start oder beim ersten Timer abzubrechen.
     """
     def number(key, default, convert, valid):
-        value = cfg.getPropertyWithDefault(key, default)
+        value = cfg.get_property_with_default(key, default)
         try:
             value = convert(value)
         except (TypeError, ValueError):

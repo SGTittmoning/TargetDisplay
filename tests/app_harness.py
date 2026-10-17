@@ -42,7 +42,7 @@ class FakeCamera:
     def frame_id(self):
         return 1 + int((time.monotonic() - self._t0) * 10)
 
-    def getFrame(self, full=False):
+    def get_frame(self, full=False):
         self.last_frame_time = time.monotonic()
         return np.full((700, 700, 3), 90, np.uint8)
 
@@ -183,7 +183,7 @@ class CountingCamera(FakeCamera):
     """Liefert je Frame einen anderen Grauwert, damit Referenz- und Live-Bild
     unterscheidbar sind."""
 
-    def getFrame(self, full=False):
+    def get_frame(self, full=False):
         self.last_frame_time = time.monotonic()
         return np.full((700, 700, 3), self.frame_id % 200, np.uint8)
 

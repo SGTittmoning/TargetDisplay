@@ -39,7 +39,7 @@ class GradientCamera(FakeCamera):
         self.image = np.dstack([x % 256, y % 256, (x + y) % 256]).astype(np.uint8)
         GradientCamera.last = self
 
-    def getFrame(self, full=False):
+    def get_frame(self, full=False):
         self.last_frame_time = time.monotonic()
         return None if self.blank else self.image.copy()
 

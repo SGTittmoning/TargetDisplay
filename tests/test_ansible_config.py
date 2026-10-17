@@ -43,8 +43,8 @@ def test_bildschirmgroesse_in_beiden_playbooks_gleich():
 
 def test_standardwerte(capsys):
     cfg = render()
-    assert cfg.getProperty('screenSize') == [1280, 800]
-    assert (cfg.getProperty('video.size.x'), cfg.getProperty('video.size.y')) == (780, 780)
+    assert cfg.get_property('screenSize') == [1280, 800]
+    assert (cfg.get_property('video.size.x'), cfg.get_property('video.size.y')) == (780, 780)
     # Ohne my_settings_pin gilt der Standard-PIN, der Assistent erzwingt die Aenderung.
     assert settings_store.load_settings_pin(cfg) == settings_store.DEFAULT_PIN
     assert replay.read_settings(cfg) == (replay.DEFAULT_LATENCY_SEC, replay.DEFAULT_BUDGET_MB * 1024 * 1024)
@@ -64,4 +64,4 @@ def test_keine_stand_daten_in_der_vorlage():
     # dem Assistenten, nicht aus config.yml.
     cfg = render()
     for key in ('video.url', 'video.section_full', 'video.section_detail', 'standName'):
-        assert cfg.getPropertyWithDefault(key, None) is None
+        assert cfg.get_property_with_default(key, None) is None
