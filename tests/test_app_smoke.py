@@ -197,6 +197,7 @@ def _button_states(monkeypatch, keys):
     def close(self):
         for k in keys:
             states[k] = self[k].widget.cget('bg') == self._btn_style[k]['bg_on']
+        states['replay_text'] = self._btn_style['-REPLAY-']['label'].cget('text')
         real_close(self)
 
     monkeypatch.setattr(ui.Window, 'close', close)
@@ -249,7 +250,7 @@ def test_replay_nach_timer(app, monkeypatch):
     import timerlib
     # Kurze Vorbereitungszeit, damit die Gruenphase im Test schnell beginnt.
     monkeypatch.setattr(timerlib, 'PREP_TIME', 1)
-    keys = ('-REPLAY-', '-REPLAY_END-', '-TIMER_10-', '-FULL_VIDEO-', '-BLINK_START-')
+    keys = ('-REPLAY-', '-TIMER_10-', '-FULL_VIDEO-', '-BLINK_START-')
     states = _button_states(monkeypatch, keys)
     steps = [
         (1.0, '-TIMER_10-'),
@@ -266,14 +267,14 @@ def test_replay_nach_timer(app, monkeypatch):
     # Nach "Replay Ende" wieder Livebild ohne Replay-Rahmen
     assert not _is_replay_frame(draws[-1])
     # Aufnahme bleibt nach "Replay Ende" fuer ein weiteres Replay erhalten
-    assert states['-REPLAY-'] and not states['-REPLAY_END-']
+    assert states['-REPLAY-'] and states['replay_text'] == 'Replay'
     assert states['-TIMER_10-'] and states['-FULL_VIDEO-'] and states['-BLINK_START-']
 
 
 def test_replay_endet_nach_rotem_schlussbild(app, monkeypatch):
     import timerlib
     monkeypatch.setattr(timerlib, 'PREP_TIME', 1)
-    states = _button_states(monkeypatch, ('-REPLAY-', '-REPLAY_END-', '-TIMER_10-'))
+    states = _button_states(monkeypatch, ('-REPLAY-', '-TIMER_10-'))
     steps = [
         (1.0, '-TIMER_10-'),
         (3.0, '-TIMER_STOP-'),
@@ -283,13 +284,27 @@ def test_replay_endet_nach_rotem_schlussbild(app, monkeypatch):
     draws = run_app(app, steps, monkeypatch)
     assert any(_is_replay_frame(d) for d in draws)
     assert not _is_replay_frame(draws[-1])
-    assert states['-REPLAY-'] and not states['-REPLAY_END-'] and states['-TIMER_10-']
+    assert states['-REPLAY-'] and states['replay_text'] == 'Replay' and states['-TIMER_10-']
+
+
+def test_replay_button_wird_zu_replay_ende(app, monkeypatch):
+    import timerlib
+    monkeypatch.setattr(timerlib, 'PREP_TIME', 1)
+    states = _button_states(monkeypatch, ('-REPLAY-',))
+    steps = [
+        (1.0, '-TIMER_10-'),
+        (3.0, '-TIMER_STOP-'),
+        (0.3, '-REPLAY-'),
+        (0.5, '-FULL_VIDEO-'),     # Replay laeuft noch
+    ]
+    run_app(app, steps, monkeypatch)
+    assert states['-REPLAY-'] and states['replay_text'] == 'Replay Ende'
 
 
 def test_replay_gesperrt_bei_video_aus(app, monkeypatch):
     import timerlib
     monkeypatch.setattr(timerlib, 'PREP_TIME', 1)
-    states = _button_states(monkeypatch, ('-REPLAY-', '-REPLAY_END-'))
+    states = _button_states(monkeypatch, ('-REPLAY-',))
     steps = [
         (1.0, '-TIMER_10-'),
         (3.0, '-TIMER_STOP-'),
@@ -298,10 +313,10 @@ def test_replay_gesperrt_bei_video_aus(app, monkeypatch):
     ]
     draws = run_app(app, steps, monkeypatch)
     assert not any(_is_replay_frame(d) for d in draws)
-    assert not states['-REPLAY-'] and not states['-REPLAY_END-']
+    assert not states['-REPLAY-'] and states['replay_text'] == 'Replay'
 
 
 def test_kein_replay_ohne_aufnahme(app, monkeypatch):
-    states = _button_states(monkeypatch, ('-REPLAY-', '-REPLAY_END-'))
+    states = _button_states(monkeypatch, ('-REPLAY-',))
     run_app(app, [(1.0, '-FULL_VIDEO-')], monkeypatch)
-    assert not states['-REPLAY-'] and not states['-REPLAY_END-']
+    assert not states['-REPLAY-'] and states['replay_text'] == 'Replay'

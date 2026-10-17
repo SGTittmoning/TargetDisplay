@@ -47,8 +47,7 @@ Die Nummerierung startet in jeder Gruppe neu bei 1 – gemeint ist immer die Pos
 2. **20 Sek.** – eine einzelne Zeitscheibe von 20 Sekunden.
 3. **10 Sek.** – eine einzelne Zeitscheibe von 10 Sekunden.
 4. **Timer Stop** – bricht einen laufenden Timer vorzeitig ab. Nur während eines laufenden Timers farbig/aktiv.
-5. **Replay** – spielt die aufgezeichneten Sichtzeiten des letzten Timers ab, erneutes Tippen startet es von vorn. Farbig/aktiv, sobald eine Aufnahme vorliegt.
-6. **Replay Ende** – beendet das Replay und kehrt zum Live-Bild zurück. Die Aufnahme bleibt erhalten. Nur während des Replays farbig/aktiv.
+5. **Replay / Replay Ende** – ein Knopf für beides. Als **Replay** (Abspielsymbol) spielt er die aufgezeichneten Sichtzeiten des letzten Timers ab. Während des Replays heißt er **Replay Ende** und kehrt sofort zum Live-Bild zurück, die Aufnahme bleibt erhalten. Farbig/aktiv, sobald eine Aufnahme vorliegt.
 
 **Fußbereich (unten)**
 
@@ -93,8 +92,8 @@ Während eines laufenden Timers wird kein Kamerabild angezeigt und Zoom/Blinken/
 
 Während jedes Timers zeichnet das Gerät die grünen Phasen (Sichtzeiten) im Hintergrund auf: bei **5 x 3 Sek.** die fünf Durchgänge, bei **20 Sek.** und **10 Sek.** die eine Sichtzeit. Die Aufnahme liegt nur im Arbeitsspeicher und wird nirgends gespeichert.
 
-- **Replay** spielt die Aufnahme in Echtzeit ab. Erneutes Tippen startet sie wieder von vorn, beliebig oft. Zu Beginn erscheint eine Sekunde lang ein rotes Startbild mit dem Timer-Modus (z. B. „5 x 3 Sek.“). Am Ende erscheint eine Sekunde lang ein rotes Schlussbild, danach kehrt die Anzeige von selbst zum Live-Bild zurück.
-- **Replay Ende** kehrt sofort zum Live-Bild zurück, ohne das Ende abzuwarten. Die Aufnahme bleibt erhalten und lässt sich später erneut abspielen.
+- **Replay** spielt die Aufnahme in Echtzeit ab, beliebig oft. Zu Beginn erscheint eine Sekunde lang ein rotes Startbild mit dem Timer-Modus (z. B. „5 x 3 Sek.“). Am Ende erscheint eine Sekunde lang ein rotes Schlussbild, danach kehrt die Anzeige von selbst zum Live-Bild zurück.
+- Während des Replays heißt der Knopf **Replay Ende**. Er kehrt sofort zum Live-Bild zurück, ohne das Ende abzuwarten. Die Aufnahme bleibt erhalten und lässt sich später erneut abspielen.
 - Das Replay ist deutlich gekennzeichnet: violetter Rahmen, „REPLAY“ oben links und oben rechts ein Zähler in Zehntelsekunden, der in jeder Sichtzeit bei 0,0 beginnt (z. B. „7,3 s“, bei 5 x 3 „Durchgang 2/5  1,4 s“).
 - Bei **5 x 3 Sek.** werden die roten Phasen übersprungen. Zwischen zwei Durchgängen erscheint für eine Sekunde ein rotes Trennbild „Durchgang 2/5“ usw.
 - Alle Zoomfunktionen (Ganze Scheibe, Innen Scheibe, Tippen ins Bild, Reset) wirken im Replay wie im Live-Bild.

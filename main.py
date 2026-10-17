@@ -407,7 +407,8 @@ def main():
                   f"{recording.bytes / 1024 / 1024:.0f} MB, jedes {recording.step}. Bild", file=sys.stderr)
           replay_buttons(recording is not None and recording.has_frames(), False)
         elif event == '-REPLAY-':
-          # Startet das Replay bzw. spielt es erneut von vorn ab. Zoom bleibt
+          # Startet das Replay von vorn. Waehrend des Replays sendet derselbe
+          # Button "-REPLAY_END-" (siehe ui.replay_buttons()). Zoom bleibt
           # bedienbar, Blinken pausiert (Zustand und Referenz bleiben), Timer
           # und Video aus sind gesperrt. Bei "Video aus" und waehrend eines
           # Timers ist der Button gesperrt.
