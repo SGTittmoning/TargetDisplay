@@ -69,3 +69,8 @@ def test_is_valid_quad_lehnt_unbrauchbare_vierecke_ab():
 
 def test_crop_bounds_clamped_auf_null():
     assert tl.crop_bounds([np.array([[5, 5], [50, 60]])], 15) == (0, 0, 65, 75)
+
+
+def test_clamp_zoom_center():
+    assert tl.clamp_zoom_center((0, 100)) == (100 / 6, 100 - 100 / 6)
+    assert tl.clamp_zoom_center((50, 50)) == (50, 50)

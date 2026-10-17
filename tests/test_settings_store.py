@@ -3,7 +3,6 @@ import json
 import pytest
 
 import settings_store as store
-import transformlib as tl
 
 
 class FakeCfg:
@@ -128,11 +127,6 @@ def test_save_schlaegt_fehl_bei_exitcode(monkeypatch):
 
     monkeypatch.setattr(store.subprocess, 'run', lambda *a, **k: Result())
     assert store.save_active_stand('stand1') is False
-
-
-def test_clamp_zoom_center():
-    assert tl.clamp_zoom_center((0, 100)) == (100 / 6, 100 - 100 / 6)
-    assert tl.clamp_zoom_center((50, 50)) == (50, 50)
 
 
 # ---------------------------------------------------------- Fehlerpfade
