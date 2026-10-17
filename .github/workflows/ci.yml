@@ -82,9 +82,10 @@ jobs:
       - name: Install test dependencies
         run: |
           sudo apt-get -o Acquire::Retries=5 update && sudo apt-get -o Acquire::Retries=5 install -y xvfb
-          pip install pytest numpy opencv-python-headless av pyyaml pillow
+          pip install pytest pytest-timeout pytest-cov numpy opencv-python-headless av pyyaml pillow
+      # Zeitgrenze je Test: pytest.ini. Abdeckung und Untergrenze: .coveragerc.
       - name: pytest (Timer, Watchdog, PIN-Wartezeit, Perspektive, Rauchtest der Oberflaeche unter Xvfb, ...)
-        run: xvfb-run -a python -m pytest -q tests
+        run: xvfb-run -a python -m pytest -q tests --cov
       - name: Regression tests for the maintenance scripts (stubbed system commands, no hardware)
         run: tests/run-script-tests.sh
 

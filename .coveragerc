@@ -1,0 +1,13 @@
+[run]
+branch = True
+source = .
+# Das Messwerkzeug laeuft nur am Geraet gegen einen echten Stream.
+omit =
+    tests/*
+    tools/*
+
+[report]
+show_missing = True
+skip_covered = True
+# Untergrenze knapp unter dem aktuellen Stand, mit neuen Tests anheben.
+fail_under = 70
