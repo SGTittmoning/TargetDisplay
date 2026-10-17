@@ -290,7 +290,9 @@ Upgrade die Release-Notes prüfen:** ändert ein Release Skripte unter
 Dauer-Deaktivierung, `targetdisplay-retry.timer`; 0.12.1: Paket `unclutter`;
 0.12.2/0.12.3: `targetdisplay-writable.sh`/`-update.sh` prüfen den
 overlayroot-Hook, der Guard schreibt den Zähler nach der Obergrenze nicht
-weiter), muss einmal `install.yml` laufen. Bei aktivem Overlay bricht dieses im
+weiter; 0.13.x: `targetdisplay-save-lib.sh` räumt seine temp-Datei immer
+auf, neue gemeinsame `targetdisplay-overlay-lib.sh` für `-writable.sh` und
+`-update.sh`), muss einmal `install.yml` laufen. Bei aktivem Overlay bricht dieses im
 Vorab-Check ab (Schreibvorgänge gingen nur in den flüchtigen tmpfs-Layer), der
 Ablauf ist dann:
 
