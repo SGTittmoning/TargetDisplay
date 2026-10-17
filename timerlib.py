@@ -10,6 +10,9 @@ TIMER_5_3_7 = '-TIMER_5_3_7-'
 TIMER_20 = '-TIMER_20-'
 TIMER_10 = '-TIMER_10-'
 
+# Beschriftung der Timer-Buttons, auch im Startbild des Replays.
+TITLES = {TIMER_5_3_7: '5 x 3 Sek.', TIMER_20: '20 Sek.', TIMER_10: '10 Sek.'}
+
 PREP_TIME = 7   # rote Vorbereitungsphase vor dem ersten Durchgang
 STOP_TIME = 3   # rote Stopp-Phase nach dem letzten Durchgang
 

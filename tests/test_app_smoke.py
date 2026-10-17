@@ -255,9 +255,9 @@ def test_replay_nach_timer(app, monkeypatch):
         (1.0, '-TIMER_10-'),
         (3.5, '-TIMER_STOP-'),     # ca. 1,5 s Gruen aufgenommen (Verzoegerung 1 s)
         (0.5, '-REPLAY-'),
-        (0.5, '-DETAIL_VIDEO-'),   # Zoom im Replay
+        (1.5, '-DETAIL_VIDEO-'),   # Zoom im Replay (nach dem Startbild)
         (0.5, '-REPLAY-'),         # erneut abspielen
-        (1.0, '-REPLAY_END-'),
+        (2.0, '-REPLAY_END-'),
         (0.8, '-FULL_VIDEO-'),
     ]
     draws = run_app(app, steps, monkeypatch)

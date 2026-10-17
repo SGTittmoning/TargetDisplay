@@ -7,6 +7,9 @@ Aufnahme liegt nur im RAM.
 """
 from collections import namedtuple
 
+# Rotes Startbild mit dem Timer-Modus vor dem ersten Durchgang.
+START_SEC = 1.0
+
 # Rotes Trennbild zwischen zwei Durchgaengen der Serie.
 SEPARATOR_SEC = 1.0
 
@@ -25,7 +28,7 @@ MAX_LATENCY_SEC = 3.0
 # behalten, die Aufnahme deckt aber weiter die ganze Gruenphase ab.
 DEFAULT_BUDGET_MB = 600
 
-# kind: 'frame' oder 'separator'; segment: Index des Durchgangs (0-basiert);
+# kind: 'start', 'frame', 'separator' oder 'end'; segment: Index des Durchgangs (0-basiert);
 # offset: Sekunden seit Beginn des Durchgangs; frame: Rohbild oder None;
 # key: wechselt genau dann, wenn ein anderes Bild zu zeigen ist.
 ReplayView = namedtuple('ReplayView', 'kind segment offset frame key')
@@ -109,18 +112,21 @@ class Recording:
         lengths = self._segment_lengths()
         if not lengths:
             return 0.0
-        return sum(lengths) + SEPARATOR_SEC * (len(lengths) - 1) + END_SEC
+        return START_SEC + sum(lengths) + SEPARATOR_SEC * (len(lengths) - 1) + END_SEC
 
     def view(self, position):
         """Was zur Abspielzeit `position` (Sekunden) zu zeigen ist.
 
-        Nach dem letzten Durchgang folgt das rote Schlussbild, danach
-        (Replay zu Ende) None.
+        Vor dem ersten Durchgang steht das rote Startbild, nach dem letzten
+        das rote Schlussbild, danach (Replay zu Ende) None.
         """
         lengths = self._segment_lengths()
         if not lengths:
             return None
         position = max(position, 0.0)
+        if position < START_SEC:
+            return ReplayView('start', 0, 0.0, None, ('start',))
+        position -= START_SEC
         for i, length in enumerate(lengths):
             if i > 0:
                 if position < SEPARATOR_SEC:

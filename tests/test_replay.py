@@ -9,6 +9,7 @@ import replay as r
 import timerlib as t
 
 FPS = 6
+S = r.START_SEC
 
 
 def frame(value=0, size=10):
@@ -34,11 +35,12 @@ def test_nur_gruenphasen_werden_aufgenommen():
 def test_serie_fuenf_durchgaenge_mit_trennbildern():
     rec = record(t.TIMER_5_3_7)
     assert [len(s) for s in rec.segments] == [3 * FPS] * 5
-    assert rec.duration() == pytest.approx(5 * 3 + 4 * r.SEPARATOR_SEC + r.END_SEC)
-    assert rec.view(0.0).kind == 'frame' and rec.view(0.0).segment == 0
-    v = rec.view(3 + r.SEPARATOR_SEC / 2)
+    assert rec.duration() == pytest.approx(S + 5 * 3 + 4 * r.SEPARATOR_SEC + r.END_SEC)
+    assert rec.view(0.0).kind == 'start'
+    assert rec.view(S).kind == 'frame' and rec.view(S).segment == 0
+    v = rec.view(S + 3 + r.SEPARATOR_SEC / 2)
     assert v.kind == 'separator' and v.segment == 1
-    v = rec.view(3 + r.SEPARATOR_SEC + 1.25)
+    v = rec.view(S + 3 + r.SEPARATOR_SEC + 1.25)
     assert v.kind == 'frame' and v.segment == 1 and v.offset == pytest.approx(1.25)
 
 
@@ -82,14 +84,14 @@ def test_abbruch_mitten_im_durchgang():
     rec = record(t.TIMER_5_3_7, until=18.5)
     assert [len(s) for s in rec.segments if s] == [3 * FPS, 9]
     # zweiter Durchgang endet mit seinem letzten Bild
-    assert rec.duration() == pytest.approx(3 + r.SEPARATOR_SEC + rec.segments[1][-1][0] + r.END_SEC)
+    assert rec.duration() == pytest.approx(S + 3 + r.SEPARATOR_SEC + rec.segments[1][-1][0] + r.END_SEC)
 
 
 def test_am_ende_rotes_schlussbild_dann_ende():
     rec = record(t.TIMER_10)
-    assert rec.duration() == pytest.approx(10.0 + r.END_SEC)
-    assert rec.view(9.9).frame is rec.segments[0][-1][1]
-    end = rec.view(10.0 + r.END_SEC / 2)
+    assert rec.duration() == pytest.approx(S + 10.0 + r.END_SEC)
+    assert rec.view(S + 9.9).frame is rec.segments[0][-1][1]
+    end = rec.view(S + 10.0 + r.END_SEC / 2)
     assert end.kind == 'end' and end.frame is None
     assert end.offset == pytest.approx(10.0)
     assert rec.view(rec.duration()) is None
@@ -97,9 +99,9 @@ def test_am_ende_rotes_schlussbild_dann_ende():
 
 def test_bild_wechselt_nur_mit_neuem_kamerabild():
     rec = record(t.TIMER_10)
-    a, b = rec.view(1.0), rec.view(1.1)
+    a, b = rec.view(S + 1.0), rec.view(S + 1.1)
     assert a.key == b.key
-    assert rec.view(1.2).key != a.key
+    assert rec.view(S + 1.2).key != a.key
 
 
 def test_ohne_bilder_kein_replay():
@@ -114,7 +116,7 @@ def test_luecke_im_durchgang_liefert_kein_bild():
     rec.add(frame(), 8.0)       # Durchgang 1
     rec.add(frame(), 28.0)      # Durchgang 3, Durchgang 2 ohne Bild
     rec.add(frame(), 60.0)
-    v = rec.view(3 + r.SEPARATOR_SEC + 1.0)
+    v = rec.view(S + 3 + r.SEPARATOR_SEC + 1.0)
     assert v.segment == 1 and v.frame is None
 
 

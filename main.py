@@ -113,6 +113,7 @@ def main():
     # nach "Replay Ende" erhalten und wird erst beim Start der naechsten
     # Serie verworfen.
     recording = None
+    replay_type = None
     last_rec_frame_id = -1
     replay_active = False
     replay_start = time.monotonic()
@@ -386,6 +387,7 @@ def main():
           # anlegen - sonst lagen kurzzeitig beide im RAM.
           recording = None
           recording = replay.Recording(timerlib.green_windows(timerType), replay_latency, replay_budget)
+          replay_type = timerType
           last_rec_frame_id, _, _ = cap.snapshot()
           replay_buttons(False, False)
         elif event == '-TIMER_STOP-':
@@ -445,7 +447,9 @@ def main():
           replay_key = (view.key, counter, zoom_level, tuple(zoom_center))
           if replay_key != last_replay_key:
             last_replay_key = replay_key
-            if view.kind == 'separator':
+            if view.kind == 'start':
+              display_frame = replay_separator(VideoSize, timerlib.TITLES[replay_type])
+            elif view.kind == 'separator':
               display_frame = replay_separator(VideoSize, f'Durchgang {view.segment + 1}/{segments}')
             elif view.kind == 'end':
               display_frame = replay_separator(VideoSize, '')
