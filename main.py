@@ -50,6 +50,9 @@ from watchdog import stale_check_due
 # erscheint.
 MAIN_LOOP_TICK_MS = 33
 
+# Blinken: Referenz und Livebild wechseln im Abstand von so vielen Sekunden.
+BLINK_SWITCH_SEC = 1
+
 # Zeitraum fuer die FPS-Anzeige.
 FPS_WINDOW_SECONDS = 60
 
@@ -423,7 +426,7 @@ class MainScreen:
         # neuer Treffer verloren.
         if self.blink and len(self.blink_ref) == 0:
             self.blink_ref = frame
-        if self.blink and int(time.monotonic()) % 2 == 1:
+        if self.blink and int(time.monotonic() / BLINK_SWITCH_SEC) % 2 == 1:
             self.window.draw_image(self.render(self.blink_ref))
         else:
             self.window.draw_image(self.render(frame))

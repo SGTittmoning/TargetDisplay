@@ -24,6 +24,9 @@ ACTIVE_STAND_FILE = '/boot/firmware/targetdisplay-active-stand.json'
 # Installation braucht deshalb keinen PIN vorab.
 DEFAULT_PIN = '1234'
 
+# Erlaubte PIN-Laenge (Ziffern), fuer Pruefung und Ziffernfeld.
+PIN_MIN_LEN, PIN_MAX_LEN = 4, 6
+
 
 PIN_FILE = '/boot/firmware/targetdisplay-pin.json'
 
@@ -124,7 +127,7 @@ def save_active_stand(stand_id):
 
 def is_valid_pin(pin):
     # Nur was sich ueber das Ziffernfeld eingeben laesst: 4-6 Ziffern 0-9.
-    return pin.isascii() and pin.isdigit() and 4 <= len(pin) <= 6
+    return pin.isascii() and pin.isdigit() and PIN_MIN_LEN <= len(pin) <= PIN_MAX_LEN
 
 
 def load_settings_pin(cfg):
