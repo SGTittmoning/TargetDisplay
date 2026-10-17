@@ -279,33 +279,33 @@ def main():
         elif event == '-TOGGLEVIDEO-':
             displayVideo = not displayVideo
             if displayVideo:
-              video_resumed_at = time.monotonic()
-              window['-TOGGLEVIDEO-'].widget.config(image=window._icon('eye_slash_neutral'))
-              # frame_count/frame_timestamps bewusst NICHT zurueckgesetzt - Video
-              # aus/ein soll die FPS/Frame-Anzeige nur pausieren (sie friert waehrend
-              # des Blank-Screens einfach ein, da weder der displayVideo- noch der
-              # displayTimer-Zweig unten dann laeuft) und beim Wiedereinschalten
-              # nahtlos weiterzaehlen, genau wie beim Timer - kein Reset auf 1/leer.
-              zoom_disabled(False)
-              sync_reset_button(zoom_level, zoom_center)
-              blink_disabled(False)
-              timer_disabled(False)
-              replay_buttons(recording is not None and recording.has_frames(), False)
+                video_resumed_at = time.monotonic()
+                window['-TOGGLEVIDEO-'].widget.config(image=window._icon('eye_slash_neutral'))
+                # frame_count/frame_timestamps bewusst NICHT zurueckgesetzt - Video
+                # aus/ein soll die FPS/Frame-Anzeige nur pausieren (sie friert waehrend
+                # des Blank-Screens einfach ein, da weder der displayVideo- noch der
+                # displayTimer-Zweig unten dann laeuft) und beim Wiedereinschalten
+                # nahtlos weiterzaehlen, genau wie beim Timer - kein Reset auf 1/leer.
+                zoom_disabled(False)
+                sync_reset_button(zoom_level, zoom_center)
+                blink_disabled(False)
+                timer_disabled(False)
+                replay_buttons(recording is not None and recording.has_frames(), False)
             else:
-              window['-TOGGLEVIDEO-'].widget.config(image=window._icon('eye_neutral'))
-              frame = np.zeros((VideoSize[1], VideoSize[0], 3), np.uint8)
-              if blank_logo is not None:
-                frame = blend_logo_centered(frame, blank_logo)
-              window.draw_image(frame)
-              # Ausgeblendet, nicht zurueckgesetzt (frame_count/frame_timestamps
-              # bleiben unangetastet, siehe oben) - analog zum Timer, der die
-              # Anzeige waehrend seiner eigenen Blank-Phase ebenso leert.
-              window_fps.update('')
-              zoom_disabled(True)
-              sync_reset_button(zoom_level, zoom_center, globally_disabled=True)
-              blink_disabled(True)
-              timer_disabled(True)
-              replay_buttons(False, False)
+                window['-TOGGLEVIDEO-'].widget.config(image=window._icon('eye_neutral'))
+                frame = np.zeros((VideoSize[1], VideoSize[0], 3), np.uint8)
+                if blank_logo is not None:
+                    frame = blend_logo_centered(frame, blank_logo)
+                window.draw_image(frame)
+                # Ausgeblendet, nicht zurueckgesetzt (frame_count/frame_timestamps
+                # bleiben unangetastet, siehe oben) - analog zum Timer, der die
+                # Anzeige waehrend seiner eigenen Blank-Phase ebenso leert.
+                window_fps.update('')
+                zoom_disabled(True)
+                sync_reset_button(zoom_level, zoom_center, globally_disabled=True)
+                blink_disabled(True)
+                timer_disabled(True)
+                replay_buttons(False, False)
         elif event == '-SETTINGS-':
             if check_pin(SettingsPin):
                 if run_settings_flow(cap, section_full_orig, section_detail_orig, stands, SettingsPin):
@@ -316,226 +316,226 @@ def main():
                     # Werten neu (Exit-Code 0 = regulaeres Beenden).
                     sys.exit(0)
         elif event == '-FULL_VIDEO-':
-          zoom_level = 'full'
-          zoom_center = []
-          sync_reset_button(zoom_level, zoom_center)
+            zoom_level = 'full'
+            zoom_center = []
+            sync_reset_button(zoom_level, zoom_center)
         elif event == '-DETAIL_VIDEO-':
-          zoom_level = 'detail'
-          zoom_center = []
-          sync_reset_button(zoom_level, zoom_center)
+            zoom_level = 'detail'
+            zoom_center = []
+            sync_reset_button(zoom_level, zoom_center)
         elif event == '-VIDEO-':
-          if zoom_center == []:
+            if zoom_center == []:
             # init zoom
-            zoom_center = values["-VIDEO-"]
-          else:
-            move_speed = 5
-            # move zoomed window
-            if values["-VIDEO-"][0] < 30:
-              zoom_center = zoom_center[0]-move_speed,zoom_center[1]
-            elif values["-VIDEO-"][0] > 70:
-              zoom_center = zoom_center[0]+move_speed,zoom_center[1]
-            if values["-VIDEO-"][1] < 30:
-              zoom_center = zoom_center[0],zoom_center[1]-move_speed
-            elif values["-VIDEO-"][1] > 70:
-              zoom_center = zoom_center[0],zoom_center[1]+move_speed
-          zoom_center = clamp_zoom_center(zoom_center)
-          sync_reset_button(zoom_level, zoom_center)
+                zoom_center = values["-VIDEO-"]
+            else:
+                move_speed = 5
+                # move zoomed window
+                if values["-VIDEO-"][0] < 30:
+                    zoom_center = zoom_center[0]-move_speed,zoom_center[1]
+                elif values["-VIDEO-"][0] > 70:
+                    zoom_center = zoom_center[0]+move_speed,zoom_center[1]
+                if values["-VIDEO-"][1] < 30:
+                    zoom_center = zoom_center[0],zoom_center[1]-move_speed
+                elif values["-VIDEO-"][1] > 70:
+                    zoom_center = zoom_center[0],zoom_center[1]+move_speed
+            zoom_center = clamp_zoom_center(zoom_center)
+            sync_reset_button(zoom_level, zoom_center)
         elif event == '-RESETZOOM-':
-          # Setzt nicht nur den manuellen Pan zurueck, sondern auch den
-          # Zoom-Modus auf "Ganze Scheibe" - sonst wuerde ein aktiver "Innen
-          # Scheibe"-Zoom nach Reset bestehen bleiben.
-          zoom_level = 'full'
-          zoom_center = []
-          sync_reset_button(zoom_level, zoom_center)
+            # Setzt nicht nur den manuellen Pan zurueck, sondern auch den
+            # Zoom-Modus auf "Ganze Scheibe" - sonst wuerde ein aktiver "Innen
+            # Scheibe"-Zoom nach Reset bestehen bleiben.
+            zoom_level = 'full'
+            zoom_center = []
+            sync_reset_button(zoom_level, zoom_center)
         elif event == '-BLINK_START-':
-          # Zoom (Buttons, Klick-Pan UND Reset) bleibt waehrend Blinken
-          # bewusst fuer alle drei Bedienwege einheitlich nutzbar: Crop wird
-          # pro Frame nach der Referenz/Live-Auswahl angewendet, betrifft
-          # also beide Zoom-Zustaende gleich, funktioniert also einwandfrei
-          # waehrend des Blinkens. Die Timer bleiben ebenfalls startbar
-          # (siehe Timer-Start unten).
-          video_filter_disabled(True)
-          blink_buttons(True)
-          blink_ref = []
-          blink = True
-        elif event == '-BLINK_REF-':
-          blink_ref = []
-          blink = True
-        elif event == '-BLINK_STOP-':
-          blink_disabled(False)
-          video_filter_disabled(False)
-          blink_ref = []
-          blink = False
-        elif event in ('-TIMER_5_3_7-', '-TIMER_20-', '-TIMER_10-'):
-          # Alle drei Timer-Varianten starten identisch - nur timerType
-          # (=event) unterscheidet, welcher Ablauf (timerlib) gerendert wird.
-          # Ein laufendes Blinken pausiert nur: blink und blink_ref bleiben
-          # unveraendert, nach dem Timer blinkt das Bild mit der Referenz von
-          # vor der Serie weiter und zeigt so die Treffer der Serie.
-          zoom_disabled(True)
-          sync_reset_button(zoom_level, zoom_center, globally_disabled=True)
-          blink_disabled(True)
-          video_filter_disabled(True)
-          displayTimer = True
-          set_icon_buttons(('-TIMER_5_3_7-', '-TIMER_20-', '-TIMER_10-'), False)
-          set_icon_buttons(('-TIMER_STOP-',), True)
-          displayVideo = False
-          timerType = event
-          timerStart = time.monotonic()
-          last_timer_state = None
-          # Die Aufnahme der vorigen Serie zuerst freigeben, dann die neue
-          # anlegen - sonst lagen kurzzeitig beide im RAM.
-          recording = None
-          recording = replay.Recording(timerlib.green_windows(timerType), replay_latency, replay_budget)
-          replay_type = timerType
-          last_rec_frame_id, _, _ = cap.snapshot()
-          replay_buttons(False, False)
-        elif event == '-TIMER_STOP-':
-          zoom_disabled(False)
-          sync_reset_button(zoom_level, zoom_center)
-          blink_buttons(blink)
-          # Video aus bleibt gesperrt, solange Blinken weiterlaeuft - wie
-          # nach -BLINK_START-.
-          video_filter_disabled(blink)
-          displayTimer = False
-          displayVideo = True
-          video_resumed_at = time.monotonic()
-          set_icon_buttons(('-TIMER_5_3_7-', '-TIMER_20-', '-TIMER_10-'), True)
-          set_icon_buttons(('-TIMER_STOP-',), False)
-          if recording is not None:
-            print(f"Replay-Aufnahme: {recording.frame_count()} Bilder, "
-                  f"{recording.bytes / 1024 / 1024:.0f} MB, jedes {recording.step}. Bild", file=sys.stderr)
-          replay_buttons(recording is not None and recording.has_frames(), False)
-        elif event == '-REPLAY-':
-          # Startet das Replay von vorn. Waehrend des Replays sendet derselbe
-          # Button "-REPLAY_END-" (siehe ui.replay_buttons()). Zoom bleibt
-          # bedienbar, Blinken pausiert (Zustand und Referenz bleiben), Timer
-          # und Video aus sind gesperrt. Bei "Video aus" und waehrend eines
-          # Timers ist der Button gesperrt.
-          if recording is not None and recording.has_frames() and displayVideo and not displayTimer:
-            replay_active = True
-            replay_start = time.monotonic()
-            last_replay_key = None
-            blink_disabled(True)
-            timer_disabled(True)
+            # Zoom (Buttons, Klick-Pan UND Reset) bleibt waehrend Blinken
+            # bewusst fuer alle drei Bedienwege einheitlich nutzbar: Crop wird
+            # pro Frame nach der Referenz/Live-Auswahl angewendet, betrifft
+            # also beide Zoom-Zustaende gleich, funktioniert also einwandfrei
+            # waehrend des Blinkens. Die Timer bleiben ebenfalls startbar
+            # (siehe Timer-Start unten).
             video_filter_disabled(True)
-            replay_buttons(True, True)
+            blink_buttons(True)
+            blink_ref = []
+            blink = True
+        elif event == '-BLINK_REF-':
+            blink_ref = []
+            blink = True
+        elif event == '-BLINK_STOP-':
+            blink_disabled(False)
+            video_filter_disabled(False)
+            blink_ref = []
+            blink = False
+        elif event in ('-TIMER_5_3_7-', '-TIMER_20-', '-TIMER_10-'):
+            # Alle drei Timer-Varianten starten identisch - nur timerType
+            # (=event) unterscheidet, welcher Ablauf (timerlib) gerendert wird.
+            # Ein laufendes Blinken pausiert nur: blink und blink_ref bleiben
+            # unveraendert, nach dem Timer blinkt das Bild mit der Referenz von
+            # vor der Serie weiter und zeigt so die Treffer der Serie.
+            zoom_disabled(True)
+            sync_reset_button(zoom_level, zoom_center, globally_disabled=True)
+            blink_disabled(True)
+            video_filter_disabled(True)
+            displayTimer = True
+            set_icon_buttons(('-TIMER_5_3_7-', '-TIMER_20-', '-TIMER_10-'), False)
+            set_icon_buttons(('-TIMER_STOP-',), True)
+            displayVideo = False
+            timerType = event
+            timerStart = time.monotonic()
+            last_timer_state = None
+            # Die Aufnahme der vorigen Serie zuerst freigeben, dann die neue
+            # anlegen - sonst lagen kurzzeitig beide im RAM.
+            recording = None
+            recording = replay.Recording(timerlib.green_windows(timerType), replay_latency, replay_budget)
+            replay_type = timerType
+            last_rec_frame_id, _, _ = cap.snapshot()
+            replay_buttons(False, False)
+        elif event == '-TIMER_STOP-':
+            zoom_disabled(False)
+            sync_reset_button(zoom_level, zoom_center)
+            blink_buttons(blink)
+            # Video aus bleibt gesperrt, solange Blinken weiterlaeuft - wie
+            # nach -BLINK_START-.
+            video_filter_disabled(blink)
+            displayTimer = False
+            displayVideo = True
+            video_resumed_at = time.monotonic()
+            set_icon_buttons(('-TIMER_5_3_7-', '-TIMER_20-', '-TIMER_10-'), True)
+            set_icon_buttons(('-TIMER_STOP-',), False)
+            if recording is not None:
+                print(f"Replay-Aufnahme: {recording.frame_count()} Bilder, "
+                      f"{recording.bytes / 1024 / 1024:.0f} MB, jedes {recording.step}. Bild", file=sys.stderr)
+            replay_buttons(recording is not None and recording.has_frames(), False)
+        elif event == '-REPLAY-':
+            # Startet das Replay von vorn. Waehrend des Replays sendet derselbe
+            # Button "-REPLAY_END-" (siehe ui.replay_buttons()). Zoom bleibt
+            # bedienbar, Blinken pausiert (Zustand und Referenz bleiben), Timer
+            # und Video aus sind gesperrt. Bei "Video aus" und waehrend eines
+            # Timers ist der Button gesperrt.
+            if recording is not None and recording.has_frames() and displayVideo and not displayTimer:
+                replay_active = True
+                replay_start = time.monotonic()
+                last_replay_key = None
+                blink_disabled(True)
+                timer_disabled(True)
+                video_filter_disabled(True)
+                replay_buttons(True, True)
         elif event == '-REPLAY_END-':
-          # Zurueck zum Livebild. Die Aufnahme bleibt fuer ein weiteres Replay
-          # erhalten.
-          replay_active = False
-          blink_buttons(blink)
-          timer_disabled(False)
-          video_filter_disabled(blink)
-          replay_buttons(True, False)
-          video_resumed_at = time.monotonic()
-          last_frame_id = -1
+            # Zurueck zum Livebild. Die Aufnahme bleibt fuer ein weiteres Replay
+            # erhalten.
+            replay_active = False
+            blink_buttons(blink)
+            timer_disabled(False)
+            video_filter_disabled(blink)
+            replay_buttons(True, False)
+            video_resumed_at = time.monotonic()
+            last_frame_id = -1
 
 
         ### Image handling
         view = recording.view(time.monotonic() - replay_start) if replay_active else None
         if replay_active and view is None:
-          # Nach dem roten Schlussbild endet das Replay von selbst, wie mit
-          # "Replay Ende". replay_active sofort zuruecksetzen, damit das
-          # Ereignis nur einmal gesendet wird.
-          replay_active = False
-          window.post('-REPLAY_END-')
+            # Nach dem roten Schlussbild endet das Replay von selbst, wie mit
+            # "Replay Ende". replay_active sofort zuruecksetzen, damit das
+            # Ereignis nur einmal gesendet wird.
+            replay_active = False
+            window.post('-REPLAY_END-')
         elif replay_active:
-          segments = len(recording.windows)
-          counter = replay.counter_text(view, segments)
-          # Neu zeichnen nur, wenn sich Bild, Zaehler (Zehntelsekunden) oder
-          # Zoom aendern.
-          replay_key = (view.key, counter, zoom_level, tuple(zoom_center))
-          if replay_key != last_replay_key:
-            last_replay_key = replay_key
-            if view.kind == 'start':
-              display_frame = replay_separator(VideoSize, timerlib.TITLES[replay_type])
-            elif view.kind == 'separator':
-              display_frame = replay_separator(VideoSize, f'Durchgang {view.segment + 1}/{segments}')
-            elif view.kind == 'end':
-              display_frame = replay_separator(VideoSize, '')
-            elif view.frame is None:
-              display_frame = replay_no_frame(VideoSize)
-            else:
-              display_frame = render(view.frame)
-            window.draw_image(draw_replay_marker(display_frame, counter))
-            window_fps.update('')
+            segments = len(recording.windows)
+            counter = replay.counter_text(view, segments)
+            # Neu zeichnen nur, wenn sich Bild, Zaehler (Zehntelsekunden) oder
+            # Zoom aendern.
+            replay_key = (view.key, counter, zoom_level, tuple(zoom_center))
+            if replay_key != last_replay_key:
+                last_replay_key = replay_key
+                if view.kind == 'start':
+                    display_frame = replay_separator(VideoSize, timerlib.TITLES[replay_type])
+                elif view.kind == 'separator':
+                    display_frame = replay_separator(VideoSize, f'Durchgang {view.segment + 1}/{segments}')
+                elif view.kind == 'end':
+                    display_frame = replay_separator(VideoSize, '')
+                elif view.frame is None:
+                    display_frame = replay_no_frame(VideoSize)
+                else:
+                    display_frame = render(view.frame)
+                window.draw_image(draw_replay_marker(display_frame, counter))
+                window_fps.update('')
         elif displayVideo:
-          # skip reprocessing/redrawing if the camera hasn't delivered a new frame yet
-          current_frame_id, _, _ = cap.snapshot()
-          frame = cap.getFrame() if current_frame_id != last_frame_id else None
-          if frame is not None:
-            last_frame_id = current_frame_id
+            # skip reprocessing/redrawing if the camera hasn't delivered a new frame yet
+            current_frame_id, _, _ = cap.snapshot()
+            frame = cap.getFrame() if current_frame_id != last_frame_id else None
+            if frame is not None:
+                last_frame_id = current_frame_id
 
-            #ready to display, all image manipulations are done only display options from here
-            #--------------------------------------------------------------------------
-            #blink
-            # blink_ref haelt bewusst das ROHE, noch NICHT per
-            # warpPerspective() entzerrte Kamerabild fest, nicht das fertig
-            # entzerrte - Ganze/Innen Scheibe sind zwei VERSCHIEDENE
-            # Matrizen (M_full/M_detail) auf demselben Rohbild, keine
-            # ineinander verschachtelten Transformationen. Ein bereits
-            # entzerrtes Referenzbild wuerde nach einem Zoom-Stufen-Wechsel
-            # auf der alten Perspektive haengen bleiben, waehrend neue
-            # Live-Frames schon die neue zeigen - sichtbares Springen beim
-            # Blinken. Das ROHE Bild laesst sich dagegen bei JEDEM
-            # Zoom-Wechsel einfach mit der jeweils aktuellen Matrix neu
-            # entzerren, waehrend der tatsaechlich fotografierte Inhalt (und
-            # damit die Einschusslöcher zum Referenzzeitpunkt) unveraendert
-            # erhalten bleibt. WICHTIG: blink_ref wird NIE automatisch neu
-            # aufgenommen, nur bei explizitem -BLINK_START-/-BLINK_REF- -
-            # eine automatische Neuaufnahme (z.B. bei jedem Zoom-Wechsel)
-            # wuerde die eigentliche Referenz-Funktion (alte vs. neue
-            # Treffer vergleichen) zerstoeren.
-            if blink and len(blink_ref) == 0:
-              blink_ref = frame
-            if blink and int(time.monotonic()) % 2 == 1:
-              display_frame = render(blink_ref)
-            else:
-              display_frame = render(frame)
+                #ready to display, all image manipulations are done only display options from here
+                #--------------------------------------------------------------------------
+                #blink
+                # blink_ref haelt bewusst das ROHE, noch NICHT per
+                # warpPerspective() entzerrte Kamerabild fest, nicht das fertig
+                # entzerrte - Ganze/Innen Scheibe sind zwei VERSCHIEDENE
+                # Matrizen (M_full/M_detail) auf demselben Rohbild, keine
+                # ineinander verschachtelten Transformationen. Ein bereits
+                # entzerrtes Referenzbild wuerde nach einem Zoom-Stufen-Wechsel
+                # auf der alten Perspektive haengen bleiben, waehrend neue
+                # Live-Frames schon die neue zeigen - sichtbares Springen beim
+                # Blinken. Das ROHE Bild laesst sich dagegen bei JEDEM
+                # Zoom-Wechsel einfach mit der jeweils aktuellen Matrix neu
+                # entzerren, waehrend der tatsaechlich fotografierte Inhalt (und
+                # damit die Einschusslöcher zum Referenzzeitpunkt) unveraendert
+                # erhalten bleibt. WICHTIG: blink_ref wird NIE automatisch neu
+                # aufgenommen, nur bei explizitem -BLINK_START-/-BLINK_REF- -
+                # eine automatische Neuaufnahme (z.B. bei jedem Zoom-Wechsel)
+                # wuerde die eigentliche Referenz-Funktion (alte vs. neue
+                # Treffer vergleichen) zerstoeren.
+                if blink and len(blink_ref) == 0:
+                    blink_ref = frame
+                if blink and int(time.monotonic()) % 2 == 1:
+                    display_frame = render(blink_ref)
+                else:
+                    display_frame = render(frame)
 
-            window.draw_image(display_frame)
-            frame_count += 1
-            now = time.monotonic()
-            frame_timestamps.append(now)
-            while frame_timestamps and (now - frame_timestamps[0]) > FPS_WINDOW_SECONDS:
-              frame_timestamps.popleft()
-            try:
-              window_span = now - frame_timestamps[0]
-              fps = len(frame_timestamps) / window_span
-              window_fps.update(f'FPS: {str(round(fps,1)) } - Frame { str(frame_count) }')
-            except ZeroDivisionError:
-              pass
+                window.draw_image(display_frame)
+                frame_count += 1
+                now = time.monotonic()
+                frame_timestamps.append(now)
+                while frame_timestamps and (now - frame_timestamps[0]) > FPS_WINDOW_SECONDS:
+                    frame_timestamps.popleft()
+                try:
+                    window_span = now - frame_timestamps[0]
+                    fps = len(frame_timestamps) / window_span
+                    window_fps.update(f'FPS: {str(round(fps,1)) } - Frame { str(frame_count) }')
+                except ZeroDivisionError:
+                    pass
         elif displayTimer:
-          # VideoSize ist (Breite, Hoehe), numpy-Arrays erwarten
-          # (Hoehe, Breite, Kanaele) - deshalb hier bewusst vertauscht,
-          # analog zum Blank-Screen-Handler oben (-TOGGLEVIDEO-).
-          timer_elapsed = time.monotonic() - timerStart
-          # Aufnahme: jedes neue Kamerabild geht an die Aufnahme, die nur
-          # behaelt, was in eine Gruenphase faellt.
-          if not recording.is_complete(timer_elapsed):
-            rec_frame_id, _, _ = cap.snapshot()
-            if rec_frame_id != last_rec_frame_id:
-              last_rec_frame_id = rec_frame_id
-              rec_frame = cap.getFrame()
-              if rec_frame is not None:
-                recording.add(rec_frame, timer_elapsed)
-          state = timerlib.timer_state(timerType, timer_elapsed)
-          # Nur neu zeichnen, wenn sich der Anzeigezustand aendert (hoechstens
-          # einmal pro Sekunde) - das Bild wird sonst in jedem Schleifendurchlauf
-          # identisch neu aufgebaut und an Tk uebergeben.
-          if state != last_timer_state:
-            last_timer_state = state
-            frame = np.zeros((VideoSize[1],VideoSize[0],3), np.uint8)
-            frame[:] = (0, 255, 0) if state.color == 'green' else (0, 0, 255)
-            if state.number is not None:
-              cv2.putText(frame, str(state.number), (20,130), cv2.FONT_HERSHEY_SIMPLEX, 5, (0, 0, 0), 10, cv2.LINE_AA)
-            if state.countdown is not None:
-              draw_timer_countdown(frame, state.countdown)
-            window.draw_image(frame)
-            window_fps.update('')
-          if state.finished:
-            window.post('-TIMER_STOP-')
+            # VideoSize ist (Breite, Hoehe), numpy-Arrays erwarten
+            # (Hoehe, Breite, Kanaele) - deshalb hier bewusst vertauscht,
+            # analog zum Blank-Screen-Handler oben (-TOGGLEVIDEO-).
+            timer_elapsed = time.monotonic() - timerStart
+            # Aufnahme: jedes neue Kamerabild geht an die Aufnahme, die nur
+            # behaelt, was in eine Gruenphase faellt.
+            if not recording.is_complete(timer_elapsed):
+                rec_frame_id, _, _ = cap.snapshot()
+                if rec_frame_id != last_rec_frame_id:
+                    last_rec_frame_id = rec_frame_id
+                    rec_frame = cap.getFrame()
+                    if rec_frame is not None:
+                        recording.add(rec_frame, timer_elapsed)
+            state = timerlib.timer_state(timerType, timer_elapsed)
+            # Nur neu zeichnen, wenn sich der Anzeigezustand aendert (hoechstens
+            # einmal pro Sekunde) - das Bild wird sonst in jedem Schleifendurchlauf
+            # identisch neu aufgebaut und an Tk uebergeben.
+            if state != last_timer_state:
+                last_timer_state = state
+                frame = np.zeros((VideoSize[1],VideoSize[0],3), np.uint8)
+                frame[:] = (0, 255, 0) if state.color == 'green' else (0, 0, 255)
+                if state.number is not None:
+                    cv2.putText(frame, str(state.number), (20,130), cv2.FONT_HERSHEY_SIMPLEX, 5, (0, 0, 0), 10, cv2.LINE_AA)
+                if state.countdown is not None:
+                    draw_timer_countdown(frame, state.countdown)
+                window.draw_image(frame)
+                window_fps.update('')
+            if state.finished:
+                window.post('-TIMER_STOP-')
 
         now = datetime.now()
         # Nur bei tatsaechlicher Aenderung neu zeichnen (Datum/Uhrzeit

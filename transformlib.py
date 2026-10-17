@@ -3,69 +3,69 @@ import numpy as np
 
 
 def compute_perspective_matrix(pts, dsize):
-  # Liefert die 3x3-Homographie-Matrix, die das per pts definierte Viereck
-  # (perspektivische Ansicht der flachen Scheibe) auf ein dsize-grosses
-  # Rechteck abbildet ("Keystone"-Entzerrung des Kamerawinkels - KEINE
-  # Fischauge-/Objektivverzeichnungs-Korrektur, dafuer braeuchte es eine
-  # eigene, radiale Entzerrung per cv2.undistort() mit einer per
-  # Schachbrett-Kalibrierung ermittelten Kamera-Matrix, die es hier nicht
-  # gibt). pts_full/pts_detail aendern sich zur Laufzeit nie (nur ein
-  # Neustart nach einer Settings-Aenderung setzt sie neu) - die Matrix wird
-  # deshalb bewusst einmalig in main() berechnet und pro Frame nur noch
-  # mit cv2.warpPerspective() angewendet - warpPerspective() skaliert direkt
-  # auf dsize mit, eine zusaetzliche separate cv2.resize()-Skalierung auf
-  # VideoSize ist damit nicht noetig.
-  rect = order_points(pts)
-  dst = np.array([
-    [0, 0],
-    [dsize[0] - 1, 0],
-    [dsize[0] - 1, dsize[1] - 1],
-    [0, dsize[1] - 1]], dtype = "float32")
-  return cv2.getPerspectiveTransform(rect, dst)
+    # Liefert die 3x3-Homographie-Matrix, die das per pts definierte Viereck
+    # (perspektivische Ansicht der flachen Scheibe) auf ein dsize-grosses
+    # Rechteck abbildet ("Keystone"-Entzerrung des Kamerawinkels - KEINE
+    # Fischauge-/Objektivverzeichnungs-Korrektur, dafuer braeuchte es eine
+    # eigene, radiale Entzerrung per cv2.undistort() mit einer per
+    # Schachbrett-Kalibrierung ermittelten Kamera-Matrix, die es hier nicht
+    # gibt). pts_full/pts_detail aendern sich zur Laufzeit nie (nur ein
+    # Neustart nach einer Settings-Aenderung setzt sie neu) - die Matrix wird
+    # deshalb bewusst einmalig in main() berechnet und pro Frame nur noch
+    # mit cv2.warpPerspective() angewendet - warpPerspective() skaliert direkt
+    # auf dsize mit, eine zusaetzliche separate cv2.resize()-Skalierung auf
+    # VideoSize ist damit nicht noetig.
+    rect = order_points(pts)
+    dst = np.array([
+      [0, 0],
+      [dsize[0] - 1, 0],
+      [dsize[0] - 1, dsize[1] - 1],
+      [0, dsize[1] - 1]], dtype = "float32")
+    return cv2.getPerspectiveTransform(rect, dst)
 
 def order_points(pts):
-  # Sortiert vier Eckpunkte zu (oben links, oben rechts, unten rechts,
-  # unten links). Die Reihenfolge ergibt sich aus dem Winkel um den
-  # Schwerpunkt (in Bildkoordinaten, y nach unten, also im Uhrzeigersinn);
-  # als erster Punkt gilt der mit der kleinsten Koordinatensumme x+y. Anders
-  # als die verbreitete Summen-/Differenz-Heuristik liefert das auch bei um
-  # ca. 45 Grad gedrehtem Viereck vier verschiedene Punkte.
-  pts = np.asarray(pts, dtype = "float32")
-  center = pts.mean(axis = 0)
-  angles = np.arctan2(pts[:, 1] - center[1], pts[:, 0] - center[0])
-  clockwise = pts[np.argsort(angles)]
-  start = int(np.argmin(clockwise.sum(axis = 1)))
-  return np.roll(clockwise, -start, axis = 0)
+    # Sortiert vier Eckpunkte zu (oben links, oben rechts, unten rechts,
+    # unten links). Die Reihenfolge ergibt sich aus dem Winkel um den
+    # Schwerpunkt (in Bildkoordinaten, y nach unten, also im Uhrzeigersinn);
+    # als erster Punkt gilt der mit der kleinsten Koordinatensumme x+y. Anders
+    # als die verbreitete Summen-/Differenz-Heuristik liefert das auch bei um
+    # ca. 45 Grad gedrehtem Viereck vier verschiedene Punkte.
+    pts = np.asarray(pts, dtype = "float32")
+    center = pts.mean(axis = 0)
+    angles = np.arctan2(pts[:, 1] - center[1], pts[:, 0] - center[0])
+    clockwise = pts[np.argsort(angles)]
+    start = int(np.argmin(clockwise.sum(axis = 1)))
+    return np.roll(clockwise, -start, axis = 0)
 
 def is_valid_quad(pts, min_area = 100.0):
-  # True, wenn die vier Punkte ein konvexes Viereck mit mindestens min_area
-  # Flaeche (Pixel^2) bilden - nur dann liefert getPerspectiveTransform eine
-  # brauchbare Entzerrung (keine Ueberkreuzung, keine drei Punkte auf einer
-  # Linie, keine doppelten Punkte).
-  pts = np.asarray(pts, dtype = "float64")
-  if pts.shape != (4, 2):
-    return False
-  rect = order_points(pts).astype("float64")
-  edges = np.roll(rect, -1, axis = 0) - rect
-  cross = edges[:, 0] * np.roll(edges, -1, axis = 0)[:, 1] - edges[:, 1] * np.roll(edges, -1, axis = 0)[:, 0]
-  if not (np.all(cross > 0)):
-    return False
-  area = 0.5 * abs(np.sum(rect[:, 0] * np.roll(rect[:, 1], -1) - np.roll(rect[:, 0], -1) * rect[:, 1]))
-  return area >= min_area
+    # True, wenn die vier Punkte ein konvexes Viereck mit mindestens min_area
+    # Flaeche (Pixel^2) bilden - nur dann liefert getPerspectiveTransform eine
+    # brauchbare Entzerrung (keine Ueberkreuzung, keine drei Punkte auf einer
+    # Linie, keine doppelten Punkte).
+    pts = np.asarray(pts, dtype = "float64")
+    if pts.shape != (4, 2):
+        return False
+    rect = order_points(pts).astype("float64")
+    edges = np.roll(rect, -1, axis = 0) - rect
+    cross = edges[:, 0] * np.roll(edges, -1, axis = 0)[:, 1] - edges[:, 1] * np.roll(edges, -1, axis = 0)[:, 0]
+    if not (np.all(cross > 0)):
+        return False
+    area = 0.5 * abs(np.sum(rect[:, 0] * np.roll(rect[:, 1], -1) - np.roll(rect[:, 0], -1) * rect[:, 1]))
+    return area >= min_area
 
 def crop_bounds(point_sets, margin):
-  # point_sets: Liste von Nx2-Punkt-Arrays (z.B. [pts_full, pts_detail])
-  # liefert (x0, y0, x1, y1) - x0/y0 nach unten auf 0 geclamped,
-  # x1/y1 werden vom Aufrufer/camera.py zur Laufzeit gegen die echte
-  # Framegroesse geclamped, da die hier oft noch nicht bekannt ist.
-  all_pts = np.vstack(point_sets)
-  min_xy = all_pts.min(axis=0)
-  max_xy = all_pts.max(axis=0)
-  x0 = max(0, int(min_xy[0]) - margin)
-  y0 = max(0, int(min_xy[1]) - margin)
-  x1 = int(max_xy[0]) + margin
-  y1 = int(max_xy[1]) + margin
-  return x0, y0, x1, y1
+    # point_sets: Liste von Nx2-Punkt-Arrays (z.B. [pts_full, pts_detail])
+    # liefert (x0, y0, x1, y1) - x0/y0 nach unten auf 0 geclamped,
+    # x1/y1 werden vom Aufrufer/camera.py zur Laufzeit gegen die echte
+    # Framegroesse geclamped, da die hier oft noch nicht bekannt ist.
+    all_pts = np.vstack(point_sets)
+    min_xy = all_pts.min(axis=0)
+    max_xy = all_pts.max(axis=0)
+    x0 = max(0, int(min_xy[0]) - margin)
+    y0 = max(0, int(min_xy[1]) - margin)
+    x1 = int(max_xy[0]) + margin
+    y1 = int(max_xy[1]) + margin
+    return x0, y0, x1, y1
 
 def crop(cv2Object, zoomSize, center):
     height, width = cv2Object.shape[0], cv2Object.shape[1]
