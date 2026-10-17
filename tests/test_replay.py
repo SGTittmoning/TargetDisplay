@@ -124,3 +124,37 @@ def test_zaehler():
     v = r.ReplayView('frame', 1, 1.44, None, None)
     assert r.counter_text(v, 5) == 'Durchgang 2/5  1,4 s'
     assert r.counter_text(v._replace(offset=7.25), 1) == '7,2 s'
+
+
+class FakeCfg:
+    def __init__(self, values):
+        self.values = values
+
+    def getPropertyWithDefault(self, key, default):
+        return self.values.get(key, default)
+
+
+def test_einstellungen_standardwerte():
+    assert r.read_settings(FakeCfg({})) == (r.DEFAULT_LATENCY_SEC, r.DEFAULT_BUDGET_MB * 1024 * 1024)
+
+
+def test_einstellungen_aus_der_config():
+    cfg = FakeCfg({'replay.latency_sec': '1.5', 'replay.budget_mb': 300})
+    assert r.read_settings(cfg) == (1.5, 300 * 1024 * 1024)
+
+
+@pytest.mark.parametrize('values', [
+    {'replay.latency_sec': 'eins'},
+    {'replay.latency_sec': None},
+    {'replay.latency_sec': 'nan'},
+    {'replay.budget_mb': 'viel'},
+    {'replay.budget_mb': 0},
+    {'replay.budget_mb': -5},
+])
+def test_ungueltige_einstellung_faellt_auf_standard_zurueck(values, capsys):
+    # Ein Tippfehler in config.yml darf die App weder beim Start noch beim
+    # ersten Timer abstuerzen lassen.
+    latency, budget = r.read_settings(FakeCfg(values))
+    assert latency == r.DEFAULT_LATENCY_SEC
+    assert budget == r.DEFAULT_BUDGET_MB * 1024 * 1024
+    assert 'ungültig' in capsys.readouterr().err
