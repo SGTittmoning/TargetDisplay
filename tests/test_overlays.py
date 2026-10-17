@@ -33,3 +33,25 @@ def test_graustufen_logo_mit_einzelnem_kanal():
     logo = np.full((50, 50, 1), 128, np.uint8)
     canvas = blend_logo_centered(make_canvas(), logo)
     assert canvas[100, 100].tolist() == [128, 128, 128]
+
+
+def test_replay_markierung_rahmen_und_zaehler():
+    from overlays import REPLAY_COLOR, draw_replay_marker
+    frame = np.zeros((300, 300, 3), np.uint8)
+    draw_replay_marker(frame, 'Durchgang 2/5  1,4 s')
+    assert frame[150, 2].tolist() == list(REPLAY_COLOR)
+    assert frame[150, 297].tolist() == list(REPLAY_COLOR)
+    assert frame[150, 150].tolist() == [0, 0, 0]
+
+
+def test_replay_trennbild_ist_rot():
+    from overlays import replay_separator
+    frame = replay_separator((200, 100), 'Durchgang 2')
+    assert frame.shape == (100, 200, 3)
+    assert frame[5, 5].tolist() == [0, 0, 255]
+
+
+def test_replay_schlussbild_ganz_rot():
+    from overlays import replay_separator
+    frame = replay_separator((200, 100), '')
+    assert (frame == [0, 0, 255]).all()

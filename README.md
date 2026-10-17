@@ -13,6 +13,7 @@ Fullscreen kiosk display for a shooting-range target camera. Straightens out the
 - **Two zoom levels** — full target overview and a detail view, with click-and-hold panning while zoomed
 - **"Blink" compare mode** — alternates between a held reference frame and the live feed to make new shot holes easier to spot. A timer can be started while blinking: blinking pauses for the timer and then resumes with the same reference, so the shots of that series stand out
 - **Built-in competition timers** — e.g. a 5×(3s/7s) sequence, a 20s sequence, and a 10s sequence, with on-screen countdown
+- **Replay of a timer series** — the green phases of the last timer series are recorded in RAM and can be replayed as often as needed, clearly marked, with a counter in tenths of a second; it opens with a one-second red title frame naming the timer mode, for the 5×3 series the red phases are skipped and a one-second red separator marks each new run, and after a one-second red closing frame the display returns to the live image by itself. All zoom functions work during the replay. The recording is kept until the next timer series starts and is never written to disk
 - **PIN-gated in-app settings** — re-calibrate the four-point regions directly on the device (drag the corners on a live still image, with a magnifier for precise placement), switch which stand/camera the device shows, change the PIN, and trigger a device restart, all behind a numeric PIN so passers-by can't reach them
 - **Multi-stand aware** — a single install can serve any number of stands/camera locations; which one a given device shows is picked once, on the device itself, from a shared list rather than baked in per install (see [Configuration reference](#configuration-reference))
 - A live FPS readout
@@ -63,6 +64,8 @@ For unattended kiosk operation on a Raspberry Pi, `play_it` is the launcher scri
 | `video.section_full` | Four corner points `[[x,y], ...]` for the full-overview perspective transform. Optional, see below |
 | `video.section_detail` | Four corner points for the detail/zoomed-in perspective transform. Optional, see below |
 | `video.size` | Internal processing resolution (`x`, `y`) before display scaling |
+| `replay.latency_sec` | Delay of the camera stream in seconds (0–3, default 1.0). The replay recording window is shifted by this value so the last shots of a green phase are not cut off. Measure it per stand with `sudo tools/latenz_messung.sh` (reads the clock overlay of the camera image; requires NTP-synced camera and Pi). Optional |
+| `replay.budget_mb` | RAM limit for one replay recording in MB (default 600). Above it, only every second (fourth, ...) frame is kept; the recording still covers the whole green phase. Optional |
 
 There are two ways to get a stand's name/camera/regions into the app — pick one:
 

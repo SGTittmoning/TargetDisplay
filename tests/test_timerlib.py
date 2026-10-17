@@ -54,3 +54,15 @@ def test_negative_dauer_wird_als_start_behandelt():
 
 def test_bruchteile_werden_abgerundet():
     assert t.timer_state(t.TIMER_10, 6.99) == t.timer_state(t.TIMER_10, 6)
+
+
+@pytest.mark.parametrize("timer_type", [t.TIMER_5_3_7, t.TIMER_20, t.TIMER_10])
+def test_gruenfenster_passen_zum_ablauf(timer_type):
+    windows = t.green_windows(timer_type)
+    green = {s for s in range(t.total_seconds(timer_type)) if t.timer_state(timer_type, s).color == 'green'}
+    assert green == {s for start, end in windows for s in range(start, end)}
+
+
+def test_gruenfenster_serie():
+    assert t.green_windows(t.TIMER_5_3_7) == [(7, 10), (17, 20), (27, 30), (37, 40), (47, 50)]
+    assert t.green_windows(t.TIMER_20) == [(7, 27)]

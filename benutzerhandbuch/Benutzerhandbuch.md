@@ -1,12 +1,12 @@
 # TargetDisplay – Benutzerhandbuch
 
-*Version des Handbuchs: Oktober 2026, bezogen auf TargetDisplay v0.12.x*
+*Version des Handbuchs: Oktober 2026, bezogen auf TargetDisplay v0.13.x*
 
 ## 1. Einleitung
 
 TargetDisplay ist die Bildschirmanzeige an den Schießständen unseres Vereins. Eine Kamera blickt schräg auf die Zielscheibe, und die App rechnet dieses Bild automatisch so um, dass die Scheibe gerade von oben zu sehen ist – so, als würde man direkt davorstehen. Das Gerät läuft auf einem kleinen Touchscreen-Computer direkt am Stand und wird ausschließlich mit dem Finger bedient, eine Maus oder Tastatur wird nicht benötigt.
 
-Neben der reinen Live-Ansicht der Scheibe bietet TargetDisplay ein paar Werkzeuge, die den Trainings- und Wettkampfbetrieb erleichtern: zwei Zoomstufen (ganze Scheibe oder ein vergrößerter Innenbereich), einen „Blinken“-Vergleichsmodus, der zwischen einem gemerkten Referenzbild und dem aktuellen Live-Bild hin- und herschaltet (praktisch, um neue Einschusslöcher zu erkennen), sowie mehrere eingebaute Wettkampf-Timer mit Countdown-Anzeige. Ein kleiner, durch eine PIN geschützter Einstellungsbereich erlaubt es Standaufsichten außerdem, das Gerät bei Bedarf direkt am Stand neu zu kalibrieren oder umzukonfigurieren.
+Neben der reinen Live-Ansicht der Scheibe bietet TargetDisplay ein paar Werkzeuge, die den Trainings- und Wettkampfbetrieb erleichtern: zwei Zoomstufen (ganze Scheibe oder ein vergrößerter Innenbereich), einen „Blinken“-Vergleichsmodus, der zwischen einem gemerkten Referenzbild und dem aktuellen Live-Bild hin- und herschaltet (praktisch, um neue Einschusslöcher zu erkennen), sowie mehrere eingebaute Wettkampf-Timer mit Countdown-Anzeige, deren Sichtzeiten sich anschließend als Replay ansehen lassen. Ein kleiner, durch eine PIN geschützter Einstellungsbereich erlaubt es Standaufsichten außerdem, das Gerät bei Bedarf direkt am Stand neu zu kalibrieren oder umzukonfigurieren.
 
 Dieses Handbuch beschreibt zunächst die Bedienelemente für den täglichen Gebrauch (Kapitel 2), die für alle Vereinsmitglieder gedacht sind. Kapitel 3 behandelt den PIN-geschützten Administrativen Bereich, der sich an Standaufsichten richtet.
 
@@ -25,7 +25,7 @@ Die Nummerierung startet in jeder Gruppe neu bei 1 – gemeint ist immer die Pos
 **Kopfzeile (oben)**
 
 1. **Standname** (oben links, z. B. „Stand 1“) – zeigt an, welcher Schießstand gerade angezeigt wird. Rein informativ, kein Bedienelement.
-2. **Video-aus-Symbol** (Auge mit Schrägstrich, oben rechts, linkes der beiden kleinen Symbole) – blendet das Kamerabild aus und zeigt stattdessen das Vereinswappen auf schwarzem Grund (siehe Abschnitt „Video aus“ im Detail unten). Ein erneuter Klick schaltet das Bild wieder ein. Solange das Bild ausgeblendet ist, sind Zoom, Blinken und Timer nicht bedienbar.
+2. **Video-aus-Symbol** (Auge mit Schrägstrich, oben rechts, linkes der beiden kleinen Symbole) – blendet das Kamerabild aus und zeigt stattdessen das Vereinswappen auf schwarzem Grund (siehe Abschnitt „Video aus“ im Detail unten). Ein erneuter Klick schaltet das Bild wieder ein. Solange das Bild ausgeblendet ist, sind Zoom, Blinken, Timer und Replay nicht bedienbar.
 3. **Einstellungen-Symbol** (Zahnrad mit Schloss, oben rechts, rechtes der beiden kleinen Symbole) – öffnet den PIN-geschützten Administrativen Bereich, siehe Kapitel 3.
 
 **Gruppe „Zoom“ (blau)**
@@ -41,12 +41,13 @@ Die Nummerierung startet in jeder Gruppe neu bei 1 – gemeint ist immer die Pos
 2. **Referenz** – nimmt eine neue Referenzaufnahme auf, ohne den Blinken-Modus zu verlassen.
 3. **Stop** – beendet das Blinken, es wird wieder ausschließlich das Live-Bild gezeigt.
 
-**Gruppe „Timer“ (rot)** – eingebaute Wettkampf-Countdowns, Details siehe Abschnitt 2.3 unten.
+**Gruppe „Timer“ (rot)** – eingebaute Wettkampf-Countdowns und das Replay, Details siehe Abschnitte 2.3 und 2.4 unten.
 
 1. **5 x 3 Sek.** – fünf Durchgänge im Wechsel, Scheibe 3 Sekunden sichtbar, 7 Sekunden verdeckt.
 2. **20 Sek.** – eine einzelne Zeitscheibe von 20 Sekunden.
 3. **10 Sek.** – eine einzelne Zeitscheibe von 10 Sekunden.
 4. **Timer Stop** – bricht einen laufenden Timer vorzeitig ab. Nur während eines laufenden Timers farbig/aktiv.
+5. **Replay / Replay Ende** – ein Knopf für beides. Als **Replay** (Abspielsymbol) spielt er die aufgezeichneten Sichtzeiten des letzten Timers ab. Während des Replays heißt er **Replay Ende** und kehrt sofort zum Live-Bild zurück, die Aufnahme bleibt erhalten. Farbig/aktiv, sobald eine Aufnahme vorliegt.
 
 **Fußbereich (unten)**
 
@@ -77,7 +78,7 @@ Das Bild wechselt sekündlich zwischen dem festgehaltenen Referenzbild und dem a
 
 **5 x 3 Sek.** beginnt ebenfalls mit der 7-Sekunden-Vorbereitungszeit in Rot, wiederholt danach aber fünfmal denselben Wechsel: 3 Sekunden **grün** (Scheibe sichtbar, mit Countdown und Durchgangszähler), gefolgt von 7 Sekunden **rot** (Scheibe verdeckt, ebenfalls mit Countdown und Durchgangszähler). Nach der fünften grünen Phase entfällt die 7-Sekunden-Pause: Es folgt direkt, genau wie bei den anderen beiden Varianten, die kurze (3 Sekunden) rote Stopp-Phase ohne Zahl, danach schaltet der Timer automatisch ab und die Scheibe ist sofort wieder zu sehen. Die ganze Serie dauert 53 Sekunden.
 
-Während eines laufenden Timers wird kein Kamerabild angezeigt und Zoom/Blinken/Video-aus sind gesperrt. War vor dem Start „Blinken“ aktiv, läuft es nach dem Timer automatisch weiter (siehe Abschnitt 2.2).
+Während eines laufenden Timers wird kein Kamerabild angezeigt und Zoom/Blinken/Video-aus sind gesperrt. War vor dem Start „Blinken“ aktiv, läuft es nach dem Timer automatisch weiter (siehe Abschnitt 2.2). Die grünen Phasen werden dabei für das Replay aufgezeichnet (siehe Abschnitt 2.4).
 
 ![Timer – Vorbereitungsphase (rot)](screenshots/04_timer_vorbereitung_rot.png)
 
@@ -87,13 +88,32 @@ Während eines laufenden Timers wird kein Kamerabild angezeigt und Zoom/Blinken/
 
 **Abb. 5:** Sichtzeit läuft (grün).
 
-### 2.4 „Video aus“ im Detail
+### 2.4 Replay im Detail
+
+Während jedes Timers zeichnet das Gerät die grünen Phasen (Sichtzeiten) im Hintergrund auf: bei **5 x 3 Sek.** die fünf Durchgänge, bei **20 Sek.** und **10 Sek.** die eine Sichtzeit. Die Aufnahme liegt nur im Arbeitsspeicher und wird nirgends gespeichert.
+
+![Replay](screenshots/06_replay.png)
+
+**Abb. 6:** Replay in der Zoomstufe „Innen Scheibe“: violetter Rahmen, „REPLAY“ und Zähler in Zehntelsekunden. Der Knopf heißt jetzt **Replay Ende**.
+
+- **Replay** spielt die Aufnahme in Echtzeit ab, beliebig oft. Zu Beginn erscheint eine Sekunde lang ein rotes Startbild mit dem Timer-Modus (z. B. „5 x 3 Sek.“). Am Ende erscheint eine Sekunde lang ein rotes Schlussbild, danach kehrt die Anzeige von selbst zum Live-Bild zurück.
+- Während des Replays heißt der Knopf **Replay Ende**. Er kehrt sofort zum Live-Bild zurück, ohne das Ende abzuwarten. Die Aufnahme bleibt erhalten und lässt sich später erneut abspielen.
+- Das Replay ist deutlich gekennzeichnet: violetter Rahmen, „REPLAY“ oben links und oben rechts ein Zähler in Zehntelsekunden, der in jeder Sichtzeit bei 0,0 beginnt (z. B. „7,3 s“, bei 5 x 3 „Durchgang 2/5  1,4 s“).
+- Bei **5 x 3 Sek.** werden die roten Phasen übersprungen. Zwischen zwei Durchgängen erscheint für eine Sekunde ein rotes Trennbild „Durchgang 2/5“ usw.
+- Alle Zoomfunktionen (Ganze Scheibe, Innen Scheibe, Tippen ins Bild, Reset) wirken im Replay wie im Live-Bild.
+- Blinken, Timer und Video aus sind während des Replays gesperrt. Ein aktives Blinken läuft nach **Replay Ende** mit derselben Referenz weiter.
+- Die Aufnahme wird erst beim Start des nächsten Timers verworfen und durch die neue ersetzt. Ein Neustart des Geräts löscht sie ebenfalls.
+- Wird ein Timer mit **Timer Stop** vorzeitig beendet, lässt sich das bis dahin Aufgezeichnete abspielen.
+- **Replay** ist gesperrt, solange keine Aufnahme vorliegt, während eines Timers und bei ausgeblendetem Video.
+- Fiel die Kamera während der Aufnahme aus, zeigt das Replay an dieser Stelle „kein Bild“.
+
+### 2.5 „Video aus“ im Detail
 
 Ein Klick auf das Augen-Symbol in der Kopfzeile (Punkt 2) blendet das Kamerabild aus und zeigt stattdessen das Vereinswappen auf schwarzem Grund – etwa wenn zwischen zwei Trainingseinheiten niemand am Stand ist. Die Uhrzeit/Datumsanzeige läuft normal weiter. Das Symbol wechselt dabei auf ein Auge ohne Schrägstrich; ein erneuter Klick darauf schaltet das Live-Bild wieder ein.
 
-![Video aus – Wasserzeichen](screenshots/06_video_aus_logo.png)
+![Video aus – Wasserzeichen](screenshots/07_video_aus_logo.png)
 
-**Abb. 6:** Video ausgeblendet, Vereinswappen als Wasserzeichen auf schwarzem Grund.
+**Abb. 7:** Video ausgeblendet, Vereinswappen als Wasserzeichen auf schwarzem Grund.
 
 ---
 
@@ -107,9 +127,9 @@ Der PIN-Schutz ist bewusst kein Hochsicherheitsmechanismus gegen gezielte Angrif
 
 Nach Klick auf das Zahnrad-Symbol erscheint das PIN-Tastenfeld:
 
-![PIN-Eingabe](screenshots/07_pin_eingabe.png)
+![PIN-Eingabe](screenshots/08_pin_eingabe.png)
 
-**Abb. 7:** PIN-Tastenfeld.
+**Abb. 8:** PIN-Tastenfeld.
 
 1. **Ziffernblock 0–9** – Eingabe der PIN (4–6-stellig). Eingegebene Ziffern werden als Sternchen dargestellt.
 2. **Löschen** – setzt die aktuelle Eingabe zurück auf leer.
@@ -120,9 +140,9 @@ Nach korrekter Eingabe öffnet sich das Einstellungen-Menü.
 
 ### 3.2 Einstellungen-Menü
 
-![Einstellungen-Menü](screenshots/08_einstellungen_menue.png)
+![Einstellungen-Menü](screenshots/09_einstellungen_menue.png)
 
-**Abb. 8:** Einstellungen-Menü.
+**Abb. 9:** Einstellungen-Menü.
 
 1. **Ganze Scheibe** – öffnet den Ausschnitte-Editor (siehe 3.3) zur Neukalibrierung des Bildausschnitts „Ganze Scheibe“.
 2. **Innen Scheibe** – öffnet denselben Editor für den Ausschnitt „Innen Scheibe“ (Detailzoom).
@@ -137,9 +157,9 @@ Nach korrekter Eingabe öffnet sich das Einstellungen-Menü.
 
 Hier werden die vier Eckpunkte festgelegt, die den schrägen Kamerablick auf die Zielscheibe in ein gerades, top-down-Bild umrechnen – getrennt für „Ganze Scheibe“ und „Innen Scheibe“. Das ist nötig, wenn sich die Kamera oder die Scheibe verschoben hat, oder bei der Ersteinrichtung eines neuen Standes.
 
-![Ausschnitte-Editor mit Lupe](screenshots/09_ausschnitte_editor_lupe.png)
+![Ausschnitte-Editor mit Lupe](screenshots/10_ausschnitte_editor_lupe.png)
 
-**Abb. 9:** Ausschnitte-Editor, Lupe beim Ziehen eines Eckpunkts eingeblendet.
+**Abb. 10:** Ausschnitte-Editor, Lupe beim Ziehen eines Eckpunkts eingeblendet.
 
 1. **Titel** (oben) – zeigt an, welcher Ausschnitt gerade bearbeitet wird.
 2. **Kamerabild mit vier nummerierten Eckpunkten (1–4, rot/gelb)** – jeder Punkt kann per Fingertipp gegriffen und gezogen werden, um ihn exakt auf eine Ecke der Zielscheibe zu positionieren. Eine gelbe Linie verbindet die vier Punkte zur Kontrolle. Ist der jeweils andere Ausschnitt (z. B. „Innen Scheibe“, während „Ganze Scheibe“ bearbeitet wird) bereits kalibriert, wird er zusätzlich hellgrau zur Orientierung eingeblendet.
@@ -152,9 +172,9 @@ Hier werden die vier Eckpunkte festgelegt, die den schrägen Kamerablick auf die
 
 Erlaubt es, ein und dasselbe Gerät auf einen anderen Schießstand (mit eigener Kamera) umzustellen. Die Liste der verfügbaren Stände wird zentral gepflegt und ist auf allen Geräten der Vereinsflotte identisch – welcher Stand tatsächlich angezeigt wird, wird pro Gerät einzeln hier ausgewählt.
 
-![Stand auswählen](screenshots/10_stand_auswaehlen.png)
+![Stand auswählen](screenshots/11_stand_auswaehlen.png)
 
-**Abb. 10:** Stand-Auswahl.
+**Abb. 11:** Stand-Auswahl.
 
 1. **Liste der verfügbaren Stände** – ein Fingertipp markiert einen Eintrag.
 2. **Auswählen** (blau hervorgehoben) – übernimmt den markierten Stand. Das Gerät verbindet sich anschließend mit dessen Kamera und startet neu.
@@ -169,9 +189,9 @@ Anders als die übrigen Unterabschnitte hier ist dies kein einzelner Bildschirm 
 1. Zunächst muss die **aktuell gültige PIN** eingegeben werden (dasselbe Tastenfeld wie in 3.1) – so lässt sich verhindern, dass jemand, der zufällig kurz an das offene Einstellungen-Menü gelangt, die PIN einfach überschreibt.
 2. Danach erscheint das Tastenfeld erneut mit dem Titel **„Neuen PIN eingeben (4-6 Ziffern)“**. Der Standard-PIN „1234“ wird nicht angenommen (Hinweis „zu einfach“); bitte eine andere PIN wählen:
 
-![Neuen PIN eingeben](screenshots/11_neuen_pin_eingeben.png)
+![Neuen PIN eingeben](screenshots/12_neuen_pin_eingeben.png)
 
-**Abb. 11:** Neuen PIN eingeben.
+**Abb. 12:** Neuen PIN eingeben.
 
 3. Anschließend muss die neue PIN zur Kontrolle ein zweites Mal eingegeben werden („PIN wiederholen“). Stimmen beide Eingaben nicht überein, erscheint kurz der Hinweis „PINs stimmen nicht überein“, und es geht zurück zu Schritt 2 (neue PIN eingeben) – die bereits bestätigte aktuelle PIN aus Schritt 1 muss dafür nicht erneut eingegeben werden.
 4. Nach zweimal übereinstimmender Eingabe wird die neue PIN gespeichert. Genau wie bei den anderen Einstellungsänderungen (siehe 3.2) startet das Gerät danach automatisch neu, damit der neue PIN sauber übernommen wird.
@@ -181,9 +201,9 @@ Anders als die übrigen Unterabschnitte hier ist dies kein einzelner Bildschirm 
 
 Über „Neu starten“ im Einstellungen-Menü lässt sich das Gerät gezielt neu booten, z. B. wenn die Kamera-Verbindung dauerhaft hängt.
 
-![Neustart bestätigen](screenshots/12_neustart_bestaetigen.png)
+![Neustart bestätigen](screenshots/13_neustart_bestaetigen.png)
 
-**Abb. 12:** Neustart-Bestätigung.
+**Abb. 13:** Neustart-Bestätigung.
 
 1. **Ja, neu starten** (blau hervorgehoben) – startet das Gerät sofort neu. Zunächst erscheint das Boot-Logo (Vereinswappen), danach der Hauptbildschirm.
 2. **Abbrechen** – kehrt ohne Neustart zum Einstellungen-Menü zurück.

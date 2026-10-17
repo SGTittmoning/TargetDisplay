@@ -10,6 +10,9 @@ TIMER_5_3_7 = '-TIMER_5_3_7-'
 TIMER_20 = '-TIMER_20-'
 TIMER_10 = '-TIMER_10-'
 
+# Beschriftung der Timer-Buttons, auch im Startbild des Replays.
+TITLES = {TIMER_5_3_7: '5 x 3 Sek.', TIMER_20: '20 Sek.', TIMER_10: '10 Sek.'}
+
 PREP_TIME = 7   # rote Vorbereitungsphase vor dem ersten Durchgang
 STOP_TIME = 3   # rote Stopp-Phase nach dem letzten Durchgang
 
@@ -61,3 +64,12 @@ def timer_state(timer_type, elapsed):
     if t < PREP_TIME + show + STOP_TIME:
         return TimerState('red', None, None, False)
     return _FINISHED
+
+
+def green_windows(timer_type):
+    """Gruenphasen als Liste von (Beginn, Ende) in Sekunden ab Timer-Start."""
+    if timer_type == TIMER_5_3_7:
+        cycle = SERIES_SHOW + SERIES_HIDE
+        return [(PREP_TIME + k * cycle, PREP_TIME + k * cycle + SERIES_SHOW)
+                for k in range(SERIES_LOOPS)]
+    return [(PREP_TIME, PREP_TIME + SINGLE_SHOW[timer_type])]

@@ -244,9 +244,9 @@ class Window:
 
     def _make_accent_button(self, parent, key, text, accent_bg, accent_fg,
                              muted_bg, muted_fg, icon_on=None, icon_off=None,
-                             start_enabled=True, font=('Helvetica', 15, 'bold')):
+                             start_enabled=True):
         # Gemeinsamer Baustein fuer alle farbcodierten Hauptbildschirm-Buttons
-        # (Zoom/Blinken/Timer, inkl. des reinen Text-Buttons "Timer Stop").
+        # (Zoom/Blinken/Timer inkl. "Timer Stop" und "Replay").
         # Der Button bleibt bewusst IMMER state=NORMAL - "deaktiviert" wird
         # rein optisch (Muted-Flaeche/-Icon) UND funktional (command wird zu
         # einem No-Op statt self.post(key), s.u.) simuliert, nie ueber Tks
@@ -257,30 +257,13 @@ class Window:
         # (-disabledimage existiert bei tk.Button nicht). Das Stipple wuerde
         # wie ein Rendering-Defekt wirken, unabhaengig davon wie sauber
         # PNG/Alpha der Icons selbst sind.
-        icon = (icon_on if start_enabled else icon_off) if icon_on is not None else None
+        icon = icon_on if start_enabled else icon_off
         bg = accent_bg if start_enabled else muted_bg
         fg = accent_fg if start_enabled else muted_fg
         real_command = lambda: self.post(key)
         command = real_command if start_enabled else (lambda: None)
 
-        if icon is None:
-            # Reiner Text-Button (aktuell nur "Timer Stop") - keine
-            # Compound-Bild/Text-Problematik (siehe unten), unveraendert
-            # ein einzelnes tk.Button-Widget.
-            b = tk.Button(parent, text=text, bg=bg, fg=fg,
-                          activebackground=bg, activeforeground=fg,
-                          bd=0, relief='flat', highlightthickness=0, font=font,
-                          wraplength=140, justify='center', command=command)
-            self._btn_style[key] = dict(icon_on=None, icon_off=None, label=None,
-                                         containers=(),
-                                         bg_on=accent_bg, fg_on=accent_fg,
-                                         bg_off=muted_bg, fg_off=muted_fg,
-                                         command_on=real_command)
-            self._reg(key, b)
-            return b
-
-        # Icon+Text-Buttons: Tks eigenes compound='top' (Bild+Text in EINEM
-        # Widget) packt zwischen Bild und Text einen deutlich groesseren,
+        # Tks eigenes compound='top' (Bild+Text in EINEM Widget) packt zwischen Bild und Text einen deutlich groesseren,
         # nicht konfigurierbaren Abstand als am oberen/unteren Rand des
         # Buttons, unabhaengig von -pady. Bei zweizeilig umbrechenden Labels
         # ("Ganze Scheibe"/"Innen Scheibe") wirkt der Inhalt dadurch sichtbar
@@ -305,7 +288,7 @@ class Window:
                       bd=0, relief='flat', highlightthickness=0,
                       command=command)
         b.pack(side='top', pady=(6, 6))
-        label = tk.Label(inner, text=text, bg=bg, fg=fg, font=font,
+        label = tk.Label(inner, text=text, bg=bg, fg=fg, font=('Helvetica', 15, 'bold'),
                           wraplength=140, justify='center')
         label.pack(side='top', pady=(0, 8))
         # Klick soll ueberall auf der Buttonflaeche denselben Effekt wie ein
@@ -603,19 +586,28 @@ class Window:
         for b in (b1, b2, b3):
             b.config(height=BTN_HEIGHT)
         pack_equal([b1, b2, b3])
-        # Ohne image= interpretiert Tk width/height eines Buttons als
-        # Text-ZEILEN/-ZEICHEN, nicht als Pixel (anders als bei den Icon-
-        # Buttons oben) - "Timer Stop" hat bewusst kein Icon (reiner Text-
-        # Button). Fuer eine exakte Pixelhoehe daher derselbe Kniff wie bei
-        # name_frame oben: feste Frame-Hoehe +
-        # pack_propagate(False), der Button selbst fuellt sie per fill='both'.
-        row2 = tk.Frame(timer_group, bg=BG, height=46)
+        # Zweite Reihe: "Timer Stop" ueber zwei Spalten und ein einzelner
+        # Replay-Button (siehe replay.py), der waehrend des Replays zu
+        # "Replay Ende" wird (siehe replay_buttons()). Spalten und Abstaende
+        # wie in den Reihen darueber, damit die Kanten fluchten.
+        row2 = tk.Frame(timer_group, bg=BG)
         row2.pack(side='top', fill='x', pady=(BTN_GAP, 0))
-        row2.pack_propagate(False)
         stop_btn = self._make_accent_button(row2, '-TIMER_STOP-', 'Timer Stop',
                                              ACCENT_TIMER, 'white', ACCENT_TIMER_MUTED_BG, ACCENT_TIMER_MUTED_FG,
-                                             start_enabled=False, font=('Helvetica', 14, 'bold'))
-        stop_btn.pack(side='left', fill='both', expand=True)
+                                             icon_on=icon('stopsquare_white'), icon_off=icon('stopsquare_timer_muted'),
+                                             start_enabled=False)
+        replay_btn = self._make_accent_button(row2, '-REPLAY-', 'Replay',
+                                               ACCENT_TIMER, 'white', ACCENT_TIMER_MUTED_BG, ACCENT_TIMER_MUTED_FG,
+                                               icon_on=icon('play_white'), icon_off=icon('play_timer_muted'),
+                                               start_enabled=False)
+        for b in (stop_btn, replay_btn):
+            b.config(height=BTN_HEIGHT)
+        for col in (0, 2, 4):
+            row2.grid_columnconfigure(col, weight=1, uniform='btnrow')
+        for col in (1, 3):
+            row2.grid_columnconfigure(col, weight=0, minsize=BTN_GAP)
+        stop_btn.grid(row=0, column=0, columnspan=3, sticky='nsew')
+        replay_btn.grid(row=0, column=4, sticky='nsew')
 
         # -- Footer. Kein Sidebar-Logo: das Vereinswappen bleibt
         # ausschliesslich dem Blank-Screen-Wasserzeichen vorbehalten (siehe
@@ -875,6 +867,18 @@ def blink_buttons(active):
   # sind Referenz/Stop aktiv und Start gesperrt, sonst umgekehrt.
   set_icon_buttons(('-BLINK_START-',), not active)
   set_icon_buttons(('-BLINK_STOP-', '-BLINK_REF-'), active)
+
+
+def replay_buttons(available, active):
+  # Ein Button fuer beides: bedienbar, sobald eine Aufnahme vorliegt; ausser
+  # dem Replay "Replay" (startet es), waehrend des Replays "Replay Ende"
+  # (kehrt zum Livebild zurueck).
+  st = window._btn_style['-REPLAY-']
+  st['label'].config(text='Replay Ende' if active else 'Replay')
+  st['icon_on'] = window._icon('exit_white' if active else 'play_white')
+  st['icon_off'] = window._icon('exit_timer_muted' if active else 'play_timer_muted')
+  st['command_on'] = (lambda: window.post('-REPLAY_END-')) if active else (lambda: window.post('-REPLAY-'))
+  set_icon_buttons(('-REPLAY-',), available)
 
 
 def timer_disabled(disable):
