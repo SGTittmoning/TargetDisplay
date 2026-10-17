@@ -1,6 +1,13 @@
 import cv2
 import numpy as np
 
+# Farben (BGR, wie OpenCV).
+BLACK = (0, 0, 0)
+WHITE = (255, 255, 255)
+GRAY = (200, 200, 200)
+RED = (0, 0, 255)
+GREEN = (0, 255, 0)
+
 
 def blend_logo_centered(canvas, logo_rgba, margin_ratio=0.05):
     # skaliert ein BGRA-Logo unter Beibehaltung des Seitenverhaeltnisses so
@@ -45,7 +52,7 @@ def draw_timer_countdown(frame, seconds_left):
     (tw, th), _ = cv2.getTextSize(text, font, font_scale, thickness)
     x = (frame.shape[1] - tw) // 2
     y = (frame.shape[0] + th) // 2
-    cv2.putText(frame, text, (x, y), font, font_scale, (0, 0, 0), thickness, cv2.LINE_AA)
+    cv2.putText(frame, text, (x, y), font, font_scale, BLACK, thickness, cv2.LINE_AA)
 
 
 def timer_frame(size, state):
@@ -53,9 +60,9 @@ def timer_frame(size, state):
     # oben links die Nummer des Durchgangs, in der Mitte der Countdown.
     # numpy erwartet (Hoehe, Breite), size ist (Breite, Hoehe).
     frame = np.zeros((size[1], size[0], 3), np.uint8)
-    frame[:] = (0, 255, 0) if state.color == 'green' else (0, 0, 255)
+    frame[:] = GREEN if state.color == 'green' else RED
     if state.number is not None:
-        cv2.putText(frame, str(state.number), (20, 130), cv2.FONT_HERSHEY_SIMPLEX, 5, (0, 0, 0), 10, cv2.LINE_AA)
+        cv2.putText(frame, str(state.number), (20, 130), cv2.FONT_HERSHEY_SIMPLEX, 5, BLACK, 10, cv2.LINE_AA)
     if state.countdown is not None:
         draw_timer_countdown(frame, state.countdown)
     return frame
@@ -80,7 +87,7 @@ def _label(frame, text, anchor_right, font_scale=0.9, thickness=2):
     y0 = REPLAY_BORDER
     x0 = frame.shape[1] - REPLAY_BORDER - tw - 2 * pad if anchor_right else REPLAY_BORDER
     cv2.rectangle(frame, (x0, y0), (x0 + tw + 2 * pad, y0 + th + base + 2 * pad), REPLAY_COLOR, -1)
-    cv2.putText(frame, text, (x0 + pad, y0 + pad + th), font, font_scale, (255, 255, 255), thickness, cv2.LINE_AA)
+    cv2.putText(frame, text, (x0 + pad, y0 + pad + th), font, font_scale, WHITE, thickness, cv2.LINE_AA)
 
 
 def draw_replay_marker(frame, counter):
@@ -97,12 +104,12 @@ def replay_separator(size, text):
     # Rotes Trennbild zwischen zwei Durchgaengen, Schrift wie beim Timer.
     # Ohne Text: rotes Schlussbild am Ende des Replays.
     frame = np.zeros((size[1], size[0], 3), np.uint8)
-    frame[:] = (0, 0, 255)
+    frame[:] = RED
     if not text:
         return frame
     font = cv2.FONT_HERSHEY_SIMPLEX
     (tw, th), _ = cv2.getTextSize(text, font, 2, 5)
-    cv2.putText(frame, text, ((size[0] - tw) // 2, (size[1] + th) // 2), font, 2, (0, 0, 0), 5, cv2.LINE_AA)
+    cv2.putText(frame, text, ((size[0] - tw) // 2, (size[1] + th) // 2), font, 2, BLACK, 5, cv2.LINE_AA)
     return frame
 
 
@@ -112,5 +119,5 @@ def replay_no_frame(size):
     font = cv2.FONT_HERSHEY_SIMPLEX
     text = 'kein Bild'
     (tw, th), _ = cv2.getTextSize(text, font, 1.5, 3)
-    cv2.putText(frame, text, ((size[0] - tw) // 2, (size[1] + th) // 2), font, 1.5, (200, 200, 200), 3, cv2.LINE_AA)
+    cv2.putText(frame, text, ((size[0] - tw) // 2, (size[1] + th) // 2), font, 1.5, GRAY, 3, cv2.LINE_AA)
     return frame

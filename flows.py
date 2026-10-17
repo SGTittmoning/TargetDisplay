@@ -13,6 +13,8 @@ from camera import STREAM_STARTUP_TIMEOUT_SEC
 from pinlock import PinLimiter
 from settings_store import (
     DEFAULT_PIN,
+    PIN_MAX_LEN,
+    PIN_MIN_LEN,
     save_active_stand,
     save_pin,
     save_sections_override,
@@ -71,7 +73,7 @@ def _run_pin_keypad(title, show_cancel, validate):
                 if not _wait_after_error(error_text, sleep_s):
                     break
         elif event in PIN_DIGITS:
-            if len(entered) < 6:
+            if len(entered) < PIN_MAX_LEN:
                 entered += event
         ui.window['-PINDISPLAY-'].update('*' * len(entered), text_color=FG_DARK)
     return result
@@ -121,7 +123,7 @@ def validate_new_pin(entered):
     # main() sofort wieder zur Aenderung vorlegen). Liefert (True, entered) oder
     # (False, (Fehlertext, Wartezeit_s)) wie _run_pin_keypad() erwartet. Das
     # Anzeigefeld fasst rund 11 Zeichen.
-    if not 4 <= len(entered) <= 6:
+    if not PIN_MIN_LEN <= len(entered) <= PIN_MAX_LEN:
         return False, ('4-6 Ziffern', 0.8)
     if entered == DEFAULT_PIN:
         return False, ('zu einfach', 1.5)
