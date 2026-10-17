@@ -6,7 +6,9 @@ Zustaende werden mit Messpunkten ('-PROBE-name-', siehe app_harness.run_app)
 genau im jeweiligen Moment festgehalten.
 """
 import os
+import re
 import time
+from datetime import datetime
 
 import numpy as np
 import pytest
@@ -314,3 +316,18 @@ def test_video_aus_wechselt_das_symbol(gradient, monkeypatch):
                        (0.1, '-TOGGLEVIDEO-'), (0.3, '-PROBE-wieder-')], monkeypatch, probes=probes)
     assert probes['aus']['video_icon'] != probes['ein']['video_icon']
     assert probes['wieder']['video_icon'] == probes['ein']['video_icon']
+
+
+# ------------------------------------------------- Kopf- und Fusszeile (T12)
+
+def test_kopf_und_fusszeile(gradient, monkeypatch):
+    probes = {}
+    run_app(gradient, [(1.5, '-PROBE-a-'), (1.2, '-PROBE-b-')], monkeypatch, probes=probes)
+    a, b = probes['a'], probes['b']
+    assert a['stand'] == 'Teststand'
+    assert a['date'] == datetime.now().strftime('%d.%m.%Y')
+    assert re.fullmatch(r'\d{2}:\d{2}:\d{2}', a['time'])
+    # Die Uhr laeuft weiter.
+    assert b['time'] != a['time']
+    match = re.fullmatch(r'FPS: (\d+\.\d) - Frame (\d+)', b['fps'])
+    assert match and float(match.group(1)) > 0 and int(match.group(2)) > 1

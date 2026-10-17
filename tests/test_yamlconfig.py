@@ -61,13 +61,7 @@ def test_default_bei_skalarer_zwischenebene(tmp_path):
     assert cfg.getPropertyWithDefault('video.section_full', 'X') == 'X'
 
 
-def test_leere_datei():
-    import os
-    import tempfile
-    fd, path = tempfile.mkstemp()
-    os.close(fd)
-    try:
-        c = yamlconfig.load(path)
-        assert c.getPropertyWithDefault('irgendwas', 'default') == 'default'
-    finally:
-        os.remove(path)
+def test_leere_datei(tmp_path):
+    p = tmp_path / 'config.yml'
+    p.write_text('')
+    assert yamlconfig.load(str(p)).getPropertyWithDefault('irgendwas', 'default') == 'default'
