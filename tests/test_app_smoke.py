@@ -270,6 +270,22 @@ def test_replay_nach_timer(app, monkeypatch):
     assert states['-TIMER_10-'] and states['-FULL_VIDEO-'] and states['-BLINK_START-']
 
 
+def test_replay_endet_nach_rotem_schlussbild(app, monkeypatch):
+    import timerlib
+    monkeypatch.setattr(timerlib, 'PREP_TIME', 1)
+    states = _button_states(monkeypatch, ('-REPLAY-', '-REPLAY_END-', '-TIMER_10-'))
+    steps = [
+        (1.0, '-TIMER_10-'),
+        (3.0, '-TIMER_STOP-'),
+        (0.3, '-REPLAY-'),
+        (4.5, '-FULL_VIDEO-'),     # Replay (ca. 1 s + 1 s Rot) ist laengst vorbei
+    ]
+    draws = run_app(app, steps, monkeypatch)
+    assert any(_is_replay_frame(d) for d in draws)
+    assert not _is_replay_frame(draws[-1])
+    assert states['-REPLAY-'] and not states['-REPLAY_END-'] and states['-TIMER_10-']
+
+
 def test_replay_gesperrt_bei_video_aus(app, monkeypatch):
     import timerlib
     monkeypatch.setattr(timerlib, 'PREP_TIME', 1)

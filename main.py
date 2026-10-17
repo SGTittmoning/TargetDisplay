@@ -430,8 +430,14 @@ def main():
 
 
         ### Image handling
-        if replay_active:
-          view = recording.view(time.monotonic() - replay_start)
+        view = recording.view(time.monotonic() - replay_start) if replay_active else None
+        if replay_active and view is None:
+          # Nach dem roten Schlussbild endet das Replay von selbst, wie mit
+          # "Replay Ende". replay_active sofort zuruecksetzen, damit das
+          # Ereignis nur einmal gesendet wird.
+          replay_active = False
+          window.post('-REPLAY_END-')
+        elif replay_active:
           segments = len(recording.windows)
           counter = replay.counter_text(view, segments)
           # Neu zeichnen nur, wenn sich Bild, Zaehler (Zehntelsekunden) oder
@@ -441,6 +447,8 @@ def main():
             last_replay_key = replay_key
             if view.kind == 'separator':
               display_frame = replay_separator(VideoSize, f'Durchgang {view.segment + 1}/{segments}')
+            elif view.kind == 'end':
+              display_frame = replay_separator(VideoSize, '')
             elif view.frame is None:
               display_frame = replay_no_frame(VideoSize)
             else:

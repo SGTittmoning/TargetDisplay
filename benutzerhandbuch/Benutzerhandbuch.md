@@ -93,8 +93,8 @@ Während eines laufenden Timers wird kein Kamerabild angezeigt und Zoom/Blinken/
 
 Während jedes Timers zeichnet das Gerät die grünen Phasen (Sichtzeiten) im Hintergrund auf: bei **5 x 3 Sek.** die fünf Durchgänge, bei **20 Sek.** und **10 Sek.** die eine Sichtzeit. Die Aufnahme liegt nur im Arbeitsspeicher und wird nirgends gespeichert.
 
-- **Replay** spielt die Aufnahme in Echtzeit ab. Erneutes Tippen startet sie wieder von vorn, beliebig oft. Am Ende bleibt das letzte Bild stehen.
-- **Replay Ende** kehrt zum Live-Bild zurück. Die Aufnahme bleibt erhalten und lässt sich später erneut abspielen.
+- **Replay** spielt die Aufnahme in Echtzeit ab. Erneutes Tippen startet sie wieder von vorn, beliebig oft. Am Ende erscheint eine Sekunde lang ein rotes Schlussbild, danach kehrt die Anzeige von selbst zum Live-Bild zurück.
+- **Replay Ende** kehrt sofort zum Live-Bild zurück, ohne das Ende abzuwarten. Die Aufnahme bleibt erhalten und lässt sich später erneut abspielen.
 - Das Replay ist deutlich gekennzeichnet: violetter Rahmen, „REPLAY“ oben links und oben rechts ein Zähler in Zehntelsekunden, der in jeder Sichtzeit bei 0,0 beginnt (z. B. „7,3 s“, bei 5 x 3 „Durchgang 2/5  1,4 s“).
 - Bei **5 x 3 Sek.** werden die roten Phasen übersprungen. Zwischen zwei Durchgängen erscheint für eine Sekunde ein rotes Trennbild „Durchgang 2/5“ usw.
 - Alle Zoomfunktionen (Ganze Scheibe, Innen Scheibe, Tippen ins Bild, Reset) wirken im Replay wie im Live-Bild.

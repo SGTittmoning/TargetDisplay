@@ -76,8 +76,11 @@ def draw_replay_marker(frame, counter):
 
 def replay_separator(size, text):
     # Rotes Trennbild zwischen zwei Durchgaengen, Schrift wie beim Timer.
+    # Ohne Text: rotes Schlussbild am Ende des Replays.
     frame = np.zeros((size[1], size[0], 3), np.uint8)
     frame[:] = (0, 0, 255)
+    if not text:
+        return frame
     font = cv2.FONT_HERSHEY_SIMPLEX
     (tw, th), _ = cv2.getTextSize(text, font, 2, 5)
     cv2.putText(frame, text, ((size[0] - tw) // 2, (size[1] + th) // 2), font, 2, (0, 0, 0), 5, cv2.LINE_AA)

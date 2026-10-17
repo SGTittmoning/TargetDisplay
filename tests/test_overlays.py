@@ -49,3 +49,9 @@ def test_replay_trennbild_ist_rot():
     frame = replay_separator((200, 100), 'Durchgang 2')
     assert frame.shape == (100, 200, 3)
     assert frame[5, 5].tolist() == [0, 0, 255]
+
+
+def test_replay_schlussbild_ganz_rot():
+    from overlays import replay_separator
+    frame = replay_separator((200, 100), '')
+    assert (frame == [0, 0, 255]).all()

@@ -34,7 +34,7 @@ def test_nur_gruenphasen_werden_aufgenommen():
 def test_serie_fuenf_durchgaenge_mit_trennbildern():
     rec = record(t.TIMER_5_3_7)
     assert [len(s) for s in rec.segments] == [3 * FPS] * 5
-    assert rec.duration() == pytest.approx(5 * 3 + 4 * r.SEPARATOR_SEC)
+    assert rec.duration() == pytest.approx(5 * 3 + 4 * r.SEPARATOR_SEC + r.END_SEC)
     assert rec.view(0.0).kind == 'frame' and rec.view(0.0).segment == 0
     v = rec.view(3 + r.SEPARATOR_SEC / 2)
     assert v.kind == 'separator' and v.segment == 1
@@ -82,14 +82,17 @@ def test_abbruch_mitten_im_durchgang():
     rec = record(t.TIMER_5_3_7, until=18.5)
     assert [len(s) for s in rec.segments if s] == [3 * FPS, 9]
     # zweiter Durchgang endet mit seinem letzten Bild
-    assert rec.duration() == pytest.approx(3 + r.SEPARATOR_SEC + rec.segments[1][-1][0])
+    assert rec.duration() == pytest.approx(3 + r.SEPARATOR_SEC + rec.segments[1][-1][0] + r.END_SEC)
 
 
-def test_nach_dem_ende_bleibt_das_letzte_bild():
+def test_am_ende_rotes_schlussbild_dann_ende():
     rec = record(t.TIMER_10)
-    last = rec.view(rec.duration() + 5)
-    assert last.frame is rec.segments[0][-1][1]
-    assert last.offset == pytest.approx(10.0)
+    assert rec.duration() == pytest.approx(10.0 + r.END_SEC)
+    assert rec.view(9.9).frame is rec.segments[0][-1][1]
+    end = rec.view(10.0 + r.END_SEC / 2)
+    assert end.kind == 'end' and end.frame is None
+    assert end.offset == pytest.approx(10.0)
+    assert rec.view(rec.duration()) is None
 
 
 def test_bild_wechselt_nur_mit_neuem_kamerabild():

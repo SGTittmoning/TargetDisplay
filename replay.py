@@ -10,6 +10,9 @@ from collections import namedtuple
 # Rotes Trennbild zwischen zwei Durchgaengen der Serie.
 SEPARATOR_SEC = 1.0
 
+# Rotes Schlussbild, danach endet das Replay von selbst.
+END_SEC = 1.0
+
 # Kamerabilder kommen ueber RTMP verspaetet an. Die Aufnahme verschiebt die
 # Gruenfenster um diesen Wert, sonst fehlten die letzten Schuesse. Begrenzt
 # auf die rote Stopp-Phase nach dem letzten Durchgang (timerlib.STOP_TIME),
@@ -106,27 +109,30 @@ class Recording:
         lengths = self._segment_lengths()
         if not lengths:
             return 0.0
-        return sum(lengths) + SEPARATOR_SEC * (len(lengths) - 1)
+        return sum(lengths) + SEPARATOR_SEC * (len(lengths) - 1) + END_SEC
 
     def view(self, position):
         """Was zur Abspielzeit `position` (Sekunden) zu zeigen ist.
 
-        Nach dem Ende bleibt das letzte Bild stehen.
+        Nach dem letzten Durchgang folgt das rote Schlussbild, danach
+        (Replay zu Ende) None.
         """
         lengths = self._segment_lengths()
         if not lengths:
             return None
-        position = min(max(position, 0.0), self.duration())
+        position = max(position, 0.0)
         for i, length in enumerate(lengths):
             if i > 0:
                 if position < SEPARATOR_SEC:
                     return ReplayView('separator', i, 0.0, None, ('sep', i))
                 position -= SEPARATOR_SEC
-            if position < length or i == len(lengths) - 1:
-                offset = min(position, length)
-                return self._frame_view(i, offset)
+            if position < length:
+                return self._frame_view(i, position)
             position -= length
-        return None  # pragma: no cover
+        if position < END_SEC:
+            last = len(lengths) - 1
+            return ReplayView('end', last, lengths[last], None, ('end',))
+        return None
 
     def _frame_view(self, segment, offset):
         seg = self.segments[segment]
