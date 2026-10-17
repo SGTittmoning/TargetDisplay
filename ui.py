@@ -273,6 +273,9 @@ class Window:
         # gleichmaessigem Abstand statt eines einzelnen Compound-Widgets -
         # dafuer noetig: ._btn_style haelt zusaetzlich das Label, damit
         # set_icon_buttons() dessen bg/fg mit umschalten kann.
+        # Ohne feste Hoehe: die Hoehe ergibt sich aus dem Inhalt. Eine feste
+        # Frame-Hoehe fordert Tk bei jedem Farbwechsel (set_icon_buttons) kurz
+        # erneut an, das ganze Bedienfeld springt dann.
         frame = tk.Frame(parent, bg=bg)
         # inner-Frame statt Icon+Label direkt in frame packen: pack_equal()
         # streckt alle Buttons einer Zeile per grid(sticky='nsew') auf die
@@ -490,7 +493,6 @@ class Window:
         # die Farbe der Buttons selbst uebernimmt die Gruppierung.
         BTN_GAP = 10
         GROUP_GAP = 20
-        BTN_HEIGHT = 78
 
         groups = tk.Frame(left, bg=BG)
         groups.pack(side='top', fill='x')
@@ -544,8 +546,6 @@ class Window:
                                        ACCENT_ZOOM, 'white', ACCENT_ZOOM_MUTED_BG, ACCENT_ZOOM_MUTED_FG,
                                        icon_on=icon('undo_white'), icon_off=icon('undo_zoom_muted'),
                                        start_enabled=False)
-        for b in (b1, b2, b3):
-            b.config(height=BTN_HEIGHT)
         pack_equal([b1, b2, b3])
 
         # Blinken
@@ -565,8 +565,6 @@ class Window:
                                        ACCENT_BLINK, 'white', ACCENT_BLINK_MUTED_BG, ACCENT_BLINK_MUTED_FG,
                                        icon_on=icon('stopsquare_white'), icon_off=icon('stopsquare_blink_muted'),
                                        start_enabled=False)
-        for b in (b1, b2, b3):
-            b.config(height=BTN_HEIGHT)
         pack_equal([b1, b2, b3])
 
         # Timer
@@ -584,8 +582,6 @@ class Window:
         b3 = self._make_accent_button(row1, '-TIMER_10-', '10 Sek.',
                                        ACCENT_TIMER, 'white', ACCENT_TIMER_MUTED_BG, ACCENT_TIMER_MUTED_FG,
                                        icon_on=icon('clock_white'), icon_off=icon('clock_timer_muted'))
-        for b in (b1, b2, b3):
-            b.config(height=BTN_HEIGHT)
         pack_equal([b1, b2, b3])
         # Zweite Reihe: "Timer Stop" ueber zwei Spalten und ein einzelner
         # Replay-Button (siehe replay.py), der waehrend des Replays zu
@@ -601,8 +597,6 @@ class Window:
                                                ACCENT_TIMER, 'white', ACCENT_TIMER_MUTED_BG, ACCENT_TIMER_MUTED_FG,
                                                icon_on=icon('play_white'), icon_off=icon('play_timer_muted'),
                                                start_enabled=False)
-        for b in (stop_btn, replay_btn):
-            b.config(height=BTN_HEIGHT)
         for col in (0, 2, 4):
             row2.grid_columnconfigure(col, weight=1, uniform='btnrow')
         for col in (1, 3):
