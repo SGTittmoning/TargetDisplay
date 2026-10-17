@@ -1,14 +1,13 @@
-import os
-import signal
 import sys
 import time
-import traceback
 from collections import deque
 from datetime import datetime
 
 import cv2
 import numpy as np
 
+import camera
+import process_handlers
 import replay
 import timerlib
 import transformlib as tl
@@ -55,30 +54,6 @@ from ui import (
 )
 from watchdog import stale_check_due
 
-
-# Ohne einen expliziten Handler ist im Journal nicht sichtbar, ob/wann
-# main.py ein SIGTERM (z.B. von "systemctl restart") ueberhaupt erreicht.
-# Reagiert main.py nicht rechtzeitig, greift systemd nach TimeoutStopSec
-# per SIGKILL ein - das zaehlt als eigener Fehlerzustand ("Failed with
-# result 'timeout'") und loest OnFailure=/den Reboot-Guard aus.
-def _handle_sigterm(signum, frame):
-    print("SIGTERM empfangen, beende main.py.", file=sys.stderr)
-    sys.exit(0)
-
-signal.signal(signal.SIGTERM, _handle_sigterm)
-
-# Unbehandelte Exception -> Traceback ins Journal und Exit-Code 3, damit der
-# Absturz in der Zeile "TargetDisplay beendet (exit N)" (play_it) von einem
-# regulaeren Ende (0) und einem Stream-Ausfall (2) unterscheidbar ist.
-# os._exit, weil ein Exit-Code aus dem excepthook heraus sonst nicht
-# durchschlaegt.
-def _handle_uncaught(exc_type, exc_value, exc_tb):
-    traceback.print_exception(exc_type, exc_value, exc_tb)
-    sys.stderr.flush()
-    os._exit(3)
-
-sys.excepthook = _handle_uncaught
-
 # Takt der Hauptschleife (Neuzeichnen, Timer, Uhr). Tasteneingaben wecken
 # window.read() sofort, der Takt bestimmt nur, wie schnell ein neuer
 # Kamera-Frame (ca. 6 pro Sekunde) oder ein Timer-Schritt auf dem Bildschirm
@@ -87,9 +62,10 @@ MAIN_LOOP_TICK_MS = 33
 
 version = '0.13.1'
 
-cfg = yamlconfig.load("config.yml")
 
 def main():
+    cfg = yamlconfig.load("config.yml")
+    camera.log_version()
     VideoSize = (cfg.getProperty('video.size.x'), cfg.getProperty('video.size.y'))
 
     frame_count = 1
@@ -499,6 +475,7 @@ def main():
     window.close()
 
 if __name__ == '__main__':
+    process_handlers.install()
     main()
 
 
