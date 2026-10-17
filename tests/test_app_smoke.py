@@ -68,14 +68,28 @@ def test_pin_abbrechen_waehrend_wartezeit(app, monkeypatch):
     limiter = PinLimiter()
     monkeypatch.setattr(limiter, 'register_failure', lambda: 30)
     monkeypatch.setattr(flows, 'PIN_LIMITER', limiter)
-    started = time.monotonic()
+    # Gemessen wird nur die Wartezeit nach der falschen PIN, nicht der
+    # App-Start (auf langsamen CI-Runnern allein mehrere Sekunden).
+    waits = []
+    real_wait = flows._wait_after_error
+
+    def wait(*args):
+        started = time.monotonic()
+        result = real_wait(*args)
+        waits.append((result, time.monotonic() - started))
+        return result
+
+    monkeypatch.setattr(flows, '_wait_after_error', wait)
     steps = [
         (1.0, '-SETTINGS-'),
         (0.4, '1'), (0.1, '-PIN_OK-'),
         (0.5, '-PIN_CANCEL-'),   # waehrend der 30 s Wartezeit
     ]
     run_app(app, steps, monkeypatch)
-    assert time.monotonic() - started < 15
+    # Abgebrochen (False) lange vor Ablauf der 30 s.
+    assert len(waits) == 1
+    result, duration = waits[0]
+    assert result is False and duration < 10
 
 
 
