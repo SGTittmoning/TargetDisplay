@@ -6,6 +6,7 @@ import queue
 import time
 import tkinter as tk
 import tkinter.font as tkfont
+from collections import namedtuple
 
 import cv2
 import PIL.Image
@@ -57,6 +58,17 @@ NEUTRAL_BG = '#eef1f0'
 NEUTRAL_BORDER = '#dde3e1'
 NEUTRAL_FG = '#5a6570'
 DATETIME_BG = '#e3e8e6'
+
+# Farben einer Button-Gruppe: Akzent (bedienbar), blasse Variante (gesperrt)
+# und Namensendung der gesperrten Icons (z.B. grid_zoom_muted.png).
+Palette = namedtuple('Palette', 'accent muted_bg muted_fg muted_icon')
+ZOOM_COLORS = Palette(ACCENT_ZOOM, ACCENT_ZOOM_MUTED_BG, ACCENT_ZOOM_MUTED_FG, 'zoom_muted')
+BLINK_COLORS = Palette(ACCENT_BLINK, ACCENT_BLINK_MUTED_BG, ACCENT_BLINK_MUTED_FG, 'blink_muted')
+TIMER_COLORS = Palette(ACCENT_TIMER, ACCENT_TIMER_MUTED_BG, ACCENT_TIMER_MUTED_FG, 'timer_muted')
+
+# Hauptaktion eines Dialogs (OK, Speichern, Auswaehlen ...), hebt sich von
+# den neutralen Buttons ab.
+PRIMARY_BUTTON = dict(bg=ACCENT_ZOOM, fg='white', activebackground=ACCENT_ZOOM, activeforeground='white')
 
 
 # Vorgerenderte Icon-PNGs, relativ zu dieser Datei gesucht, damit das
@@ -165,6 +177,13 @@ class Window:
         self.pages[key] = f
         return f
 
+    def _new_dialog(self, key):
+        # Seite mit einem umrandeten, mittig platzierten Dialograhmen.
+        content = tk.Frame(self._new_page(key), bg=BG, bd=0, highlightthickness=1,
+                           highlightbackground=NEUTRAL_BORDER)
+        content.place(relx=0.5, rely=0.5, anchor='center')
+        return content
+
     def _reg(self, key, widget, show=None):
         self.widgets[key] = Elem(widget, show=show)
         return widget
@@ -178,14 +197,16 @@ class Window:
             self.icons[name] = img
         return img
 
-    def _make_accent_button(self, parent, key, text, accent_bg, accent_fg,
-                             muted_bg, muted_fg, icon_on=None, icon_off=None,
-                             start_enabled=True):
+    def _make_accent_button(self, parent, key, text, colors, icon, start_enabled=True):
         # Baustein fuer alle farbcodierten Buttons (Zoom/Blinken/Timer, Timer Stop,
         # Replay). Er bleibt immer state=NORMAL; gesperrt wird optisch (Muted-Farben
         # und -Icon) und durch ein command, das nichts tut. Tk zeichnet bei
         # state=DISABLED ueber ein Bild ein Schachbrettmuster, das sich nicht
         # abschalten laesst.
+        icon_on = self._icon(f'{icon}_white')
+        icon_off = self._icon(f'{icon}_{colors.muted_icon}')
+        accent_bg, accent_fg = colors.accent, 'white'
+        muted_bg, muted_fg = colors.muted_bg, colors.muted_fg
         icon = icon_on if start_enabled else icon_off
         bg = accent_bg if start_enabled else muted_bg
         fg = accent_fg if start_enabled else muted_fg
@@ -394,71 +415,42 @@ class Window:
                     parent.grid_columnconfigure(col, weight=0, minsize=gap)
                     col += 1
 
-        icon = self._icon
+        def button_group(caption, colors, specs, last=False):
+            # Ueberschrift und eine Reihe gleich breiter Buttons; specs:
+            # (key, text, icon, start_enabled). Liefert die Gruppe.
+            group = tk.Frame(groups, bg=BG)
+            group.pack(side='top', fill='x', pady=(0, 0 if last else GROUP_GAP))
+            make_caption(group, caption, colors.accent)
+            row = tk.Frame(group, bg=BG)
+            row.pack(side='top', fill='x')
+            pack_equal([self._make_accent_button(row, key, text, colors, icon, start_enabled=enabled)
+                        for key, text, icon, enabled in specs])
+            return group
 
-        # Zoom
-        zoom_group = tk.Frame(groups, bg=BG)
-        zoom_group.pack(side='top', fill='x', pady=(0, GROUP_GAP))
-        make_caption(zoom_group, 'Zoom', ACCENT_ZOOM)
-        zoom_row = tk.Frame(zoom_group, bg=BG)
-        zoom_row.pack(side='top', fill='x')
-        b1 = self._make_accent_button(zoom_row, '-FULL_VIDEO-', 'Ganze Scheibe',
-                                       ACCENT_ZOOM, 'white', ACCENT_ZOOM_MUTED_BG, ACCENT_ZOOM_MUTED_FG,
-                                       icon_on=icon('grid_white'), icon_off=icon('grid_zoom_muted'))
-        b2 = self._make_accent_button(zoom_row, '-DETAIL_VIDEO-', 'Innen Scheibe',
-                                       ACCENT_ZOOM, 'white', ACCENT_ZOOM_MUTED_BG, ACCENT_ZOOM_MUTED_FG,
-                                       icon_on=icon('zoomin_white'), icon_off=icon('zoomin_zoom_muted'))
-        # Reset ist beim Start gesperrt (Ganze Scheibe, kein manueller Ausschnitt)
-        # und wird ueber sync_reset_button() geschaltet.
-        b3 = self._make_accent_button(zoom_row, '-RESETZOOM-', 'Reset',
-                                       ACCENT_ZOOM, 'white', ACCENT_ZOOM_MUTED_BG, ACCENT_ZOOM_MUTED_FG,
-                                       icon_on=icon('undo_white'), icon_off=icon('undo_zoom_muted'),
-                                       start_enabled=False)
-        pack_equal([b1, b2, b3])
-
-        # Blinken
-        blink_group = tk.Frame(groups, bg=BG)
-        blink_group.pack(side='top', fill='x', pady=(0, GROUP_GAP))
-        make_caption(blink_group, 'Blinken', ACCENT_BLINK)
-        blink_row = tk.Frame(blink_group, bg=BG)
-        blink_row.pack(side='top', fill='x')
-        b1 = self._make_accent_button(blink_row, '-BLINK_START-', 'Start',
-                                       ACCENT_BLINK, 'white', ACCENT_BLINK_MUTED_BG, ACCENT_BLINK_MUTED_FG,
-                                       icon_on=icon('eye_white'), icon_off=icon('eye_blink_muted'))
-        b2 = self._make_accent_button(blink_row, '-BLINK_REF-', 'Referenz',
-                                       ACCENT_BLINK, 'white', ACCENT_BLINK_MUTED_BG, ACCENT_BLINK_MUTED_FG,
-                                       icon_on=icon('target_white'), icon_off=icon('target_blink_muted'),
-                                       start_enabled=False)
-        b3 = self._make_accent_button(blink_row, '-BLINK_STOP-', 'Stop',
-                                       ACCENT_BLINK, 'white', ACCENT_BLINK_MUTED_BG, ACCENT_BLINK_MUTED_FG,
-                                       icon_on=icon('stopsquare_white'), icon_off=icon('stopsquare_blink_muted'),
-                                       start_enabled=False)
-        pack_equal([b1, b2, b3])
-
-        # Timer
-        timer_group = tk.Frame(groups, bg=BG)
-        timer_group.pack(side='top', fill='x')
-        make_caption(timer_group, 'Timer', ACCENT_TIMER)
-        row1 = tk.Frame(timer_group, bg=BG)
-        row1.pack(side='top', fill='x')
-        pack_equal([self._make_accent_button(row1, key, timerlib.TITLES[key],
-                                             ACCENT_TIMER, 'white', ACCENT_TIMER_MUTED_BG, ACCENT_TIMER_MUTED_FG,
-                                             icon_on=icon('clock_white'), icon_off=icon('clock_timer_muted'))
-                    for key in timerlib.TIMER_KEYS])
+        # Gesperrte Buttons beim Start setzt main.py ueber apply_controls().
+        button_group('Zoom', ZOOM_COLORS, [
+            ('-FULL_VIDEO-', 'Ganze Scheibe', 'grid', True),
+            ('-DETAIL_VIDEO-', 'Innen Scheibe', 'zoomin', True),
+            ('-RESETZOOM-', 'Reset', 'undo', False),
+        ])
+        button_group('Blinken', BLINK_COLORS, [
+            ('-BLINK_START-', 'Start', 'eye', True),
+            ('-BLINK_REF-', 'Referenz', 'target', False),
+            ('-BLINK_STOP-', 'Stop', 'stopsquare', False),
+        ])
+        timer_group = button_group('Timer', TIMER_COLORS, [
+            (key, timerlib.TITLES[key], 'clock', True) for key in timerlib.TIMER_KEYS
+        ], last=True)
         # Zweite Reihe: "Timer Stop" ueber zwei Spalten und ein einzelner
-        # Replay-Button (siehe replay.py), der waehrend des Replays zu
-        # "Replay Ende" wird (siehe replay_buttons()). Spalten und Abstaende
-        # wie in den Reihen darueber, damit die Kanten fluchten.
+        # Replay-Button, der waehrend des Replays zu "Replay Ende" wird (siehe
+        # apply_controls()). Spalten und Abstaende wie in den Reihen darueber,
+        # damit die Kanten fluchten.
         row2 = tk.Frame(timer_group, bg=BG)
         row2.pack(side='top', fill='x', pady=(BTN_GAP, 0))
-        stop_btn = self._make_accent_button(row2, '-TIMER_STOP-', 'Timer Stop',
-                                             ACCENT_TIMER, 'white', ACCENT_TIMER_MUTED_BG, ACCENT_TIMER_MUTED_FG,
-                                             icon_on=icon('stopsquare_white'), icon_off=icon('stopsquare_timer_muted'),
-                                             start_enabled=False)
-        replay_btn = self._make_accent_button(row2, '-REPLAY-', 'Replay',
-                                               ACCENT_TIMER, 'white', ACCENT_TIMER_MUTED_BG, ACCENT_TIMER_MUTED_FG,
-                                               icon_on=icon('play_white'), icon_off=icon('play_timer_muted'),
-                                               start_enabled=False)
+        stop_btn = self._make_accent_button(row2, '-TIMER_STOP-', 'Timer Stop', TIMER_COLORS, 'stopsquare',
+                                            start_enabled=False)
+        replay_btn = self._make_accent_button(row2, '-REPLAY-', 'Replay', TIMER_COLORS, 'play',
+                                              start_enabled=False)
         for col in (0, 2, 4):
             row2.grid_columnconfigure(col, weight=1, uniform='btnrow')
         for col in (1, 3):
@@ -492,9 +484,7 @@ class Window:
         self.post('-VIDEO-', {'-VIDEO-': (px, py)})
 
     def _build_pin_view(self):
-        page = self._new_page('-PINVIEW-')
-        content = tk.Frame(page, bg=BG, bd=0, highlightthickness=1, highlightbackground=NEUTRAL_BORDER)
-        content.place(relx=0.5, rely=0.5, anchor='center')
+        content = self._new_dialog('-PINVIEW-')
 
         # Das Tastenfeld hat ein eigenes grid() in einem eigenen Frame: in einem
         # gemeinsamen grid() mit dem Titel wuerde ein langer Titel ("Neuen PIN
@@ -519,8 +509,7 @@ class Window:
         tk.Button(keypad, text='0', width=8, height=4,
                   command=lambda: self.post('0')).grid(row=3, column=1, padx=3, pady=3)
         # OK in Akzentfarbe, damit es sich von Ziffern und Loeschen abhebt.
-        tk.Button(keypad, text='OK', width=8, height=4, bg=ACCENT_ZOOM, fg='white',
-                  activebackground=ACCENT_ZOOM, activeforeground='white',
+        tk.Button(keypad, text='OK', width=8, height=4, **PRIMARY_BUTTON,
                   command=lambda: self.post('-PIN_OK-')).grid(row=3, column=2, padx=3, pady=3)
 
         cancel_btn = tk.Button(content, text='Abbrechen', width=26, height=2,
@@ -529,41 +518,29 @@ class Window:
         self._reg('-PIN_CANCEL-', cancel_btn, show={'pady': (5, 20)})
 
     def _build_confirm_view(self):
-        page = self._new_page('-CONFIRMVIEW-')
-        content = tk.Frame(page, bg=BG, bd=0, highlightthickness=1, highlightbackground=NEUTRAL_BORDER)
-        content.place(relx=0.5, rely=0.5, anchor='center')
+        content = self._new_dialog('-CONFIRMVIEW-')
         tk.Label(content, text='Gerät jetzt neu starten?', font=('Helvetica', 28), bg=BG, fg=FG_DARK).grid(
             row=0, column=0, columnspan=2, padx=30, pady=(30, 15))
-        tk.Button(content, text='Ja, neu starten', width=20, height=3, bg=ACCENT_ZOOM, fg='white',
-                  activebackground=ACCENT_ZOOM, activeforeground='white',
+        tk.Button(content, text='Ja, neu starten', width=20, height=3, **PRIMARY_BUTTON,
                   command=lambda: self.post('-CONFIRM_YES-')).grid(row=1, column=0, padx=15, pady=(0, 30))
         tk.Button(content, text='Abbrechen', width=20, height=3,
                   command=lambda: self.post('-CONFIRM_NO-')).grid(row=1, column=1, padx=15, pady=(0, 30))
 
     def _build_menu_view(self):
-        page = self._new_page('-MENUVIEW-')
-        content = tk.Frame(page, bg=BG, bd=0, highlightthickness=1, highlightbackground=NEUTRAL_BORDER)
-        content.place(relx=0.5, rely=0.5, anchor='center')
+        content = self._new_dialog('-MENUVIEW-')
         tk.Label(content, text='Einstellungen', font=('Helvetica', 24), bg=BG, fg=FG_DARK).pack(padx=30, pady=(30, 15))
-        tk.Button(content, text='Ganze Scheibe', width=24, height=3,
-                  command=lambda: self.post('-MENU_FULL-')).pack(pady=5)
-        tk.Button(content, text='Innen Scheibe', width=24, height=3,
-                  command=lambda: self.post('-MENU_DETAIL-')).pack(pady=5)
-        tk.Button(content, text='Stand wechseln', width=24, height=3,
-                  command=lambda: self.post('-MENU_STAND-')).pack(pady=5)
-        tk.Button(content, text='PIN ändern', width=24, height=3,
-                  command=lambda: self.post('-MENU_PIN-')).pack(pady=5)
         # Neu starten nur hier: der PIN fuer die Einstellungen schuetzt auch
         # diese Aktion, eine zweite PIN-Abfrage ist nicht noetig.
-        tk.Button(content, text='Neu starten', width=24, height=3,
-                  command=lambda: self.post('-MENU_RESTART-')).pack(pady=5)
+        for text, event in (('Ganze Scheibe', '-MENU_FULL-'), ('Innen Scheibe', '-MENU_DETAIL-'),
+                            ('Stand wechseln', '-MENU_STAND-'), ('PIN ändern', '-MENU_PIN-'),
+                            ('Neu starten', '-MENU_RESTART-')):
+            tk.Button(content, text=text, width=24, height=3,
+                      command=lambda event=event: self.post(event)).pack(pady=5)
         tk.Button(content, text='Zurück', width=24, height=2,
                   command=lambda: self.post('-MENU_BACK-')).pack(pady=(5, 30))
 
     def _build_editor_view(self):
-        page = self._new_page('-EDITORVIEW-')
-        content = tk.Frame(page, bg=BG, bd=0, highlightthickness=1, highlightbackground=NEUTRAL_BORDER)
-        content.place(relx=0.5, rely=0.5, anchor='center')
+        content = self._new_dialog('-EDITORVIEW-')
 
         title = tk.Label(content, text='', font=('Helvetica', 18), bg=BG, fg=FG_DARK)
         title.pack(pady=(15, 5))
@@ -581,9 +558,8 @@ class Window:
         btnrow.pack(pady=15)
         tk.Button(btnrow, text='Neues Bild', width=13, height=2,
                   command=lambda: self.post('-EDIT_REFRESH-')).pack(side='left', padx=5)
-        save_btn = tk.Button(btnrow, text='Speichern', width=13, height=2, bg=ACCENT_ZOOM, fg='white',
-                              activebackground=ACCENT_ZOOM, activeforeground='white',
-                              command=lambda: self.post('-EDIT_SAVE-'))
+        save_btn = tk.Button(btnrow, text='Speichern', width=13, height=2, **PRIMARY_BUTTON,
+                             command=lambda: self.post('-EDIT_SAVE-'))
         save_btn.pack(side='left', padx=5)
         self._reg('-EDIT_SAVE-', save_btn)
         cancel_btn = tk.Button(btnrow, text='Abbrechen', width=13, height=2,
@@ -595,9 +571,7 @@ class Window:
         self.post('-EDITGRAPH-', {'-EDITGRAPH-': (event.x, event.y)})
 
     def _build_stand_view(self):
-        page = self._new_page('-STANDVIEW-')
-        content = tk.Frame(page, bg=BG, bd=0, highlightthickness=1, highlightbackground=NEUTRAL_BORDER)
-        content.place(relx=0.5, rely=0.5, anchor='center')
+        content = self._new_dialog('-STANDVIEW-')
         tk.Label(content, text='Stand auswählen', font=('Helvetica', 28), bg=BG, fg=FG_DARK).pack(pady=(30, 15))
         listbox = tk.Listbox(content, height=8, width=38, font=('Helvetica', 20),
                               bg=BG, fg=FG_DARK, selectbackground=ACCENT_ZOOM, selectforeground='white',
@@ -606,9 +580,8 @@ class Window:
         self._reg('-STAND_LIST-', listbox)
         btnrow = tk.Frame(content, bg=BG)
         btnrow.pack(pady=(15, 30))
-        select_btn = tk.Button(btnrow, text='Auswählen', width=20, height=2, bg=ACCENT_ZOOM, fg='white',
-                                activebackground=ACCENT_ZOOM, activeforeground='white',
-                                command=lambda: self.post('-STAND_SELECT-'))
+        select_btn = tk.Button(btnrow, text='Auswählen', width=20, height=2, **PRIMARY_BUTTON,
+                               command=lambda: self.post('-STAND_SELECT-'))
         select_btn.pack(side='left', padx=10)
         self._reg('-STAND_SELECT-', select_btn)
         # Heisst "Abbrechen" wie in den anderen Unterdialogen. Nur beim freiwilligen
@@ -619,16 +592,13 @@ class Window:
         self._reg('-STAND_BACK-', back_btn, show={'side': 'left', 'padx': 10})
 
     def _build_camwait_view(self):
-        page = self._new_page('-CAMWAITVIEW-')
-        content = tk.Frame(page, bg=BG, bd=0, highlightthickness=1, highlightbackground=NEUTRAL_BORDER)
-        content.place(relx=0.5, rely=0.5, anchor='center')
+        content = self._new_dialog('-CAMWAITVIEW-')
         text_label = tk.Label(content, text='', font=('Helvetica', 22), bg=BG, fg=FG_DARK, wraplength=460, justify='center')
         text_label.pack(padx=30, pady=(30, 15))
         self._reg('-CAMWAIT_TEXT-', text_label)
         btnrow = tk.Frame(content, bg=BG)
         btnrow.pack(pady=(0, 30))
-        tk.Button(btnrow, text='Erneut versuchen', width=20, height=2, bg=ACCENT_ZOOM, fg='white',
-                  activebackground=ACCENT_ZOOM, activeforeground='white',
+        tk.Button(btnrow, text='Erneut versuchen', width=20, height=2, **PRIMARY_BUTTON,
                   command=lambda: self.post('-CAMWAIT_RETRY-')).pack(side='left', padx=10)
         tk.Button(btnrow, text='Zurück zur Stand-Auswahl', width=24, height=2,
                   command=lambda: self.post('-CAMWAIT_BACK-')).pack(side='left', padx=10)
