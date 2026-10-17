@@ -52,7 +52,7 @@ jobs:
       - name: shellcheck
         run: |
           command -v shellcheck || { sudo apt-get -o Acquire::Retries=5 update && sudo apt-get -o Acquire::Retries=5 install -y shellcheck; }
-          shellcheck -S warning ansible/files/*.sh play_it tests/run-script-tests.sh
+          shellcheck -S warning ansible/files/*.sh play_it tests/run-script-tests.sh tools/*.sh
 
   python:
     if: github.event.repository.private == false
