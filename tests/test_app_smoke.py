@@ -146,7 +146,8 @@ def test_pin_falsch_dann_richtig_und_einstellungsmenue(app, monkeypatch):
     import flows
     from pinlock import PinLimiter
     limiter = PinLimiter()
-    monkeypatch.setattr(limiter, 'register_failure', lambda: 0.3)
+    failures = []
+    monkeypatch.setattr(limiter, 'register_failure', lambda: failures.append(1) or 0.3)
     monkeypatch.setattr(flows, 'PIN_LIMITER', limiter)
     opened = []
     real_settings = app.run_settings_flow
@@ -154,12 +155,13 @@ def test_pin_falsch_dann_richtig_und_einstellungsmenue(app, monkeypatch):
     steps = [
         (1.0, '-SETTINGS-'),
         (0.4, '1'), (0.1, '1'), (0.1, '1'), (0.1, '1'), (0.1, '-PIN_OK-'),   # falsch
-        (0.2, '-PIN_CLEAR-'),
         (0.6, '4'), (0.1, '7'), (0.1, '1'), (0.1, '1'), (0.1, '-PIN_OK-'),   # richtig
         (0.6, '-MENU_BACK-'),
     ]
     run_app(app, steps, monkeypatch)
-    assert opened == [True]   # das Einstellungsmenue wurde erst mit der richtigen PIN geoeffnet
+    # Die falsche PIN wurde abgewiesen, erst die richtige oeffnet das Menue.
+    assert failures == [1]
+    assert opened == [True]
 
 
 def test_pin_abbrechen_waehrend_wartezeit(app, monkeypatch):
