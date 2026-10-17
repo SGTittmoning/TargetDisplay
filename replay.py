@@ -8,7 +8,7 @@ Aufnahme liegt nur im RAM.
 from collections import namedtuple
 
 # Rotes Trennbild zwischen zwei Durchgaengen der Serie.
-SEPARATOR_SEC = 0.5
+SEPARATOR_SEC = 1.0
 
 # Kamerabilder kommen ueber RTMP verspaetet an. Die Aufnahme verschiebt die
 # Gruenfenster um diesen Wert, sonst fehlten die letzten Schuesse. Begrenzt

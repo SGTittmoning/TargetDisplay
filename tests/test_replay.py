@@ -36,9 +36,9 @@ def test_serie_fuenf_durchgaenge_mit_trennbildern():
     assert [len(s) for s in rec.segments] == [3 * FPS] * 5
     assert rec.duration() == pytest.approx(5 * 3 + 4 * r.SEPARATOR_SEC)
     assert rec.view(0.0).kind == 'frame' and rec.view(0.0).segment == 0
-    v = rec.view(3.2)
+    v = rec.view(3 + r.SEPARATOR_SEC / 2)
     assert v.kind == 'separator' and v.segment == 1
-    v = rec.view(3.5 + 1.25)
+    v = rec.view(3 + r.SEPARATOR_SEC + 1.25)
     assert v.kind == 'frame' and v.segment == 1 and v.offset == pytest.approx(1.25)
 
 
