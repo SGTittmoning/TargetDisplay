@@ -218,7 +218,7 @@ Ein fabrikneues bzw. zurückgesetztes Gerät zeigt beim allerersten Start automa
 2. **Ausschnitte kalibrieren** – zunächst „Ganze Scheibe“, danach „Innen Scheibe“, jeweils identisch zum Editor in Abschnitt 3.3 (nur ohne „Abbrechen“, und der Speichern-Button heißt hier schlicht „Speichern“, da der Assistent nach jedem Einzelschritt ohne Neustart weiterläuft).
 3. **PIN festlegen** – identisch zum Dialog in Abschnitt 3.5, nur ohne vorherige Abfrage einer aktuellen PIN: Das Gerät startet mit dem eingebauten Standard-PIN „1234“, den der Assistent an dieser Stelle zwingend durch einen selbst gewählten PIN ersetzen lässt.
 
-Ist die Kamera nicht erreichbar, zeigt der Assistent „Kamera nicht erreichbar“ mit den Schaltflächen „Erneut versuchen“ und „Zurück zur Stand-Auswahl“. Er wartet, bis die Kamera antwortet; der Wechsel zurück zur Stand-Auswahl ist die einzige Möglichkeit, hier herauszukommen.
+Ist die Kamera nicht erreichbar, zeigt der Assistent „Kamera nicht erreichbar“ mit den Schaltflächen „Erneut versuchen“ und „Zurück zur Stand-Auswahl“. Er wartet, bis die Kamera antwortet, und geht dann von selbst weiter. „Erneut versuchen“ zeigt wieder „Verbinde mit Kamera…“ und wartet erneut bis zu 30 Sekunden; ansonsten führt nur „Zurück zur Stand-Auswahl“ hier heraus.
 
 Erst wenn alle drei Schritte abgeschlossen sind, erscheint der normale Hauptbildschirm aus Kapitel 2.
 

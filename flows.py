@@ -196,23 +196,20 @@ def run_stand_select(stands, forced):
 
 
 def wait_for_camera_frame(cap, max_wait_sec=STREAM_STARTUP_TIMEOUT_SEC):
-    # Gnadenfrist fuer den allerersten Frame direkt nach der Stand-Auswahl -
-    # dieselbe Grosszuegigkeit wie STREAM_STARTUP_TIMEOUT_SEC (av.open() hat
-    # keinen expliziten Verbindungs-Timeout, ein frischer Connect kann
-    # vereinzelt 30s+ dauern, siehe Camera.is_stale-Kommentar; live am
-    # Test-Pi hat allein der Container-Open schon 8s gebraucht). Anders als
-    # ein erster Entwurf (blockierendes time.sleep() bis zum Ablauf, DANACH
-    # erst eine interaktive Seite) pollt diese Version durchgehend ueber
-    # window.read(timeout=...) - das Fenster bleibt die ganze Wartezeit über
-    # reaktionsfaehig (Zurueck-Knopf funktioniert sofort, kein bis zu 30s
-    # eingefroren wirkender Bildschirm) UND erkennt eine zwischenzeitlich
-    # doch noch erfolgreiche Verbindung automatisch, ganz ohne Klick auf
-    # "Erneut versuchen". Gibt den Frame zurueck, oder den String 'back'
-    # wenn der Nutzer zur Stand-Auswahl zurueck moechte.
+    # Wartet auf den ersten Frame nach der Stand-Auswahl. Die Kamera versucht
+    # im Hintergrund laufend neu zu verbinden; diese Seite bleibt dabei
+    # bedienbar und kehrt zurueck, sobald ein Frame da ist. Nach
+    # max_wait_sec erscheint ein Hinweis, "Erneut versuchen" startet die
+    # Wartezeit neu. Gibt den Frame zurueck, oder 'back' fuer die
+    # Stand-Auswahl.
     show_page('-CAMWAITVIEW-')
-    ui.window['-CAMWAIT_TEXT-'].update('Verbinde mit Kamera...')
-    ui.window.refresh()
-    deadline = time.monotonic() + max_wait_sec
+
+    def start_waiting():
+        ui.window['-CAMWAIT_TEXT-'].update('Verbinde mit Kamera...')
+        ui.window.refresh()
+        return time.monotonic() + max_wait_sec
+
+    deadline = start_waiting()
     timed_out = False
     while True:
         frame = cap.getFrame(full=True)
@@ -225,6 +222,9 @@ def wait_for_camera_frame(cap, max_wait_sec=STREAM_STARTUP_TIMEOUT_SEC):
         event, _ = ui.window.read(timeout=300)
         if event in (WIN_CLOSED, '-CAMWAIT_BACK-'):
             return 'back'
+        if event == '-CAMWAIT_RETRY-':
+            deadline = start_waiting()
+            timed_out = False
 
 
 def edit_section_points(region_label, cap, points, other_points=None, allow_cancel=True, will_restart=True):
