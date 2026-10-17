@@ -1,0 +1,6 @@
+# Commits ohne inhaltliche Änderung, die "git blame" überspringen soll.
+# GitHub liest die Datei automatisch; lokal einmalig:
+#   git config blame.ignoreRevsFile .git-blame-ignore-revs
+
+# Einrückung einheitlich 4 Leerzeichen (#28)
+16d1a00efefe34d59e7a378a0b1ea6e5ec4674d3
