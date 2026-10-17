@@ -11,6 +11,8 @@ import cv2
 import PIL.Image
 import PIL.ImageTk
 
+import timerlib
+
 # Das Fenster wird in main() angelegt und hier abgelegt, damit die Ablauf-Module
 # (flows.py) und die Steuerelement-Hilfen unten darauf zugreifen koennen.
 window = None
@@ -438,16 +440,10 @@ class Window:
         make_caption(timer_group, 'Timer', ACCENT_TIMER)
         row1 = tk.Frame(timer_group, bg=BG)
         row1.pack(side='top', fill='x')
-        b1 = self._make_accent_button(row1, '-TIMER_5_3_7-', '5 x 3 Sek.',
-                                       ACCENT_TIMER, 'white', ACCENT_TIMER_MUTED_BG, ACCENT_TIMER_MUTED_FG,
-                                       icon_on=icon('clock_white'), icon_off=icon('clock_timer_muted'))
-        b2 = self._make_accent_button(row1, '-TIMER_20-', '20 Sek.',
-                                       ACCENT_TIMER, 'white', ACCENT_TIMER_MUTED_BG, ACCENT_TIMER_MUTED_FG,
-                                       icon_on=icon('clock_white'), icon_off=icon('clock_timer_muted'))
-        b3 = self._make_accent_button(row1, '-TIMER_10-', '10 Sek.',
-                                       ACCENT_TIMER, 'white', ACCENT_TIMER_MUTED_BG, ACCENT_TIMER_MUTED_FG,
-                                       icon_on=icon('clock_white'), icon_off=icon('clock_timer_muted'))
-        pack_equal([b1, b2, b3])
+        pack_equal([self._make_accent_button(row1, key, timerlib.TITLES[key],
+                                             ACCENT_TIMER, 'white', ACCENT_TIMER_MUTED_BG, ACCENT_TIMER_MUTED_FG,
+                                             icon_on=icon('clock_white'), icon_off=icon('clock_timer_muted'))
+                    for key in timerlib.TIMER_KEYS])
         # Zweite Reihe: "Timer Stop" ueber zwei Spalten und ein einzelner
         # Replay-Button (siehe replay.py), der waehrend des Replays zu
         # "Replay Ende" wird (siehe replay_buttons()). Spalten und Abstaende
@@ -709,7 +705,7 @@ def replay_buttons(available, active):
 
 
 def timer_disabled(disable):
-    set_icon_buttons(('-TIMER_5_3_7-', '-TIMER_20-', '-TIMER_10-'), not disable)
+    set_icon_buttons(timerlib.TIMER_KEYS, not disable)
     set_icon_buttons(('-TIMER_STOP-',), False)
 
 

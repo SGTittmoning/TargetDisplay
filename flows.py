@@ -381,6 +381,15 @@ def edit_section_points(region_label, cap, points, other_points=None, allow_canc
             redraw()
 
 
+# Beschriftung der beiden Ausschnitte im Editor.
+SECTION_LABELS = {'full': 'Ganze Scheibe', 'detail': 'Innen Scheibe'}
+
+
+def with_section(which, points, section_full, section_detail):
+    """(section_full, section_detail), darin `which` durch `points` ersetzt."""
+    return (points, section_detail) if which == 'full' else (section_full, points)
+
+
 def run_settings_flow(cap, section_full, section_detail, stands, current_pin):
     # Einstellungen-Menue. section_full/section_detail sind Kamerakoordinaten
     # des vollen Bilds, wie sie gespeichert werden. Liefert True, wenn etwas
@@ -397,14 +406,12 @@ def run_settings_flow(cap, section_full, section_detail, stands, current_pin):
             return False
         elif event in ('-MENU_FULL-', '-MENU_DETAIL-'):
             which = 'full' if event == '-MENU_FULL-' else 'detail'
-            current = section_full if which == 'full' else section_detail
-            other = section_detail if which == 'full' else section_full
-            result = edit_section_points('Ganze Scheibe' if which == 'full' else 'Innen Scheibe', cap, current, other_points=other)
+            current, other = ((section_full, section_detail) if which == 'full'
+                              else (section_detail, section_full))
+            result = edit_section_points(SECTION_LABELS[which], cap, current, other_points=other)
             if result is None:
                 continue
-            new_section_full = result if which == 'full' else section_full
-            new_section_detail = result if which == 'detail' else section_detail
-            if not save_sections_override(new_section_full, new_section_detail):
+            if not save_sections_override(*with_section(which, result, section_full, section_detail)):
                 popup('Speichern fehlgeschlagen - Änderung wurde NICHT übernommen.')
                 continue
             show_page('-MAINVIEW-')
