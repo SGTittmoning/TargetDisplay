@@ -43,15 +43,11 @@ PIN_DIGITS = frozenset('0123456789')
 
 
 def _run_pin_keypad(title, show_cancel, validate):
-    # Gemeinsames Tastenfeld-Grundgeruest fuer check_pin() und
-    # _enter_new_pin() - beide sammeln Ziffern/-PIN_CLEAR- identisch und
-    # unterscheiden sich nur darin, was bei -PIN_OK- als "gueltig" zaehlt
-    # und was bei Erfolg zurueckgegeben wird. validate(entered) liefert
-    # (True, ergebnis) bei Erfolg (Schleife endet), sonst
-    # (False, (fehlertext, sekunden)) - zeigt den Fehlertext rot fuer die
-    # angegebene Dauer (ab 2 s mit Restzeit; Eingaben waehrenddessen werden
-    # verworfen, Abbrechen bleibt moeglich), dann geht die Eingabe leer
-    # weiter. Liefert das Erfolgsergebnis, oder None bei Abbrechen/Fenster zu.
+    # Tastenfeld fuer check_pin() und _enter_new_pin(). validate(entered)
+    # liefert bei OK (True, ergebnis) oder (False, (fehlertext, sekunden)); der
+    # Fehlertext steht dann so lange rot da (ab 2 s mit Restzeit), danach geht
+    # es mit leerer Eingabe weiter. Liefert das Ergebnis oder None bei
+    # Abbrechen.
     ui.window['-PIN_TITLE-'].update(title)
     ui.window['-PIN_CANCEL-'].update(visible=show_cancel)
     show_page('-PINVIEW-')
@@ -85,14 +81,9 @@ PIN_LIMITER = PinLimiter()
 
 
 def check_pin(correct_pin):
-    # Generische PIN-Abfrage, schuetzt sowohl Settings als auch Restart.
-    # Keine Sperre, aber nach jedem Fehlversuch eine laenger werdende Pause
-    # (siehe pinlock.py) - das Bedrohungsmodell ist "zufaelliges Herumtippen
-    # vor Ort abschrecken", keine gezielte Brute-Force-Absicherung.
-    # Titel/Abbrechen-Sichtbarkeit werden von _run_pin_keypad() explizit
-    # auf 'PIN eingeben'/sichtbar zurueckgesetzt - _enter_new_pin()
-    # (PIN-Aenderung) aendert beides auf derselben Seite, eine vorherige
-    # Aenderung darf hier nicht durchschlagen.
+    # PIN-Abfrage vor den Einstellungen. Nach jedem Fehlversuch eine laenger
+    # werdende Pause (pinlock.py): schreckt zufaelliges Herumtippen ab, ist aber
+    # kein Schutz gegen gezieltes Durchprobieren.
     def validate(entered):
         if entered == str(correct_pin):
             PIN_LIMITER.register_success()
@@ -118,23 +109,18 @@ def _reboot():
 
 
 def confirm_reboot():
-    # Navigiert bewusst NICHT selbst weiter - das entscheidet der Aufrufer,
-    # der je nach Kontext nach einem Abbruch zurueck zum Settings-Menue statt
-    # zur Hauptseite will (siehe run_settings_flow(): Abbrechen geht dort nur
-    # einen Schritt zurueck, nicht bis zur Hauptseite).
+    # Wechselt die Seite nicht selbst; nach Abbrechen entscheidet der Aufrufer,
+    # wohin es zurueckgeht.
     show_page('-CONFIRMVIEW-')
     event, _ = ui.window.read()
     return event == '-CONFIRM_YES-'
 
 
 def validate_new_pin(entered):
-    # Prueft eine neu eingegebene PIN: 4-6 Ziffern und nicht der Standardwert.
-    # Der Standardwert wuerde gespeichert, main() verlangt aber weiterhin eine
-    # Aenderung, solange der PIN DEFAULT_PIN ist - der Nutzer saehe ohne
-    # Hinweis wieder die Eingabe. Liefert (True, entered) oder
-    # (False, (Fehlertext, Wartezeit_s)) im Format von _run_pin_keypad().
-    # Der Fehlertext muss in das PIN-Anzeigefeld passen (rund 11 Zeichen),
-    # laengere Texte werden dort abgeschnitten.
+    # Prueft eine neue PIN: 4-6 Ziffern und nicht der Standard-PIN (den wuerde
+    # main() sofort wieder zur Aenderung vorlegen). Liefert (True, entered) oder
+    # (False, (Fehlertext, Wartezeit_s)) wie _run_pin_keypad() erwartet. Das
+    # Anzeigefeld fasst rund 11 Zeichen.
     if not 4 <= len(entered) <= 6:
         return False, ('4-6 Ziffern', 0.8)
     if entered == DEFAULT_PIN:
@@ -143,11 +129,9 @@ def validate_new_pin(entered):
 
 
 def _enter_new_pin(title, show_cancel):
-    # Liefert die eingetippte Ziffernfolge (4-6 Stellen, OK gedrueckt)
-    # zurueck, oder None (Abbrechen/Fenster zu) - OHNE Vergleich mit einem
-    # "richtigen" PIN, anders als check_pin(). Wird sowohl fuer die
-    # Neueingabe als auch die Wiederholung genutzt (change_pin_flow ruft
-    # diese Funktion zweimal auf).
+    # Liefert die eingetippte Ziffernfolge oder None (Abbrechen), ohne
+    # Vergleich mit einer gespeicherten PIN. change_pin_flow() ruft dies fuer
+    # Eingabe und Wiederholung auf.
     result = _run_pin_keypad(title, show_cancel, validate_new_pin)
     # Seite fuer die naechste Nutzung (check_pin) wieder in den
     # Grundzustand versetzen.
@@ -157,12 +141,9 @@ def _enter_new_pin(title, show_cancel):
 
 
 def change_pin_flow(current_pin, forced):
-    # forced=True: Ersteinrichtungs-Assistent, solange der PIN noch auf dem
-    # Standardwert DEFAULT_PIN steht - kein Abbrechen moeglich (Cancel-
-    # Button versteckt), es gibt ja noch nichts zu schuetzen. forced=False:
-    # freiwillige Aenderung ueber das Settings-Menue - verlangt zuerst den
-    # AKTUELLEN PIN zur Bestaetigung (wie ein normaler "Passwort aendern"-
-    # Dialog), abbrechbar.
+    # forced=True: Assistent, solange der Standard-PIN gilt; kein Abbrechen.
+    # forced=False: Aenderung ueber das Menue, fragt zuerst die aktuelle PIN ab
+    # und laesst sich abbrechen.
     if not forced:
         if not check_pin(current_pin):
             return None
@@ -185,16 +166,13 @@ def change_pin_flow(current_pin, forced):
 
 
 def run_stand_select(stands, forced):
-    # forced=True: Ersteinrichtungs-Assistent, noch kein Stand ausgewaehlt -
-    # kein Zurueck moeglich (der Hauptbildschirm ist ja noch nicht
-    # erreichbar). forced=False: freiwilliger Stand-Wechsel ueber das
-    # Settings-Menue, abbrechbar.
+    # forced=True: Assistent, noch kein Stand gewaehlt; kein Abbrechen.
+    # forced=False: Stand-Wechsel ueber das Menue, abbrechbar.
     show_page('-STANDVIEW-')
     ui.window['-STAND_BACK-'].update(visible=not forced)
     if not stands:
-        # Keine Stand-Liste vorhanden (z.B. Ansible-Deploy hat sie noch
-        # nicht gebracht) - klare Meldung statt einer leeren, ratlosen
-        # Auswahlliste.
+        # Ohne Stand-Liste (z.B. noch nicht per Ansible verteilt) eine klare
+        # Meldung statt einer leeren Auswahl.
         ui.window['-STAND_LIST-'].update(values=['(keine Stand-Liste gefunden - bitte Installation prüfen)'])
         ui.window['-STAND_SELECT-'].update(disabled=True)
     else:
@@ -208,8 +186,7 @@ def run_stand_select(stands, forced):
         elif event == '-STAND_BACK-' and not forced:
             return None
         elif event == '-STAND_SELECT-' and stands:
-            # curselection() statt Werteabgleich per Name - robust auch
-            # falls zwei Staende zufaellig denselben Anzeigenamen haben.
+            # Nach Position, nicht nach Name: zwei Staende koennten gleich heissen.
             sel = ui.window['-STAND_LIST-'].widget.curselection()
             if sel:
                 return stands[sel[0]]
@@ -248,25 +225,15 @@ def wait_for_camera_frame(cap, max_wait_sec=STREAM_STARTUP_TIMEOUT_SEC):
 
 
 def edit_section_points(region_label, cap, points, other_points=None, allow_cancel=True, will_restart=True):
-    # points: Liste von 4 [x,y] in ORIGINALEN Kamerakoordinaten (nicht
-    # Crop-verschoben), oder None falls noch keine Kalibrierung existiert
-    # (Ersteinrichtungs-Assistent) - dann wird unten ein zentriertes
-    # Rechteck als Startwert gesetzt, von dem aus die Ecken manuell in
-    # Position gezogen werden. cap.getFrame(full=True) liefert bewusst das
-    # unbeschnittene Kamerabild (siehe camera.py) - der normale Anzeige-Crop
-    # ist eng um die AKTUELLEN section_full/section_detail-Grenzen gelegt,
-    # der Editor zum NEU-Setzen der Ausschnitte muss aber auch Bereiche
-    # ausserhalb dieser Grenzen zeigen koennen. Gibt die neue Punkteliste
-    # (gleicher, originaler Koordinatenraum) beim Speichern zurueck, sonst None.
+    # points: 4 Punkte [x, y] in Kamerakoordinaten des vollen Bilds, oder None
+    # (Assistent, noch keine Kalibrierung): dann dient ein zentriertes
+    # Rechteck als Startwert. getFrame(full=True) liefert das unbeschnittene
+    # Bild, damit sich Ausschnitte auch ueber die bisherigen Grenzen hinaus
+    # setzen lassen. Liefert beim Speichern die neuen Punkte, sonst None.
     #
-    # will_restart steuert nur die Beschriftung des Speichern-Buttons: der
-    # freiwillige Settings-Menue-Pfad (run_settings_flow) beendet main.py nach
-    # dem Speichern IMMER per sys.exit(0) (Restart=always startet mit den
-    # neuen Werten neu), der erzwungene Ersteinrichtungs-Assistent dagegen
-    # laeuft nach dem Speichern eines einzelnen Ausschnitts einfach im selben
-    # Prozess weiter (siehe main()) - ohne diese Unterscheidung waere
-    # "Speichern" im Settings-Kontext irrefuehrend, weil das Geraet danach
-    # unvermittelt kurz schwarz wird und neu startet.
+    # will_restart bestimmt nur die Beschriftung des Speichern-Buttons: aus dem
+    # Menue startet die App nach dem Speichern neu ("Speichern und neu
+    # starten"), im Assistenten laeuft sie weiter ("Speichern").
     frame = cap.getFrame(full=True)
     if frame is None:
         popup('Kein Kamerabild verfügbar - bitte später erneut versuchen.')
@@ -279,12 +246,8 @@ def edit_section_points(region_label, cap, points, other_points=None, allow_canc
     max_disp_w, max_disp_h = EDITOR_MAX_W, EDITOR_MAX_H
     scale = min(max_disp_w / img_w, max_disp_h / img_h, 1.0)
     disp_w, disp_h = max(1, int(img_w * scale)), max(1, int(img_h * scale))
-    # Der Editor-Canvas hat eine feste Groesse (EDITOR_MAX_W x EDITOR_MAX_H -
-    # das Layout wird nur einmal beim Programmstart gebaut), das
-    # tatsaechliche Kamerabild passt je nach Seitenverhaeltnis meist nicht
-    # exakt hinein. off_x/off_y zentrieren das skalierte Bild in diesem
-    # Canvas, statt es oben links kleben zu lassen (das wuerde sonst einen
-    # einseitigen schwarzen Rand rechts erzeugen).
+    # Der Canvas hat eine feste Groesse (EDITOR_MAX_W x EDITOR_MAX_H). Das
+    # skalierte Bild wird darin zentriert (off_x/off_y).
     off_x, off_y = (EDITOR_MAX_W - disp_w) // 2, (EDITOR_MAX_H - disp_h) // 2
 
     HIT_RADIUS = 35   # grosszuegiger Trefferbereich fuer Finger, in Display-Pixeln
@@ -295,16 +258,11 @@ def edit_section_points(region_label, cap, points, other_points=None, allow_canc
         return cv2.resize(f, (disp_w, disp_h)) if scale != 1.0 else f.copy()
 
     disp_frame = to_display_frame(frame)
-    # pts leben ab hier durchgehend in Canvas-Pixelkoordinaten (Bild-
-    # Skalierung UND Zentrierungs-Offset bereits eingerechnet) - das
-    # entspricht direkt dem Koordinatenraum, den das Canvas-Widget fuer
-    # Klicks liefert (event.x/event.y), dadurch ist beim Dragging keine
-    # weitere Umrechnung noetig.
+    # Ab hier sind pts Canvas-Koordinaten (Skalierung und Versatz
+    # eingerechnet), wie event.x/event.y beim Ziehen.
     pts = [[p[0] * scale + off_x, p[1] * scale + off_y] for p in points]
-    # Der jeweils ANDERE Ausschnitt (z.B. section_detail waehrend
-    # section_full bearbeitet wird) wird nur informativ in hellgrau
-    # mitgezeichnet, damit man beim Setzen der Punkte sieht wie sich beide
-    # Bereiche zueinander verhalten - rein statisch, nicht klickbar/ziehbar.
+    # Der andere Ausschnitt wird zur Orientierung hellgrau mitgezeichnet,
+    # nicht verschiebbar.
     other_pts = None
     if other_points is not None:
         other_pts = [[p[0] * scale + off_x, p[1] * scale + off_y] for p in other_points]
@@ -312,19 +270,14 @@ def edit_section_points(region_label, cap, points, other_points=None, allow_canc
     show_page('-EDITORVIEW-')
     ui.window['-EDITOR_TITLE-'].update(f'{region_label}: Eckpunkte anpassen')
     ui.window['-EDIT_CANCEL-'].update(visible=allow_cancel)
-    # Zweizeilig statt eine lange Zeile - "Speichern und neu starten" in
-    # einer Zeile wuerde den Button unschoen breit machen.
+    # Zweizeilig, sonst wird der Button zu breit.
     ui.window['-EDIT_SAVE-'].update('Speichern und\nneu starten' if will_restart else 'Speichern')
     graph = ui.window.editor_canvas
 
     def draw_magnifier(center_disp):
-        # Punkt kann bis an den Bildrand/in die Ecke gezogen werden - ein
-        # einfaches Clamping des Quellausschnitts wuerde dort ein
-        # asymmetrisches, verzerrtes Rechteck ergeben (cv2.resize wuerde es
-        # verzerrt auf ein Quadrat aufziehen) UND das Fadenkreuz saesse
-        # nicht mehr auf dem tatsaechlichen Punkt. Stattdessen wird der
-        # fehlende Rand per BORDER_REPLICATE aufgefuellt, der Ausschnitt
-        # bleibt so immer MAG_SRC x MAG_SRC und zentriert auf dem Punkt.
+        # Am Bildrand wird der fehlende Teil per BORDER_REPLICATE aufgefuellt.
+        # So bleibt der Ausschnitt MAG_SRC x MAG_SRC und das Fadenkreuz auf dem
+        # Punkt; ein Beschneiden ergaebe einen verzerrten Ausschnitt.
         cx, cy = (center_disp[0] - off_x) / scale, (center_disp[1] - off_y) / scale
         half = MAG_SRC // 2
         x0, y0 = int(cx - half), int(cy - half)
@@ -341,19 +294,12 @@ def edit_section_points(region_label, cap, points, other_points=None, allow_canc
         mag = cv2.resize(crop, (MAG_SIZE, MAG_SIZE), interpolation=cv2.INTER_NEAREST)
         cv2.line(mag, (MAG_SIZE // 2, 0), (MAG_SIZE // 2, MAG_SIZE), (0, 255, 255), 1)
         cv2.line(mag, (0, MAG_SIZE // 2), (MAG_SIZE, MAG_SIZE // 2), (0, 255, 255), 1)
-        # PPM statt PNG: gleiche Begruendung wie bei Window.draw_image() -
-        # unkomprimiert ist beim Kodieren billiger, das Ergebnis wird
-        # ohnehin sofort wieder dekodiert (kein Speichern/Uebertragen). Der
-        # Lupen-Redraw feuert bei jedem Drag-Motion-Event, potenziell
-        # mehrfach pro Sekunde.
+        # PPM statt PNG: unkomprimiert ist billiger, das Bild wird sofort wieder
+        # dekodiert. Die Lupe wird bei jeder Zugbewegung neu gezeichnet.
         magbytes = cv2.imencode('.ppm', mag)[1].tobytes()
-        # In der Canvas-Ecke verankert, die vom gerade gezogenen Punkt am
-        # weitesten entfernt ist (nicht am Bild, damit die Position
-        # unabhaengig von Bildgroesse/Zentrierung vorhersehbar bleibt): eine
-        # fest verankerte Lupe wuerde in ihrer eigenen Ecke liegende Punkte
-        # beim Platzieren/Verschieben verdecken. Die Lupe springt deshalb in
-        # die jeweils gegenueberliegende Ecke, sobald der Punkt die
-        # Bildschirm-Mittellinie in X- oder Y-Richtung ueberquert.
+        # Die Lupe sitzt in der Canvas-Ecke, die vom gezogenen Punkt am weitesten
+        # entfernt ist, damit sie ihn nicht verdeckt. Sie wechselt die Ecke, sobald
+        # der Punkt die Mittellinie ueberquert.
         mag_margin = 10
         mag_x = mag_margin if center_disp[0] >= EDITOR_MAX_W / 2 else EDITOR_MAX_W - MAG_SIZE - mag_margin
         mag_y = mag_margin if center_disp[1] >= EDITOR_MAX_H / 2 else EDITOR_MAX_H - MAG_SIZE - mag_margin
@@ -363,14 +309,9 @@ def edit_section_points(region_label, cap, points, other_points=None, allow_canc
         graph.create_rectangle(mag_x, mag_y, mag_x + MAG_SIZE, mag_y + MAG_SIZE, outline='yellow', width=2)
 
     def draw_outline(poly_pts, color):
-        # Die Reihenfolge der Punkte in section_full/section_detail folgt
-        # keiner festen Umlauf-Konvention (nicht zwingend im/gegen den
-        # Uhrzeigersinn) - ein direktes Verbinden 1-2-3-4-1 in dieser
-        # Reihenfolge kann daher ein sich selbst ueberschneidendes Viereck
-        # ("Bowtie") ergeben. Fuer den Verbindungs-Umriss werden die Punkte
-        # deshalb separat nach Winkel
-        # um ihren Mittelpunkt sortiert (reiner Anzeige-Zweck) - die
-        # Nummerierung/Zuordnung 1-4 der Punkte selbst bleibt unveraendert.
+        # Die Punkte haben keine feste Umlaufrichtung; 1-2-3-4-1 verbunden ergaebe
+        # evtl. ein ueberkreuztes Viereck. Fuer den Umriss werden sie deshalb nach
+        # Winkel um ihren Mittelpunkt sortiert, ihre Nummerierung bleibt.
         cx = sum(p[0] for p in poly_pts) / 4
         cy = sum(p[1] for p in poly_pts) / 4
         perimeter = sorted(range(4), key=lambda i: math.atan2(poly_pts[i][1] - cy, poly_pts[i][0] - cx))
@@ -428,9 +369,8 @@ def edit_section_points(region_label, cap, points, other_points=None, allow_canc
                         best_i, best_d = i, d
                 dragging_idx = best_i
             if dragging_idx is not None:
-                # Auf den tatsaechlich sichtbaren Bildbereich begrenzt (nicht
-                # den ganzen Canvas) - ausserhalb liegt nur der zentrierte
-                # schwarze Rand, ohne zugehoerige Bildkoordinate.
+                # Auf den sichtbaren Bildbereich begrenzt; ausserhalb liegt nur der
+                # schwarze Rand ohne Bildkoordinate.
                 pts[dragging_idx] = [
                     min(max(pos[0], off_x), off_x + disp_w),
                     min(max(pos[1], off_y), off_y + disp_h),
@@ -442,27 +382,13 @@ def edit_section_points(region_label, cap, points, other_points=None, allow_canc
 
 
 def run_settings_flow(cap, section_full, section_detail, stands, current_pin):
-    # Fuehrt Auswahl + jeweilige Aktion durch. section_full/section_detail
-    # sind die ORIGINALEN Koordinaten, wie sie aus config.yml/Override
-    # kommen und auch wieder dorthin geschrieben werden -
-    # edit_section_points() arbeitet jetzt direkt in diesem Koordinatenraum
-    # (zeigt via cap.getFrame(full=True) das unbeschnittene Kamerabild,
-    # keine Crop-Offset-Umrechnung mehr noetig, siehe dort). Gibt True
-    # zurueck wenn irgendetwas gespeichert wurde, das einen neu berechneten
-    # Zustand braucht - main.py beendet sich dann (sys.exit(0)),
-    # Restart=always im systemd-Unit laedt alles sauber neu (siehe
-    # Aufrufer). Gilt einheitlich fuer Ausschnitte, Stand-Wechsel UND
-    # PIN-Aenderung - bewusst kein Sonderfall fuer den PIN, der zwar
-    # technisch keinen Neustart braeuchte, aber ein einheitlicher Ablauf
-    # ist weniger fehleranfaellig als eine zweite, live-aktualisierte
-    # Variable an mehreren Stellen mitzupflegen.
-    # Jede Unteraktion (Ausschnitte/Stand/PIN/Restart) kehrt bei Abbruch oder
-    # einem Fehlschlag per "continue" zurueck zum Settings-Menue, statt bis
-    # zur Hauptseite durchzureichen - ein Abbruch soll nur einen Schritt
-    # zurueckgehen, nicht bis zur Hauptseite springen. Nur ein tatsaechlicher
-    # '-MENU_BACK-' auf dieser Seite
-    # selbst, oder eine ERFOLGREICH gespeicherte Aenderung (die ohnehin einen
-    # Neustart ausloest, siehe Aufrufer), verlaesst die Schleife.
+    # Einstellungen-Menue. section_full/section_detail sind Kamerakoordinaten
+    # des vollen Bilds, wie sie gespeichert werden. Liefert True, wenn etwas
+    # gespeichert wurde (Ausschnitte, Stand oder PIN); main() beendet sich dann
+    # und systemd startet mit den neuen Werten neu. Auch die PIN laeuft ueber
+    # diesen Neustart: ein Weg fuer alles ist weniger fehleranfaellig.
+    # Abbrechen oder ein Fehler in einer Unteraktion fuehrt zurueck in dieses
+    # Menue, nicht zum Hauptbildschirm.
     while True:
         show_page('-MENUVIEW-')
         event, _ = ui.window.read()
@@ -499,10 +425,7 @@ def run_settings_flow(cap, section_full, section_detail, stands, current_pin):
             show_page('-MAINVIEW-')
             return True
         elif event == '-MENU_RESTART-':
-            # Restart lebt bewusst hier im Menue statt als eigener
-            # Hauptbildschirm-Button (siehe _build_menu_view) - der Zugang
-            # ist bereits durch den vorgelagerten check_pin() in main()s
-            # '-SETTINGS-'-Handler geschuetzt, keine zweite PIN-Abfrage noetig.
+            # Die PIN-Abfrage vor dem Menue schuetzt auch den Neustart.
             if confirm_reboot() and not _reboot():
                 popup('Neustart fehlgeschlagen.')
             continue
