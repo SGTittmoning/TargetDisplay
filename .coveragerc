@@ -10,4 +10,4 @@ omit =
 show_missing = True
 skip_covered = True
 # Untergrenze knapp unter dem aktuellen Stand, mit neuen Tests anheben.
-fail_under = 75
+fail_under = 90
