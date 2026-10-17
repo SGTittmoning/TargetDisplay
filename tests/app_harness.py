@@ -91,16 +91,65 @@ class Driver(threading.Thread):
         try:
             for delay, event in self.steps:
                 time.sleep(delay)
-                self.send(event)
+                if callable(event):
+                    # z.B. den Zustand der Fake-Kamera umschalten (kein Tk)
+                    event()
+                elif isinstance(event, tuple):
+                    self.ui.window.post(*event)
+                else:
+                    self.send(event)
         except Exception as e:  # pragma: no cover
             self.error = e
 
 
-def run_app(app, steps, monkeypatch, watchdog_sec=40):
+# Bedienbare Buttons des Hauptbildschirms (fuer Messpunkte).
+MAIN_BUTTONS = ('-FULL_VIDEO-', '-DETAIL_VIDEO-', '-RESETZOOM-',
+                '-BLINK_START-', '-BLINK_REF-', '-BLINK_STOP-',
+                '-TIMER_5_3_7-', '-TIMER_20-', '-TIMER_10-', '-TIMER_STOP-',
+                '-REPLAY-', '-TOGGLEVIDEO-')
+
+
+def clickable(window, key):
+    """True, wenn ein Klick auf den Button ein Ereignis ausloest. Prueft den
+    echten Klickweg (invoke), nicht nur die Farbe."""
+    posted = []
+    window.post = lambda event, values=None: posted.append(event)
+    try:
+        window[key].widget.invoke()
+    finally:
+        del window.post
+    return bool(posted)
+
+
+def probe(window, draws):
+    return {
+        'clickable': {k: clickable(window, k) for k in MAIN_BUTTONS},
+        'frame': draws[-1] if draws else None,
+        'draws': len(draws),
+        'replay_text': window._btn_style['-REPLAY-']['label'].cget('text'),
+        'fps': window['-FPS-'].widget.cget('text'),
+        'video_icon': str(window['-TOGGLEVIDEO-'].widget.cget('image')),
+    }
+
+
+def run_app(app, steps, monkeypatch, watchdog_sec=40, probes=None):
+    """Startet die App und schickt die Schritte (Wartezeit, Ereignis). Ein
+    Ereignis '-PROBE-name-' haelt in `probes[name]` den Zustand genau in
+    diesem Moment fest (siehe probe()), statt erst beim Schliessen."""
     import ui
     draws = []
     real_draw = ui.Window.draw_image
     monkeypatch.setattr(ui.Window, 'draw_image', lambda self, frame: (draws.append(frame.copy()), real_draw(self, frame))[1])
+    real_read = ui.Window.read
+
+    def read(self, timeout=None):
+        event, values = real_read(self, timeout)
+        if isinstance(event, str) and event.startswith('-PROBE-'):
+            probes[event[len('-PROBE-'):-1]] = probe(self, draws)
+            return ui.TIMEOUT_EVENT, {}
+        return event, values
+
+    monkeypatch.setattr(ui.Window, 'read', read)
     driver = Driver(ui, steps + [(0.3, ui.WIN_CLOSED)])
 
     def start_driver():
@@ -116,6 +165,12 @@ def run_app(app, steps, monkeypatch, watchdog_sec=40):
         app.main()
     finally:
         guard.cancel()
+        # Bei sys.exit() aus main() bleibt das Fenster offen.
+        if ui.window is not None:
+            try:
+                ui.window.close()
+            except tk.TclError:
+                pass
         ui.window = None
     assert driver.error is None
     return draws
