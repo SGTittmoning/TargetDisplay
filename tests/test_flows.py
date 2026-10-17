@@ -1,6 +1,8 @@
 # Dialogablaeufe aus flows.py ohne Hauptschleife: Ereignisse werden vorab
 # (oder aus einer Fake-Kamera heraus) in die Warteschlange gelegt,
 # Window.read() liest sie vor allen Tk-Ereignissen.
+import subprocess
+
 import numpy as np
 import pytest
 
@@ -51,3 +53,32 @@ def test_kamera_warten_zurueck(win):
 
     win.post('-CAMWAIT_BACK-')
     assert flows.wait_for_camera_frame(Cam(), max_wait_sec=5) == 'back'
+
+
+@pytest.mark.parametrize('outcome', [1, OSError('sudo fehlt')])
+def test_fehlgeschlagener_neustart_meldet_sich(win, monkeypatch, outcome):
+    messages = []
+    monkeypatch.setattr(flows, 'popup', messages.append)
+
+    def fake_run(cmd, **kwargs):
+        if isinstance(outcome, Exception):
+            raise outcome
+        return subprocess.CompletedProcess(cmd, outcome)
+
+    monkeypatch.setattr(flows.subprocess, 'run', fake_run)
+    for event in ('-MENU_RESTART-', '-CONFIRM_YES-', '-MENU_BACK-'):
+        win.post(event)
+    assert flows.run_settings_flow(None, None, None, [], '4711') is False
+    assert messages == ['Neustart fehlgeschlagen.']
+
+
+def test_neustart_ohne_fehler_ohne_meldung(win, monkeypatch):
+    messages, calls = [], []
+    monkeypatch.setattr(flows, 'popup', messages.append)
+    monkeypatch.setattr(flows.subprocess, 'run',
+                        lambda cmd, **kw: calls.append(cmd) or subprocess.CompletedProcess(cmd, 0))
+    for event in ('-MENU_RESTART-', '-CONFIRM_YES-', '-MENU_BACK-'):
+        win.post(event)
+    flows.run_settings_flow(None, None, None, [], '4711')
+    assert calls == [['/usr/bin/sudo', '/usr/sbin/reboot']]
+    assert messages == []

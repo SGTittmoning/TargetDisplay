@@ -1,6 +1,7 @@
 """Dialog-Ablaeufe auf der Oberflaeche: PIN, Stand-Auswahl, Ausschnitt-Editor, Einstellungen."""
 import math
 import subprocess
+import sys
 import time
 import tkinter as tk
 
@@ -95,6 +96,20 @@ def check_pin(correct_pin):
     result = _run_pin_keypad('PIN eingeben', True, validate)
     show_page('-MAINVIEW-')
     return bool(result)
+
+
+def _reboot():
+    # True, wenn der Neustart ausgeloest wurde. Scheitert sudo, bliebe die
+    # Standaufsicht sonst ohne Rueckmeldung im Menue.
+    try:
+        result = subprocess.run(['/usr/bin/sudo', '/usr/sbin/reboot'], check=False)
+    except OSError as e:
+        print(f"Neustart fehlgeschlagen: {e}", file=sys.stderr)
+        return False
+    if result.returncode != 0:
+        print(f"Neustart fehlgeschlagen: Exit-Code {result.returncode}", file=sys.stderr)
+        return False
+    return True
 
 
 def confirm_reboot():
@@ -483,6 +498,6 @@ def run_settings_flow(cap, section_full, section_detail, stands, current_pin):
             # Hauptbildschirm-Button (siehe _build_menu_view) - der Zugang
             # ist bereits durch den vorgelagerten check_pin() in main()s
             # '-SETTINGS-'-Handler geschuetzt, keine zweite PIN-Abfrage noetig.
-            if confirm_reboot():
-                subprocess.run(['/usr/bin/sudo', '/usr/sbin/reboot'], check=False)
+            if confirm_reboot() and not _reboot():
+                popup('Neustart fehlgeschlagen.')
             continue
