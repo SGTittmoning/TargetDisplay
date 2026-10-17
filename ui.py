@@ -1,5 +1,6 @@
 """Tk-Oberflaeche: Widgets, Seiten und Steuerelement-Hilfen."""
 import _tkinter
+import contextlib
 import math
 import os
 import queue
@@ -257,10 +258,8 @@ class Window:
     def read(self, timeout=None):
         deadline = None if timeout is None else time.monotonic() + timeout / 1000.0
         while True:
-            try:
+            with contextlib.suppress(queue.Empty):
                 return self._queue.get_nowait()
-            except queue.Empty:
-                pass
             wait_ms = READ_MAX_WAIT_MS
             if deadline is not None:
                 remaining_ms = math.ceil((deadline - time.monotonic()) * 1000)

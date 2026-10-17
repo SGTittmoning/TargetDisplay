@@ -53,7 +53,6 @@ class Camera:
         # Unbeschnittenes Bild fuer den Ausschnitte-Editor: dort muessen sich
         # Ausschnitte auch ueber die bisherigen Grenzen hinaus setzen lassen.
         self.last_frame_full = None
-        self.last_ready = None
         self.frame_id = 0
         self.last_frame_time = time.monotonic()
         self.start_time = time.monotonic()
@@ -141,7 +140,7 @@ class Camera:
                 x0, y0, x1, y1 = crop_region
                 frame = frame[y0:min(y1, frame.shape[0]), x0:min(x1, frame.shape[1])]
             with self.lock:
-                self.last_ready, self.last_frame = True, frame
+                self.last_frame = frame
                 self.last_frame_full = full_frame
                 self.frame_id += 1
                 self.last_frame_time = time.monotonic()
@@ -151,11 +150,12 @@ class Camera:
         _close_quietly(container)
 
     def get_frame(self, full=False):
+        # Nur die Referenz unter dem Lock holen, kopiert wird ausserhalb: der
+        # Lesethread ersetzt die Bilder nur, er veraendert sie nie, und muss
+        # so nicht auf das Kopieren warten.
         with self.lock:
             src = self.last_frame_full if full else self.last_frame
-            if src is not None:
-                return src.copy()
-        return None
+        return None if src is None else src.copy()
 
     def is_stale(self, timeout, startup_timeout=None):
         # True, wenn seit mehr als timeout Sekunden kein Frame kam. Die Kamera
