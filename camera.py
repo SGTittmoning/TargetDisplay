@@ -7,10 +7,8 @@ import av
 
 from logutil import mask_credentials
 
-# PyAV ist bewusst nicht auf eine feste Version gepinnt (siehe requirements.txt) -
-# welche Version tatsaechlich installiert ist, haengt vom Zielsystem ab. Ohne
-# diese Zeile waere das bei einer spaeteren Fehlersuche im Journal nicht mehr
-# nachvollziehbar.
+# PyAV ist nicht auf eine Version festgelegt (siehe requirements.txt); die
+# installierte Version steht deshalb im Journal.
 print(f"camera.py: PyAV {av.__version__}", file=sys.stderr)
 
 # Timeouts fuer av.open() in Sekunden (Verbindungsaufbau, Lesen). Ein
@@ -21,19 +19,15 @@ print(f"camera.py: PyAV {av.__version__}", file=sys.stderr)
 OPEN_TIMEOUT_SEC = 20
 READ_TIMEOUT_SEC = 5
 
-# Kein neuer Frame seit so vielen Sekunden -> Prozess beendet sich selbst
-# (play_it/systemd uebernehmen den Neustart/die Eskalation, siehe README).
-# camera.py haengt bei dauerhaftem Verbindungsverlust selbst nie (dessen
-# eigene Retry-Schleife laeuft endlos weiter) - main.py braucht dieses
-# eigene Signal, um ueberhaupt jemals aufzugeben.
+# Kein neuer Frame seit so vielen Sekunden: main.py beendet den Prozess,
+# play_it/systemd starten neu (siehe README). Die Kamera selbst versucht
+# endlos neu zu verbinden und gibt nie auf.
 STREAM_STALE_TIMEOUT_SEC = 10
 
 
-# Eigene, grosszuegigere Gnadenfrist NUR fuer den allerersten Verbindungsaufbau
-# nach dem App-Start (siehe camera.py::is_stale) - ein frischer Connect kann
-# (Timeouts siehe camera.py) mehrere Versuche brauchen, ohne dass camera.py
-# haengt. STREAM_STALE_TIMEOUT_SEC bleibt bewusst knapp fuer
-# einen Ausfall WAEHREND eines bereits laufenden Streams.
+# Laengere Frist nur bis zum ersten Frame nach dem App-Start: der erste
+# Verbindungsaufbau kann mehrere Versuche brauchen. Fuer einen Ausfall im
+# laufenden Betrieb gilt das knappere STREAM_STALE_TIMEOUT_SEC.
 STREAM_STARTUP_TIMEOUT_SEC = 30
 
 def _close_quietly(container):
@@ -53,12 +47,8 @@ class Camera:
         self.reconnect_delay = reconnect_delay
         self.crop_region = crop_region
         self.last_frame = None
-        # Unbeschnittene Variante desselben Frames, ausschliesslich fuer den
-        # Settings-Punkte-Editor (flows.py::edit_section_points) - der
-        # normale Anzeige-/Warp-Pfad braucht nur den ohnehin schon eng um
-        # section_full/section_detail zugeschnittenen last_frame, der
-        # Editor zum NEU-Setzen der Ausschnitte muss aber das komplette
-        # Kamerabild sehen koennen, auch ausserhalb der aktuellen Grenzen.
+        # Unbeschnittenes Bild fuer den Ausschnitte-Editor: dort muessen sich
+        # Ausschnitte auch ueber die bisherigen Grenzen hinaus setzen lassen.
         self.last_frame_full = None
         self.last_ready = None
         self.frame_id = 0
@@ -73,33 +63,24 @@ class Camera:
         thread.start()
 
     def stop(self):
-        # Beendet _buffer_loop und gibt die Verbindung frei - noetig, wenn ein
-        # Camera-Objekt durch ein neues ersetzt wird (z.B. Stand-Wechsel im
-        # Ersteinrichtungs-Assistenten), sonst liefe der alte Hintergrund-Thread
-        # als Daemon unbegrenzt weiter und versuchte endlos, die verworfene
-        # (ggf. nicht erreichbare) alte URL erneut zu verbinden.
+        # Beendet den Lesethread und die Verbindung, z.B. beim Stand-Wechsel im
+        # Assistenten. Sonst versuchte der alte Thread endlos, die verworfene URL
+        # zu erreichen.
         self._stop_event.set()
         with self.lock:
             container = self._container
-        # container.close() ausserhalb des Locks: unterbricht ein gerade
-        # blockierendes next(frame_iter) im Hintergrund-Thread, damit stop()
-        # nicht bis zum naechsten Frame/Reconnect-Versuch warten muss.
+        # Ausserhalb des Locks schliessen: das unterbricht ein blockierendes
+        # next(frame_iter), stop() muss nicht auf den naechsten Frame warten.
         _close_quietly(container)
 
     def set_crop_region(self, crop_region):
-        # Setzt crop_region unter demselben Lock, das _buffer_loop beim
-        # Lesen nutzt (siehe dort) - konsistent mit dem uebrigen Zugriff auf
-        # den von main.py und dem Hintergrund-Thread gemeinsam genutzten
-        # Zustand dieser Klasse.
+        # Unter dem Lock, das auch _buffer_loop beim Lesen nutzt.
         with self.lock:
             self.crop_region = crop_region
 
     def snapshot(self):
-        # frame_id, last_frame_time und start_time als EINE konsistente
-        # Momentaufnahme, statt sie einzeln (und ohne Lock) zu lesen - sonst
-        # koennten z.B. frame_id und last_frame_time aus zwei verschiedenen
-        # Momenten stammen, wenn der Hintergrund-Thread dazwischen einen
-        # neuen Frame liefert.
+        # frame_id, last_frame_time und start_time aus einem Moment, nicht
+        # einzeln gelesen, waehrend der Lesethread weiterlaeuft.
         with self.lock:
             return self.frame_id, self.last_frame_time, self.start_time
 
@@ -109,9 +90,7 @@ class Camera:
         # in av.open() -- vermutlich ein Options-Dict-Bug in PyAV 10.0.0.
         container = av.open(self.rtsp_link, timeout=(OPEN_TIMEOUT_SEC, READ_TIMEOUT_SEC))
         vstream = container.streams.video[0]
-        # SLICE-Threading brachte im Vergleichstest den groessten CPU-Zeit-Gewinn
-        # gegenueber cv2.VideoCapture (~10-13% weniger CPU-Zeit/Frame auf
-        # echter Pi-4-Hardware)
+        # SLICE-Threading spart auf dem Pi 4 rund 10-13 % CPU-Zeit pro Frame.
         vstream.codec_context.thread_type = "SLICE"
         vstream.codec_context.thread_count = 4
         return container
@@ -140,13 +119,9 @@ class Camera:
                     # genau dieses next(frame_iter) zu unterbrechen - kein
                     # echter Verbindungsfehler, kein Retry noetig.
                     break
-                # Typ+Meldung jedes einzelnen Fehlschlags loggen (via stderr,
-                # landet ueber StandardError=journal des Service in
-                # journald), sonst gibt es keinerlei Anhaltspunkt, ob/wie
-                # oft/warum Verbindungsversuche scheitern - relevant u.a. fuer
-                # die Fehlersuche bei Reboot-Guard-Fehlausloesungen.
-                # PyAV nimmt die URL in die Fehlermeldung auf; Zugangsdaten
-                # duerfen nicht im Journal landen.
+                # Jeden Fehlschlag mit Typ und Meldung ins Journal, fuer die
+                # Fehlersuche (z.B. bei unerwarteten Neustarts). PyAV nimmt die URL in die
+                # Meldung auf, die Zugangsdaten werden maskiert.
                 print(f"camera.py: Verbindungs-/Decode-Fehler ({type(e).__name__}: {mask_credentials(e)}), naechster Versuch in {self.reconnect_delay}s", file=sys.stderr)
                 _close_quietly(container)
                 container = None
@@ -168,11 +143,8 @@ class Camera:
                 self.frame_id += 1
                 self.last_frame_time = time.monotonic()
 
-        # Regulaeres Schleifenende ueber die while-Bedingung (stop() kam
-        # zwischen zwei Frames, nicht waehrend eines blockierenden next()) -
-        # container ist dann meist schon durch stop() geschlossen, ein
-        # zweiter close()-Versuch auf einem bereits geschlossenen Container
-        # ist bei PyAV ungefaehrlich, daher hier ohne Sonderfall-Pruefung.
+        # Regulaeres Ende (stop() kam zwischen zwei Frames): der Container ist
+        # meist schon geschlossen, ein zweites close() schadet nicht.
         _close_quietly(container)
 
     def getFrame(self, full=False):
@@ -183,22 +155,11 @@ class Camera:
         return None
 
     def is_stale(self, timeout, startup_timeout=None):
-        # kein neuer Frame seit mehr als "timeout" Sekunden - camera.py haengt
-        # selbst bei dauerhaftem Verbindungsverlust nie (_buffer_loop faengt
-        # alle Decode-/Verbindungsfehler ab und versucht endlos weiter), main.py
-        # braucht diese Methode daher als eigenes Signal um irgendwann
-        # aufzugeben und den Prozess zu beenden (siehe play_it/README)
-        #
-        # Vor dem allerersten Frame gilt ein eigener, grosszuegigerer
-        # "startup_timeout" statt "timeout": ein frischer Verbindungsaufbau
-        # kann je nach Netzwerk/Server-Zustand mehrere Versuche mit je bis zu
-        # OPEN_TIMEOUT_SEC brauchen, obwohl
-        # camera.py dabei keineswegs haengt - "timeout" ist dagegen bewusst
-        # knapp bemessen fuer den Fall eines Ausfalls WAEHREND eines bereits
-        # laufenden Streams. Ohne diese Unterscheidung wuerde ein einfach nur
-        # etwas langsamer erster Verbindungsaufbau faelschlich als Ausfall
-        # gewertet und main.py beendet, noch bevor ueberhaupt ein Frame
-        # ankommen konnte.
+        # True, wenn seit mehr als timeout Sekunden kein Frame kam. Die Kamera
+        # haengt nie, sie versucht endlos neu zu verbinden; main.py braucht dieses
+        # Signal, um den Prozess irgendwann zu beenden (siehe play_it/README).
+        # Vor dem ersten Frame gilt startup_timeout: der erste Verbindungsaufbau
+        # darf laenger dauern, ohne als Ausfall zu gelten.
         with self.lock:
             if self.frame_id == 0:
                 grace = startup_timeout if startup_timeout is not None else timeout
