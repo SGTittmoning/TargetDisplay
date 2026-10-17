@@ -2,132 +2,25 @@
 
 Startet main.main() mit einer Fake-Kamera und steuert die Oberflaeche wie ein
 Bediener: Timer, Video aus/ein, PIN-Eingabe mit falscher und richtiger PIN,
-Einstellungsmenue. Ausfuehren mit:  xvfb-run -a python -m pytest tests
+Einstellungsmenue, Replay, Ersteinrichtung. Ausfuehren mit:
+xvfb-run -a python -m pytest tests
 """
-import importlib
 import itertools
-import os
-import sys
-import threading
 import time
 
 import numpy as np
-import pytest
+from app_harness import (
+    CountingCamera,
+    FakeCamera,
+    button_states,
+    is_replay_frame,
+    is_timer_frame,
+    load_app,
+    needs_display,
+    run_app,
+)
 
-tk = pytest.importorskip('tkinter')
-
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-
-pytestmark = pytest.mark.skipif(not os.environ.get('DISPLAY'), reason='kein X-Server (xvfb-run verwenden)')
-
-CONFIG = """\
-standName: Teststand
-screenSize: [1024, 768]
-settingsPin: "4711"
-video:
-  url: 'rtmp://test.invalid/live/test'
-  section_full: [[100, 100], [500, 100], [500, 500], [100, 500]]
-  section_detail: [[200, 200], [400, 200], [400, 400], [200, 400]]
-  size:
-    x: 600
-    y: 600
-"""
-
-
-class FakeCamera:
-    def __init__(self, url, **kwargs):
-        self.url = url
-        self.crop_region = None
-        self.start_time = time.monotonic()
-        self.last_frame_time = time.monotonic()
-        self._t0 = time.monotonic()
-
-    @property
-    def frame_id(self):
-        return 1 + int((time.monotonic() - self._t0) * 10)
-
-    def getFrame(self, full=False):
-        self.last_frame_time = time.monotonic()
-        return np.full((700, 700, 3), 90, np.uint8)
-
-    def snapshot(self):
-        return self.frame_id, self.last_frame_time, self.start_time
-
-    def set_crop_region(self, crop_region):
-        self.crop_region = crop_region
-
-    def is_stale(self, timeout, startup_timeout=None):
-        return False
-
-    def stop(self):
-        pass
-
-
-def load_app(tmp_path, monkeypatch, config):
-    (tmp_path / 'config.yml').write_text(config)
-    monkeypatch.chdir(tmp_path)
-    monkeypatch.syspath_prepend(ROOT)
-    for name in ('main', 'ui', 'flows', 'settings_store'):
-        sys.modules.pop(name, None)
-    settings_store = importlib.import_module('settings_store')
-    for attr in ('SECTIONS_OVERRIDE_FILE', 'STANDS_FILE', 'ACTIVE_STAND_FILE', 'PIN_FILE'):
-        monkeypatch.setattr(settings_store, attr, str(tmp_path / f'{attr.lower()}.json'))
-    main = importlib.import_module('main')
-    monkeypatch.setattr(main, 'Camera', FakeCamera)
-    return main
-
-
-@pytest.fixture
-def app(tmp_path, monkeypatch):
-    return load_app(tmp_path, monkeypatch, CONFIG)
-
-
-class Driver(threading.Thread):
-    """Schickt Bedienereignisse aus einem Hintergrund-Thread an die Oberflaeche."""
-
-    def __init__(self, ui, steps):
-        super().__init__(daemon=True)
-        self.ui = ui
-        self.steps = steps
-        self.error = None
-
-    def send(self, event):
-        # Nur die Queue ist thread-sicher, Tk-Aufrufe aus einem anderen Thread
-        # sind es nicht.
-        self.ui.window.post(event)
-
-    def run(self):
-        try:
-            for delay, event in self.steps:
-                time.sleep(delay)
-                self.send(event)
-        except Exception as e:  # pragma: no cover
-            self.error = e
-
-
-def run_app(app, steps, monkeypatch, watchdog_sec=40):
-    import ui
-    draws = []
-    real_draw = ui.Window.draw_image
-    monkeypatch.setattr(ui.Window, 'draw_image', lambda self, frame: (draws.append(frame.copy()), real_draw(self, frame))[1])
-    driver = Driver(ui, steps + [(0.3, ui.WIN_CLOSED)])
-
-    def start_driver():
-        while ui.window is None:
-            time.sleep(0.05)
-        driver.start()
-
-    threading.Thread(target=start_driver, daemon=True).start()
-    guard = threading.Timer(watchdog_sec, lambda: ui.window.post(ui.WIN_CLOSED))
-    guard.daemon = True
-    guard.start()
-    try:
-        app.main()
-    finally:
-        guard.cancel()
-        ui.window = None
-    assert driver.error is None
-    return draws
+pytestmark = needs_display
 
 
 def test_video_timer_und_video_aus(app, monkeypatch):
@@ -186,39 +79,10 @@ def test_pin_abbrechen_waehrend_wartezeit(app, monkeypatch):
 
 
 
-class CountingCamera(FakeCamera):
-    """Liefert je Frame einen anderen Grauwert, damit Referenz- und Live-Bild
-    unterscheidbar sind."""
-
-    def getFrame(self, full=False):
-        self.last_frame_time = time.monotonic()
-        return np.full((700, 700, 3), self.frame_id % 200, np.uint8)
-
-
-def _button_states(monkeypatch, keys):
-    """Haelt beim Schliessen des Fensters fest, welche Buttons bedienbar sind."""
-    import ui
-    states = {}
-    real_close = ui.Window.close
-
-    def close(self):
-        for k in keys:
-            states[k] = self[k].widget.cget('bg') == self._btn_style[k]['bg_on']
-        states['replay_text'] = self._btn_style['-REPLAY-']['label'].cget('text')
-        real_close(self)
-
-    monkeypatch.setattr(ui.Window, 'close', close)
-    return states
-
-
-def _is_timer_frame(d):
-    return (d[100, 100] == (0, 0, 255)).all() or (d[100, 100] == (0, 255, 0)).all()
-
-
 def test_timer_waehrend_blinken(app, monkeypatch):
     monkeypatch.setattr(app, 'Camera', CountingCamera)
     keys = ('-BLINK_START-', '-BLINK_REF-', '-BLINK_STOP-', '-TIMER_10-', '-TIMER_STOP-')
-    states = _button_states(monkeypatch, keys)
+    states = button_states(monkeypatch, keys)
     steps = [
         (1.0, '-BLINK_START-'),
         (0.5, '-TIMER_10-'),      # Timer trotz Blinken startbar
@@ -226,7 +90,7 @@ def test_timer_waehrend_blinken(app, monkeypatch):
         (2.5, '-FULL_VIDEO-'),
     ]
     draws = run_app(app, steps, monkeypatch)
-    timer_idx = [i for i, d in enumerate(draws) if _is_timer_frame(d)]
+    timer_idx = [i for i, d in enumerate(draws) if is_timer_frame(d)]
     assert timer_idx, 'Timer wurde nicht angezeigt'
     before = [int(d[300, 300, 0]) for d in draws[:timer_idx[0]]]
     after = [int(d[300, 300, 0]) for d in draws[timer_idx[-1] + 1:]]
@@ -242,15 +106,10 @@ def test_timer_waehrend_blinken(app, monkeypatch):
 
 def test_timer_ohne_blinken_gibt_blinken_frei(app, monkeypatch):
     keys = ('-BLINK_START-', '-BLINK_REF-', '-BLINK_STOP-')
-    states = _button_states(monkeypatch, keys)
+    states = button_states(monkeypatch, keys)
     run_app(app, [(1.0, '-TIMER_10-'), (1.0, '-TIMER_STOP-')], monkeypatch)
     assert states['-BLINK_START-']
     assert not states['-BLINK_REF-'] and not states['-BLINK_STOP-']
-
-
-def _is_replay_frame(d):
-    from overlays import REPLAY_COLOR
-    return d[d.shape[0] // 2, 3].tolist() == list(REPLAY_COLOR)
 
 
 def test_replay_nach_timer(app, monkeypatch):
@@ -258,7 +117,7 @@ def test_replay_nach_timer(app, monkeypatch):
     # Kurze Vorbereitungszeit, damit die Gruenphase im Test schnell beginnt.
     monkeypatch.setattr(timerlib, 'PREP_TIME', 1)
     keys = ('-REPLAY-', '-TIMER_10-', '-FULL_VIDEO-', '-BLINK_START-')
-    states = _button_states(monkeypatch, keys)
+    states = button_states(monkeypatch, keys)
     steps = [
         (1.0, '-TIMER_10-'),
         (3.5, '-TIMER_STOP-'),     # ca. 1,5 s Gruen aufgenommen (Verzoegerung 1 s)
@@ -269,10 +128,10 @@ def test_replay_nach_timer(app, monkeypatch):
         (0.8, '-FULL_VIDEO-'),
     ]
     draws = run_app(app, steps, monkeypatch)
-    replay_idx = [i for i, d in enumerate(draws) if _is_replay_frame(d)]
+    replay_idx = [i for i, d in enumerate(draws) if is_replay_frame(d)]
     assert len(replay_idx) > 5
     # Nach "Replay Ende" wieder Livebild ohne Replay-Rahmen
-    assert not _is_replay_frame(draws[-1])
+    assert not is_replay_frame(draws[-1])
     # Aufnahme bleibt nach "Replay Ende" fuer ein weiteres Replay erhalten
     assert states['-REPLAY-'] and states['replay_text'] == 'Replay'
     assert states['-TIMER_10-'] and states['-FULL_VIDEO-'] and states['-BLINK_START-']
@@ -281,7 +140,7 @@ def test_replay_nach_timer(app, monkeypatch):
 def test_replay_endet_nach_rotem_schlussbild(app, monkeypatch):
     import timerlib
     monkeypatch.setattr(timerlib, 'PREP_TIME', 1)
-    states = _button_states(monkeypatch, ('-REPLAY-', '-TIMER_10-'))
+    states = button_states(monkeypatch, ('-REPLAY-', '-TIMER_10-'))
     steps = [
         (1.0, '-TIMER_10-'),
         (3.0, '-TIMER_STOP-'),
@@ -289,15 +148,15 @@ def test_replay_endet_nach_rotem_schlussbild(app, monkeypatch):
         (4.5, '-FULL_VIDEO-'),     # Replay (ca. 1 s + 1 s Rot) ist laengst vorbei
     ]
     draws = run_app(app, steps, monkeypatch)
-    assert any(_is_replay_frame(d) for d in draws)
-    assert not _is_replay_frame(draws[-1])
+    assert any(is_replay_frame(d) for d in draws)
+    assert not is_replay_frame(draws[-1])
     assert states['-REPLAY-'] and states['replay_text'] == 'Replay' and states['-TIMER_10-']
 
 
 def test_replay_button_wird_zu_replay_ende(app, monkeypatch):
     import timerlib
     monkeypatch.setattr(timerlib, 'PREP_TIME', 1)
-    states = _button_states(monkeypatch, ('-REPLAY-',))
+    states = button_states(monkeypatch, ('-REPLAY-',))
     steps = [
         (1.0, '-TIMER_10-'),
         (3.0, '-TIMER_STOP-'),
@@ -311,7 +170,7 @@ def test_replay_button_wird_zu_replay_ende(app, monkeypatch):
 def test_replay_gesperrt_bei_video_aus(app, monkeypatch):
     import timerlib
     monkeypatch.setattr(timerlib, 'PREP_TIME', 1)
-    states = _button_states(monkeypatch, ('-REPLAY-',))
+    states = button_states(monkeypatch, ('-REPLAY-',))
     steps = [
         (1.0, '-TIMER_10-'),
         (3.0, '-TIMER_STOP-'),
@@ -319,12 +178,12 @@ def test_replay_gesperrt_bei_video_aus(app, monkeypatch):
         (0.3, '-REPLAY-'),         # wirkungslos, Button gesperrt
     ]
     draws = run_app(app, steps, monkeypatch)
-    assert not any(_is_replay_frame(d) for d in draws)
+    assert not any(is_replay_frame(d) for d in draws)
     assert not states['-REPLAY-'] and states['replay_text'] == 'Replay'
 
 
 def test_kein_replay_ohne_aufnahme(app, monkeypatch):
-    states = _button_states(monkeypatch, ('-REPLAY-',))
+    states = button_states(monkeypatch, ('-REPLAY-',))
     run_app(app, [(1.0, '-FULL_VIDEO-')], monkeypatch)
     assert not states['-REPLAY-'] and states['replay_text'] == 'Replay'
 
