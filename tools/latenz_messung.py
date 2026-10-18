@@ -35,6 +35,9 @@ BAND = 0.12
 CALIB_SEC = 15
 # Mindestaenderung eines Pixels (Grauwert) zwischen zwei Bildern.
 PIXEL_THRESHOLD = 40
+# Anteil veraenderter Pixel, ab dem ein Bild als Ziffernwechsel gilt.
+# Rauschen liegt um 0,001, jeder echte Ziffernwechsel deutlich ueber 0,05.
+CHANGE_THRESHOLD = 0.03
 
 
 def open_stream():
@@ -45,7 +48,7 @@ def open_stream():
         sys.exit('Kein aktiver Stand gefunden.')
     print(f"Stand: {stand.get('displayName')}")
     # Derselbe Verbindungsaufbau wie in der App (Timeouts, Decoder-Threads).
-    return camera.Camera._open_container(types.SimpleNamespace(rtsp_link=stand['url']))
+    return camera.Camera._open_container(types.SimpleNamespace(stream_url=stand['url']))
 
 
 def frames(container):
@@ -121,7 +124,7 @@ def main():
         crops.append(cv2.cvtColor(img[y0:y1, x0:x1], cv2.COLOR_BGR2GRAY))
         if saved < 20 and len(crops) >= 2:
             diff = (np.abs(crops[-1].astype(np.int16) - crops[-2]) > PIXEL_THRESHOLD).mean()
-            if diff > 0.03:
+            if diff > CHANGE_THRESHOLD:
                 # Dateiname = Ankunftszeit am Pi (Ortszeit, Millisekunden).
                 name = time.strftime('uhr_%H-%M-%S', time.localtime(t)) + f'.{int(t % 1 * 1000):03d}.png'
                 cv2.imwrite(os.path.join(args.out, name), img[wide[1]:wide[3], wide[0]:wide[2]])
@@ -133,9 +136,7 @@ def main():
     # Wechsel: Anteil stark veraenderter Pixel gegenueber dem Vorbild.
     score = [0.0] + [float((np.abs(crops[i].astype(np.int16) - crops[i - 1]) > PIXEL_THRESHOLD).mean())
                      for i in range(1, len(crops))]
-    # Rauschen liegt um 0,001, jeder echte Ziffernwechsel deutlich ueber 0,05.
-    threshold = 0.03
-    events = [times[i] for i in range(1, len(score)) if score[i] > threshold]
+    events = [times[i] for i in range(1, len(score)) if score[i] > CHANGE_THRESHOLD]
     # Mehrere aufeinanderfolgende Bilder desselben Wechsels nur einmal zaehlen.
     transitions = []
     for t in events:

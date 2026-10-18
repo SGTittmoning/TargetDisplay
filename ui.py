@@ -626,15 +626,13 @@ def set_icon_buttons(keys, enabled):
                    command=(st['command_on'] if enabled else (lambda: None)))
         cfg['activebackground'] = cfg['bg']
         cfg['activeforeground'] = cfg['fg']
-        if st['icon_on'] is not None:
-            cfg['image'] = st['icon_on'] if enabled else st['icon_off']
+        cfg['image'] = st['icon_on'] if enabled else st['icon_off']
         w.config(**cfg)
         # Label und beide Frames bekommen dieselbe Hintergrundfarbe wie der
         # Button, sonst blieben sie auf der alten Farbe.
-        if st['label'] is not None:
-            st['label'].config(bg=cfg['bg'], fg=cfg['fg'])
-            for c in st['containers']:
-                c.config(bg=cfg['bg'])
+        st['label'].config(bg=cfg['bg'], fg=cfg['fg'])
+        for c in st['containers']:
+            c.config(bg=cfg['bg'])
 
 
 def apply_controls(mode, blink=False, zoom_level='full', zoom_center=None, has_recording=False):
