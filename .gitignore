@@ -15,5 +15,6 @@ boot-overrides/
 Obsolete/
 ressources/*.bak
 ansible/files/logo.png
+ressources/logo-custom.png
 ansible/files/splash.png
 .coverage

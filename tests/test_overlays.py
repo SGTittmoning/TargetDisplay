@@ -102,3 +102,18 @@ def test_texte_im_replay(texts):
     ov.replay_separator((300, 200), '')
     ov.replay_no_frame((300, 200))
     assert texts == ['Durchgang 3/5', 'kein Bild']
+
+
+def test_logo_vorrang_fuer_die_eigene_datei(tmp_path, monkeypatch):
+    import cv2
+
+    import main
+    (tmp_path / 'ressources').mkdir()
+    cv2.imwrite(str(tmp_path / 'ressources' / 'logo.png'), np.full((8, 8, 3), 10, np.uint8))
+    monkeypatch.chdir(tmp_path)
+    assert main.load_logo()[0, 0, 0] == 10
+    cv2.imwrite(str(tmp_path / 'ressources' / 'logo-custom.png'), np.full((8, 8, 3), 200, np.uint8))
+    assert main.load_logo()[0, 0, 0] == 200
+    (tmp_path / 'ressources' / 'logo-custom.png').unlink()
+    (tmp_path / 'ressources' / 'logo.png').unlink()
+    assert main.load_logo() is None

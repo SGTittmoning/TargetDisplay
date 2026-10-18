@@ -151,12 +151,13 @@ cp /pfad/zum/logo.png files/logo.png
 
 - Muss `logo.png` heißen, liegt auf dem Control-Rechner (nicht im Repo,
   `.gitignore`t), RGBA/Transparenz wird unterstützt.
-- Wird bei **jedem** `install.yml`-Lauf automatisch auf jeden Stand
-  überschrieben — kein manuelles Kopieren pro Gerät. Datei einfach wieder
-  löschen, um beim nächsten Lauf zum Platzhalter zurückzufallen.
+- Wird bei **jedem** `install.yml`-/`update-app.yml`-Lauf als eigene Datei
+  `ressources/logo-custom.png` auf jeden Stand gelegt (die App bevorzugt sie) —
+  kein manuelles Kopieren pro Gerät. Datei einfach wieder löschen, um beim
+  nächsten Lauf zum Platzhalter zurückzufallen.
 
 **Boot-Logo:** Beim Start zeigt das Gerät standardmäßig dasselbe Logo
-(`ressources/logo.png`, also Platzhalter bzw. das eigene `files/logo.png`)
+(Platzhalter bzw. das eigene `files/logo.png`)
 zentriert auf schwarzem Hintergrund statt der Kernel-Meldungen (Plymouth,
 `tasks/boot_splash.yml`). Ein abweichendes Boot-Bild: `files/splash.png`
 (Control-Rechner, `.gitignore`t). Abschalten: `targetdisplay_boot_splash: false`

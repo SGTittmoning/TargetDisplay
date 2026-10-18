@@ -35,9 +35,12 @@
 
 # ressources/logo.png kommt mit dem Checkout (generisches Platzhalter-
 # Wappen). Liegt auf der Kontrollmaschine ein eigenes Logo unter
-# ansible/files/logo.png (nicht im Repo, siehe .gitignore), ersetzt es den
-# Platzhalter auf jedem Stand. Ohne force:no: die Datei auf der
-# Kontrollmaschine ist massgeblich, ein erneuter Lauf zieht Aenderungen nach.
+# ansible/files/logo.png (nicht im Repo, siehe .gitignore), kommt es als
+# eigene Datei ressources/logo-custom.png auf jeden Stand; die App bevorzugt
+# sie. Die versionierte logo.png bleibt unberuehrt, sonst setzte der
+# Checkout (force) sie bei jedem Lauf zurueck und der Dienst startete jedes
+# Mal neu. Die Datei auf der Kontrollmaschine ist massgeblich, ein erneuter
+# Lauf zieht Aenderungen nach.
 - name: Vorhandensein eines eigenen Logos pruefen (ansible/files/logo.png)
   stat:
     path: "{{ playbook_dir }}/files/logo.png"
@@ -48,10 +51,19 @@
 - name: Eigenes Logo einspielen (ueberschreibt das mitgelieferte Platzhalter-Logo)
   copy:
     src: logo.png
-    dest: "{{ targetdisplay_app_path }}/ressources/logo.png"
+    dest: "{{ targetdisplay_app_path }}/ressources/logo-custom.png"
     owner: "{{ targetdisplay_service_user }}"
     group: "{{ targetdisplay_service_user }}"
     mode: "0644"
   become_user: "{{ targetdisplay_service_user }}"
   when: targetdisplay_custom_logo.stat.exists
   register: targetdisplay_app_logo
+
+# Wurde das eigene Logo auf der Kontrollmaschine entfernt, zeigt der Stand
+# wieder den Platzhalter.
+- name: Eigenes Logo entfernen, wenn es auf der Kontrollmaschine fehlt
+  file:
+    path: "{{ targetdisplay_app_path }}/ressources/logo-custom.png"
+    state: absent
+  when: not targetdisplay_custom_logo.stat.exists
+  register: targetdisplay_app_logo_removed

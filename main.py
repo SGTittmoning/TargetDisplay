@@ -57,11 +57,27 @@ BLINK_SWITCH_SEC = 1
 # Rand um die beiden Ausschnitte beim Zuschnitt des Kamerabilds (Pixel).
 CROP_MARGIN = 15
 
-VERSION = '0.13.5'
+VERSION = '0.13.6'
 
 
 # Ergebnis des Assistenten: alles, was der Hauptbildschirm zum Start braucht.
 Setup = namedtuple('Setup', 'stands cap section_full section_detail settings_pin')
+
+
+LOGO_CUSTOM = 'ressources/logo-custom.png'
+LOGO_DEFAULT = 'ressources/logo.png'
+
+
+def load_logo():
+    # Wasserzeichen fuer "Video aus". Ansible legt das Vereinslogo als eigene,
+    # nicht versionierte Datei ab; sie hat Vorrang vor dem Platzhalter im Repo.
+    # Fehlt beides, bleibt der Bildschirm bei "Video aus" schwarz.
+    for path in (LOGO_CUSTOM, LOGO_DEFAULT):
+        logo = cv2.imread(path, cv2.IMREAD_UNCHANGED)
+        if logo is not None:
+            return logo
+    print(f"{LOGO_DEFAULT} nicht gefunden - Blank-Screen-Wasserzeichen bleibt leer.", file=sys.stderr)
+    return None
 
 
 def run_setup_wizard(cfg):
@@ -480,12 +496,7 @@ def main():
 
     window = ui.window = ui.Window(cfg, video_size, VERSION)
     show_page('-MAINVIEW-')
-    # Wasserzeichen fuer "Video aus". Im Repo liegt ein Platzhalter, Ansible
-    # ersetzt ihn optional durch das Vereinslogo (ansible/files/logo.png).
-    # Fehlt die Datei, bleibt der Bildschirm bei "Video aus" schwarz.
-    blank_logo = cv2.imread('ressources/logo.png', cv2.IMREAD_UNCHANGED)
-    if blank_logo is None:
-        print("ressources/logo.png nicht gefunden - Blank-Screen-Wasserzeichen bleibt leer.", file=sys.stderr)
+    blank_logo = load_logo()
 
     setup = run_setup_wizard(cfg)
     screen = MainScreen(window, video_size, setup.cap, setup.section_full, setup.section_detail,

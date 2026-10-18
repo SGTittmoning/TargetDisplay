@@ -41,7 +41,7 @@ python3 main.py
 
 On Debian/Raspberry Pi OS, prefer installing `opencv-python`/`numpy`/`PyYAML`/`Pillow` via `apt` (`python3-opencv`, `python3-numpy`, `python3-yaml`, `python3-pil`, `python3-pil.imagetk`) instead of pip — see the comments in `requirements.txt` for why.
 
-`ressources/logo.png` (RGBA) is shown centered as a watermark when the video feed is toggled off ("Video aus") — ships with a generic placeholder shield, swap in your own club/range logo there. The app runs fine without one too (missing file, not an error — the watermark just stays empty). It is not shown anywhere else on the main screen (an earlier small always-visible sidebar copy was removed — it got visually lost next to the large clock).
+`ressources/logo.png` (RGBA) is shown centered as a watermark when the video feed is toggled off ("Video aus") — ships with a generic placeholder shield, a club/range logo placed as `ressources/logo-custom.png` takes precedence (Ansible does this from `ansible/files/logo.png`, see `ansible/README.md`). The app runs fine without one too (missing file, not an error — the watermark just stays empty). It is not shown anywhere else on the main screen.
 
 On the production Pis, `pip`-managed dependencies live in a `.venv` (created with `--system-site-packages` so it still sees the apt-installed `opencv`/`numpy`/`tkinter`), and `play_it` runs `main.py` through `.venv/bin/python3`:
 

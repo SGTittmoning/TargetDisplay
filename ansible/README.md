@@ -82,7 +82,9 @@ Because the `copy` task keeps `force: no`, the variable only takes effect where 
 
 ## Custom logo
 
-The repo ships a generic placeholder logo (`ressources/logo.png`) that comes along automatically with the git checkout — think of it as the "dist" logo. To show your own club/range logo on every stand instead, drop a `logo.png` (RGBA supported) at `ansible/files/logo.png` **on the Ansible control machine** — deliberately not committed (already gitignored) since it's specific to your club. `install.yml` picks it up automatically on every run from then on and overlays it onto each host, no per-device copying needed. Remove that file again to fall back to the shipped placeholder on the next run.
+The repo ships a generic placeholder logo (`ressources/logo.png`) that comes along automatically with the git checkout — think of it as the "dist" logo. To show your own club/range logo on every stand instead, drop a `logo.png` (RGBA supported) at `ansible/files/logo.png` **on the Ansible control machine** — deliberately not committed (already gitignored) since it's specific to your club. `install.yml` and `update-app.yml` pick it up automatically on every run and place it on each host as `ressources/logo-custom.png` (untracked; the app prefers it over the shipped `logo.png`, so the git checkout never overwrites anything and an unchanged run does not restart the service). No per-device copying needed. Remove the file again to fall back to the shipped placeholder on the next run.
+
+**Upgrading stands that already have a custom logo (before 0.13.6):** there the custom logo had overwritten the tracked `ressources/logo.png`. The first `update-app.yml` run with 0.13.6 resets that file through the checkout, places `logo-custom.png` and restarts the service once; from then on runs are quiet. Keep `ansible/files/logo.png` on the control machine until then, otherwise the stand shows the placeholder.
 
 ## Storage hardening (optional)
 
