@@ -58,7 +58,7 @@ BLINK_SWITCH_SEC = 1
 # Rand um die beiden Ausschnitte beim Zuschnitt des Kamerabilds (Pixel).
 CROP_MARGIN = 15
 
-VERSION = '0.13.7'
+VERSION = '0.13.8'
 
 
 # Ergebnis des Assistenten: alles, was der Hauptbildschirm zum Start braucht.
