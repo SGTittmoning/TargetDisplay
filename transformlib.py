@@ -9,11 +9,12 @@ def compute_perspective_matrix(pts, dsize):
     # sie nur mit warpPerspective() angewendet.
     rect = order_points(pts)
     dst = np.array([
-      [0, 0],
-      [dsize[0] - 1, 0],
-      [dsize[0] - 1, dsize[1] - 1],
-      [0, dsize[1] - 1]], dtype = "float32")
+        [0, 0],
+        [dsize[0] - 1, 0],
+        [dsize[0] - 1, dsize[1] - 1],
+        [0, dsize[1] - 1]], dtype="float32")
     return cv2.getPerspectiveTransform(rect, dst)
+
 
 def order_points(pts):
     # Sortiert vier Eckpunkte zu (oben links, oben rechts, unten rechts,
@@ -22,28 +23,30 @@ def order_points(pts):
     # als erster Punkt gilt der mit der kleinsten Koordinatensumme x+y. Anders
     # als die verbreitete Summen-/Differenz-Heuristik liefert das auch bei um
     # ca. 45 Grad gedrehtem Viereck vier verschiedene Punkte.
-    pts = np.asarray(pts, dtype = "float32")
-    center = pts.mean(axis = 0)
+    pts = np.asarray(pts, dtype="float32")
+    center = pts.mean(axis=0)
     angles = np.arctan2(pts[:, 1] - center[1], pts[:, 0] - center[0])
     clockwise = pts[np.argsort(angles)]
-    start = int(np.argmin(clockwise.sum(axis = 1)))
-    return np.roll(clockwise, -start, axis = 0)
+    start = int(np.argmin(clockwise.sum(axis=1)))
+    return np.roll(clockwise, -start, axis=0)
 
-def is_valid_quad(pts, min_area = 100.0):
+
+def is_valid_quad(pts, min_area=100.0):
     # True, wenn die vier Punkte ein konvexes Viereck mit mindestens min_area
     # Flaeche (Pixel^2) bilden - nur dann liefert getPerspectiveTransform eine
     # brauchbare Entzerrung (keine Ueberkreuzung, keine drei Punkte auf einer
     # Linie, keine doppelten Punkte).
-    pts = np.asarray(pts, dtype = "float64")
+    pts = np.asarray(pts, dtype="float64")
     if pts.shape != (4, 2):
         return False
     rect = order_points(pts).astype("float64")
-    edges = np.roll(rect, -1, axis = 0) - rect
-    cross = edges[:, 0] * np.roll(edges, -1, axis = 0)[:, 1] - edges[:, 1] * np.roll(edges, -1, axis = 0)[:, 0]
+    edges = np.roll(rect, -1, axis=0) - rect
+    cross = edges[:, 0] * np.roll(edges, -1, axis=0)[:, 1] - edges[:, 1] * np.roll(edges, -1, axis=0)[:, 0]
     if not (np.all(cross > 0)):
         return False
     area = 0.5 * abs(np.sum(rect[:, 0] * np.roll(rect[:, 1], -1) - np.roll(rect[:, 0], -1) * rect[:, 1]))
     return area >= min_area
+
 
 def crop_bounds(point_sets, margin):
     # Umschliessendes Rechteck (x0, y0, x1, y1) aller Punkte plus margin.
@@ -58,15 +61,19 @@ def crop_bounds(point_sets, margin):
     y1 = int(max_xy[1]) + margin
     return x0, y0, x1, y1
 
+
 def crop(image, zoom_factor, center):
     height, width = image.shape[0], image.shape[1]
 
     # center ist (x %, y %) der Bildbreite bzw. -hoehe.
     center = int(width / 100 * center[0]), int(height / 100 * center[1])
     # offset ist die halbe Kantenlaenge des Ausschnitts.
-    offset = int(width / (2*zoom_factor)), int(height / (2*zoom_factor))
+    offset = int(width / (2 * zoom_factor)), int(height / (2 * zoom_factor))
 
-    # Ausschnitt innerhalb des Bilds halten.
+    # Ausschnitt innerhalb des Bilds halten. clamp_zoom_center begrenzt die
+    # Mitte schon in Prozent; beim Umrechnen in Pixel kann die Rundung sie aber
+    # um ein Pixel ueber den Rand schieben, ein negativer Index schnitte dann
+    # das falsche Stueck aus.
     if offset[0] > center[0]:
         center = offset[0], center[1]
     if offset[1] > center[1]:
@@ -79,9 +86,10 @@ def crop(image, zoom_factor, center):
     # Ausschnitt um center herausschneiden (image[y1:y2, x1:x2]) und erst
     # dann auf die Originalgroesse hochskalieren - billiger, als das ganze Bild
     # zu vergroessern und das meiste zu verwerfen.
-    image = image[center[1]-offset[1]:center[1] + offset[1], center[0]-offset[0]:center[0] + offset[0]]
+    image = image[center[1] - offset[1]:center[1] + offset[1], center[0] - offset[0]:center[0] + offset[0]]
     image = cv2.resize(image, (width, height))
     return image
+
 
 # Zoomfaktor des manuellen Ausschnitts (Tippen ins Bild, siehe crop()).
 # clamp_zoom_center() braucht denselben Wert.

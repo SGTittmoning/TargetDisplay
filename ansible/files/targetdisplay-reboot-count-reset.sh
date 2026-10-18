@@ -17,12 +17,11 @@ set -euo pipefail
 # shellcheck source=targetdisplay-boot-lib.sh
 . "$(dirname "$(readlink -f "$0")")/targetdisplay-boot-lib.sh"
 
-COUNT_FILE="$BOOT_DIR/.targetdisplay-reboot-count"
 SERVICE="targetdisplay.service"
 MIN_STABLE_SEC=120
 MAX_RESTARTS=3
 
-[ -f "$COUNT_FILE" ] || exit 0
+[ -f "$REBOOT_COUNT_FILE" ] || exit 0
 
 if ! systemctl is-active --quiet "$SERVICE"; then
   logger -t targetdisplay-reboot-count-reset "$SERVICE laeuft nicht - Reboot-Zaehler bleibt bestehen."
@@ -45,5 +44,5 @@ if [ "$stable_sec" -lt "$MIN_STABLE_SEC" ]; then
   exit 0
 fi
 
-with_boot_rw rm -f "$COUNT_FILE"
+with_boot_rw rm -f "$REBOOT_COUNT_FILE"
 exit 0

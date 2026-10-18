@@ -35,12 +35,6 @@ TimerState = namedtuple('TimerState', 'color number countdown finished')
 _FINISHED = TimerState('red', None, None, True)
 
 
-def total_seconds(timer_type):
-    if timer_type == TIMER_5_3_7:
-        return PREP_TIME + (SERIES_LOOPS - 1) * (SERIES_SHOW + SERIES_HIDE) + SERIES_SHOW + STOP_TIME
-    return PREP_TIME + SINGLE_SHOW[timer_type] + STOP_TIME
-
-
 def timer_state(timer_type, elapsed):
     """Zustand des Timers nach `elapsed` Sekunden (ganze Sekunden, abgerundet)."""
     t = max(0, int(elapsed))

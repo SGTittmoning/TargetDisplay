@@ -29,10 +29,10 @@ def blend_logo_centered(canvas, logo_rgba, margin_ratio=0.05):
     if logo_rgba.shape[2] == 4:
         alpha = logo_rgba[:, :, 3:4].astype(np.float32) / 255.0
         logo_bgr = logo_rgba[:, :, :3].astype(np.float32)
-        roi = canvas[y0:y0+new_h, x0:x0+new_w].astype(np.float32)
-        canvas[y0:y0+new_h, x0:x0+new_w] = (alpha * logo_bgr + (1 - alpha) * roi).astype(np.uint8)
+        roi = canvas[y0:y0 + new_h, x0:x0 + new_w].astype(np.float32)
+        canvas[y0:y0 + new_h, x0:x0 + new_w] = (alpha * logo_bgr + (1 - alpha) * roi).astype(np.uint8)
     else:
-        canvas[y0:y0+new_h, x0:x0+new_w] = logo_rgba[:, :, :3]
+        canvas[y0:y0 + new_h, x0:x0 + new_w] = logo_rgba[:, :, :3]
     return canvas
 
 

@@ -23,19 +23,12 @@
 # Wirksam ist das Overlay erst, wenn "findmnt -n -o FSTYPE /" overlay liefert
 # (siehe overlay_initramfs.yml).
 #
-# get_overlay_now/get_bootro_now: 0 = aktiv, 1 = nicht aktiv (raspi-config
-# Konvention). get_overlay_now prueft nur, ob "overlayroot=tmpfs" beim
-# AKTUELLEN Boot in der Kernel-Cmdline stand - das allein reicht als
-# alleiniges Signal nicht: ein Host, auf dem bereits Overlay+Bootro liefen
-# und dann per "targetdisplay-writable.sh rw" (+ Reboot) wieder deaktiviert
-# wurden, hat das overlayroot-Paket weiterhin installiert, aber
-# get_overlay_now meldet danach korrekt "1" (inaktiv) - das reine
-# Paketstatus-Signal wuerde diesen Fall faelschlich als "schon erledigt"
-# uebergehen und enable_overlayfs NIE mehr aufrufen. Umgekehrt kann auf
-# einem frischen Image die Cmdline schon "overlayroot=tmpfs" enthalten OHNE
-# dass das Paket installiert ist - dort meldet get_overlay_now faelschlich
-# "aktiv", obwohl noch gar nichts wirkt. Beide Signale zusammen (aktivieren
-# wenn EINES der beiden noch fehlt) decken beide Faelle ab.
+# get_overlay_now/get_bootro_now: 0 = aktiv, 1 = nicht aktiv. Weder die
+# Kernel-Kommandozeile (get_overlay_now) noch der Paketstatus von
+# overlayroot allein sagt verlaesslich, ob das Overlay eingerichtet ist (nach
+# "writable.sh rw" ist das Paket noch da, auf einem frischen Image steht die
+# Kommandozeile evtl. schon ohne Paket). Aktiviert wird deshalb, sobald eines
+# der beiden fehlt.
 
 - name: overlayroot Paketstatus ermitteln
   command: dpkg-query -W -f='${Status}' overlayroot

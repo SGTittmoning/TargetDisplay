@@ -1,20 +1,6 @@
 #!/bin/bash
-# Wird von main.py (Ersteinrichtungs-Assistent / spaeterer Stand-Wechsel im
-# Settings-Menue) per sudo aufgerufen, um die Stand-Auswahl fuer DIESES
-# Geraet persistent zu speichern - main.py laeuft als unprivilegierter
-# targetdisplay-User und kann /boot/firmware nicht selbst beschreibbar
-# machen. Ueber sudoers auf genau dieses eine Skript eingegrenzt (siehe
-# tasks/settings_sudo.yml).
-#
-# Liegt bewusst auf der Boot-Partition, nicht in config.yml auf dem
-# Root-FS - siehe targetdisplay-save-sections.sh fuer die ausfuehrliche
-# Begruendung (Root-Overlay braeuchte sonst zwei Reboots statt eines
-# Remounts).
-#
-# Nimmt das neue JSON ({"id": "..."}) auf STDIN entgegen. Die Stand-ID gegen
-# targetdisplay-stands.json prueft main.py vor dem Aufruf; hier wird nur
-# geprueft, dass die Eingabe klein genug und gueltiges JSON ist. Ablauf
-# (Groessenlimit, JSON-Pruefung, atomares Schreiben, Remount) steht in
+# Speichert die Stand-Auswahl ({"id": "..."}) von STDIN auf der
+# Boot-Partition. Aufruf durch die App per sudo; Begruendung und Ablauf siehe
 # targetdisplay-save-lib.sh.
 
 set -euo pipefail

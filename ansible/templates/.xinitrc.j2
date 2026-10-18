@@ -16,4 +16,4 @@ fi
 # play_it als Kindprozess zu starten - weniger Prozess-Verschachtelung
 # zwischen dem von systemd/xinit verfolgten Prozess und der eigentlichen
 # App, siehe play_it fuer die Fortsetzung der Kette.
-exec /home/{{ targetdisplay_service_user }}/TargetDisplay/play_it
+exec {{ targetdisplay_app_path }}/play_it

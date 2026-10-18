@@ -26,22 +26,11 @@ OnFailure=targetdisplay-reboot.service
 Type=simple
 User={{ targetdisplay_service_user }}
 Group={{ targetdisplay_service_user }}
-# KEIN PAMName=login: PAMName= wuerde eine eigene logind-Session
-# registrieren, deren Prozesse (Xorg, python3, matchbox) dadurch in einer
-# SEPARATEN Cgroup (/user.slice/user-*.slice/session-N.scope) liefen statt
-# in der Cgroup dieses Service (/system.slice/targetdisplay.service).
-# systemds KillMode=control-group (Default) signalisiert bei "systemctl
-# stop/restart" dadurch nur die (fast leere) Service-Cgroup - die
-# eigentliche Last bekaeme nie ein SIGTERM, der Stop wuerde bis
-# TimeoutStopSec (90s) haengen und dann per SIGKILL erzwungen. Ein
-# erzwungener Stop zaehlt fuer systemd als "Failed with result 'timeout'"
-# und loest SOFORT OnFailure=/den Reboot-Guard aus - bei ganz normalen
-# "systemctl restart"-Aufrufen waeren das sonst spontane Reboots.
-#
-# Geraete-Zugriff (video/render/input) laeuft deshalb ausschliesslich ueber
-# die Gruppenmitgliedschaften des Service-Users (siehe tasks/base.yml) -
-# ohne eigene PAM-Session ist das die alleinige Quelle der noetigen
-# Seat-Berechtigungen.
+# Kein PAMName=login: die eigene logind-Session laege in einer anderen
+# Cgroup, "systemctl stop/restart" erreichte Xorg und main.py nicht, der
+# Stop liefe in den Timeout und loeste OnFailure= (Reboot) aus. Den
+# Geraetezugriff (video/render/input) regeln deshalb allein die Gruppen des
+# Dienst-Benutzers (tasks/base.yml).
 TTYPath=/dev/tty1
 StandardInput=tty
 StandardOutput=journal
@@ -50,21 +39,11 @@ UtmpIdentifier=tty1
 UtmpMode=user
 Environment=HOME=/home/{{ targetdisplay_service_user }}
 ExecStart=/usr/bin/startx /home/{{ targetdisplay_service_user }}/.xinitrc -- :0 vt1
-# Bei "systemctl stop/restart" bekommt xinit (KillMode=control-group,
-# Default) direkt selbst ein SIGTERM und wertet das als "unexpected signal" -
-# es beendet sich dabei zuverlaessig mit Exit-Code 1, obwohl der Stop völlig
-# regulaer ist (kein Absturz). Ein eigenes ExecStop, das gezielt nur main.py
-# signalisiert, wuerde das Problem nicht loesen: ExecStop ersetzt systemds
-# eigene KillMode-Signale nicht, sie laufen zusaetzlich/danach - xinit
-# bekommt das SIGTERM so oder so.
-#
-# Deshalb stattdessen: Exit-Code 1 pauschal als Erfolg werten. Der Exit-Code
-# von main.py erreicht systemd nicht: xinit beendet sich nach dem Ende des
-# Clients immer mit 0, auch wenn main.py mit 2 (Stream-Ausfall) oder 3
-# (unbehandelte Exception) endet. Dass der Dienst dann neu startet, liegt an
-# Restart=always, und die Eskalation zaehlt Starts (StartLimit*), nicht
-# Fehlercodes. Den Exit-Code von main.py protokolliert play_it im Journal
-# ("TargetDisplay beendet (exit N)").
+# xinit endet bei "systemctl stop/restart" durch das SIGTERM mit Exit-Code 1,
+# obwohl der Stop regulaer ist; 1 gilt deshalb als Erfolg. Der Exit-Code von
+# main.py erreicht systemd ohnehin nicht (xinit endet nach dem Client mit 0),
+# play_it schreibt ihn ins Journal. Neustart und Eskalation haengen an
+# Restart=always und der Zahl der Starts, nicht an Fehlercodes.
 SuccessExitStatus=1
 Restart=always
 RestartSec=2

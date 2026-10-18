@@ -32,6 +32,7 @@ STREAM_STALE_TIMEOUT_SEC = 10
 # laufenden Betrieb gilt das knappere STREAM_STALE_TIMEOUT_SEC.
 STREAM_STARTUP_TIMEOUT_SEC = 30
 
+
 def _close_quietly(container):
     # Ein Fehler beim Schliessen einer ohnehin verworfenen Verbindung darf
     # weder stop() noch den Lesethread abbrechen.
@@ -41,6 +42,20 @@ def _close_quietly(container):
         container.close()
     except Exception as e:
         print(f"camera.py: Fehler beim Schliessen ignoriert ({type(e).__name__})", file=sys.stderr)
+
+
+def open_container(url):
+    """Oeffnet den Kamerastream mit den Einstellungen der App (Timeouts,
+    Decoder-Threads); auch fuer tools/latenz_messung.py."""
+    # options={"rtmp_live": "live"} bewusst weggelassen: fuehrte mit ffmpeg
+    # 4.3.9+rpt1 und PyAV 10.0.0 zu einem Segfault in av.open() (Ursache
+    # nicht geklaert).
+    container = av.open(url, timeout=(OPEN_TIMEOUT_SEC, READ_TIMEOUT_SEC))
+    vstream = container.streams.video[0]
+    # SLICE-Threading spart auf dem Pi 4 rund 10-13 % CPU-Zeit pro Frame.
+    vstream.codec_context.thread_type = "SLICE"
+    vstream.codec_context.thread_count = 4
+    return container
 
 
 class Camera:
@@ -85,15 +100,7 @@ class Camera:
             return self.frame_id, self.last_frame_time, self.start_time
 
     def _open_container(self):
-        # options={"rtmp_live": "live"} bewusst weggelassen: fuehrt mit der auf
-        # Stand 1 installierten ffmpeg-Version (4.3.9+rpt1) zu einem Segfault
-        # in av.open() -- vermutlich ein Options-Dict-Bug in PyAV 10.0.0.
-        container = av.open(self.stream_url, timeout=(OPEN_TIMEOUT_SEC, READ_TIMEOUT_SEC))
-        vstream = container.streams.video[0]
-        # SLICE-Threading spart auf dem Pi 4 rund 10-13 % CPU-Zeit pro Frame.
-        vstream.codec_context.thread_type = "SLICE"
-        vstream.codec_context.thread_count = 4
-        return container
+        return open_container(self.stream_url)
 
     def _buffer_loop(self):
         container = None
@@ -148,9 +155,12 @@ class Camera:
         _close_quietly(container)
 
     def get_frame(self, full=False):
-        # Nur die Referenz unter dem Lock holen, kopiert wird ausserhalb: der
-        # Lesethread ersetzt die Bilder nur, er veraendert sie nie, und muss
-        # so nicht auf das Kopieren warten.
+        # Die Kopie ist noetig: der zugeschnittene Frame ist nur eine Ansicht
+        # auf das volle Kamerabild, ohne Kopie hielte z.B. die Replay-Aufnahme
+        # je Bild das ganze 2560x1920-Bild fest, gezaehlt wuerde aber nur der
+        # Ausschnitt. Nur die Referenz wird unter dem Lock geholt, kopiert wird
+        # ausserhalb: der Lesethread ersetzt die Bilder nur, er veraendert sie
+        # nie, und muss so nicht auf das Kopieren warten.
         with self.lock:
             src = self.last_frame_full if full else self.last_frame
         return None if src is None else src.copy()

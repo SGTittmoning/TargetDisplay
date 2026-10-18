@@ -87,7 +87,7 @@ def load_app(tmp_path, monkeypatch, config):
     (tmp_path / 'config.yml').write_text(config)
     monkeypatch.chdir(tmp_path)
     monkeypatch.syspath_prepend(ROOT)
-    for name in ('main', 'ui', 'flows', 'settings_store'):
+    for name in ('main', 'ui', 'flows', 'section_editor', 'settings_store'):
         sys.modules.pop(name, None)
     settings_store = importlib.import_module('settings_store')
     for attr in ('SECTIONS_OVERRIDE_FILE', 'STANDS_FILE', 'ACTIVE_STAND_FILE', 'PIN_FILE'):
@@ -147,7 +147,7 @@ def probe(window, draws):
         'clickable': {k: clickable(window, k) for k in MAIN_BUTTONS},
         'frame': draws[-1] if draws else None,
         'draws': len(draws),
-        'replay_text': window._btn_style['-REPLAY-']['label'].cget('text'),
+        'replay_text': window.accent_buttons['-REPLAY-'].text,
         'fps': window['-FPS-'].widget.cget('text'),
         'date': window['-DATE-'].widget.cget('text'),
         'time': window['-TIME-'].widget.cget('text'),

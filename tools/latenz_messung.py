@@ -17,7 +17,6 @@ import math
 import os
 import sys
 import time
-import types
 
 import cv2
 import numpy as np
@@ -48,7 +47,7 @@ def open_stream():
         sys.exit('Kein aktiver Stand gefunden.')
     print(f"Stand: {stand.get('displayName')}")
     # Derselbe Verbindungsaufbau wie in der App (Timeouts, Decoder-Threads).
-    return camera.Camera._open_container(types.SimpleNamespace(stream_url=stand['url']))
+    return camera.open_container(stand['url'])
 
 
 def frames(container):

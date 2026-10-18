@@ -19,8 +19,8 @@ def test_sperren_und_entsperren_verschiebt_keine_buttons(win):
     # Farben. Dabei darf sich ihre Groesse nicht kurzzeitig aendern, sonst
     # springt das ganze Bedienfeld.
     changes = []
-    for key, style in win._btn_style.items():
-        outer = style['containers'][1]
+    for key, button in win.accent_buttons.items():
+        outer = button.frame
         outer.bind('<Configure>', lambda e, key=key: changes.append((key, e.height)), add='+')
     for mode in ('timer', 'live', 'replay', 'blank', 'live'):
         ui.apply_controls(mode, has_recording=True)
@@ -44,9 +44,9 @@ def posted_by_click(win, widget):
 
 @pytest.mark.parametrize('part', ['frame', 'inner', 'label', 'button'])
 def test_klick_auf_die_ganze_flaeche_loest_aus(win, part):
-    style = win._btn_style['-TIMER_10-']
-    widget = {'frame': style['containers'][1], 'inner': style['containers'][0],
-              'label': style['label'], 'button': win['-TIMER_10-'].widget}[part]
+    button = win.accent_buttons['-TIMER_10-']
+    widget = {'frame': button.frame, 'inner': button.inner,
+              'label': button.label, 'button': button.button}[part]
     if part == 'button':
         widget.invoke()
         assert win._queue.get_nowait()[0] == '-TIMER_10-'
@@ -67,8 +67,8 @@ def clicked(win):
     for key in ALL:
         win[key].widget.invoke()
         events = drain(win)
-        if key in win._btn_style:
-            events += posted_by_click(win, win._btn_style[key]['containers'][1])
+        if key in win.accent_buttons:
+            events += posted_by_click(win, win.accent_buttons[key].frame)
         if events:
             result.add(key)
     return result
@@ -93,11 +93,11 @@ def test_replay_knopf_wechselt_zu_replay_ende(win):
     ui.apply_controls('replay')
     win['-REPLAY-'].widget.invoke()
     assert win._queue.get_nowait()[0] == '-REPLAY_END-'
-    assert win._btn_style['-REPLAY-']['label'].cget('text') == 'Replay Ende'
+    assert win.accent_buttons['-REPLAY-'].text == 'Replay Ende'
     ui.apply_controls('live', has_recording=True)
     win['-REPLAY-'].widget.invoke()
     assert win._queue.get_nowait()[0] == '-REPLAY-'
-    assert win._btn_style['-REPLAY-']['label'].cget('text') == 'Replay'
+    assert win.accent_buttons['-REPLAY-'].text == 'Replay'
 
 
 def test_video_symbol_zeigt_den_zustand(win):

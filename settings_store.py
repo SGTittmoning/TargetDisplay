@@ -137,8 +137,9 @@ def load_active_stand(stands, cfg):
         for s in stands:
             if s['id'] == stand_id:
                 return s
-        # Die ID steht (noch) nicht in der Stand-Liste: wie "nicht ausgewaehlt"
-        # behandeln, der Assistent (run_setup_wizard) zeigt die Auswahl erneut.
+        # Die ID steht (noch) nicht in der Stand-Liste: wie ohne Auswahl-Datei,
+        # also der Stand aus config.yml, falls dort einer steht, sonst fragt der
+        # Assistent (run_setup_wizard) die Auswahl erneut ab.
         print(f"Aktive Stand-ID '{stand_id}' nicht in {STANDS_FILE} gefunden, behandle als nicht ausgewaehlt.", file=sys.stderr)
         return fallback
     except Exception as e:

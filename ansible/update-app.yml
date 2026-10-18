@@ -54,7 +54,6 @@
 
   vars:
     update_restore_ro: auto
-    update_boot_dir: /boot/firmware
     update_marker: /boot/firmware/.targetdisplay-update-restore
     update_writable_script: /root/bin/targetdisplay-writable.sh
 

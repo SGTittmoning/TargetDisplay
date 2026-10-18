@@ -74,3 +74,27 @@ def test_crop_bounds_clamped_auf_null():
 def test_clamp_zoom_center():
     assert tl.clamp_zoom_center((0, 100)) == (100 / 6, 100 - 100 / 6)
     assert tl.clamp_zoom_center((50, 50)) == (50, 50)
+
+
+def gradient(height, width):
+    y, x = np.mgrid[0:height, 0:width]
+    return np.dstack([x, y, np.zeros_like(x)]).astype(np.uint16)
+
+
+def test_crop_schneidet_den_ausschnitt_um_die_mitte_aus():
+    img = gradient(600, 900)
+    out = tl.crop(img, 3, (50, 50))
+    assert out.shape == img.shape
+    # Mitte des Ausschnitts = Bildmitte, Kanal 0 = x, Kanal 1 = y.
+    assert abs(int(out[300, 450, 0]) - 450) <= 2 and abs(int(out[300, 450, 1]) - 300) <= 2
+
+
+@pytest.mark.parametrize('center', [(0, 0), (100, 100), (0, 100), (100, 0), (16.6, 16.6)])
+def test_crop_bleibt_am_rand_im_bild(center):
+    # Auch eine Mitte am Rand ergibt den Ausschnitt an der Bildkante, nie ein
+    # verschobenes oder leeres Stueck.
+    img = gradient(781, 779)
+    out = tl.crop(img, 3, center)
+    assert out.shape == img.shape
+    left = int(out[0, 0, 0]) if center[0] < 50 else int(out[0, -1, 0])
+    assert left in ((0, 1) if center[0] < 50 else (777, 778))

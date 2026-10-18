@@ -9,6 +9,8 @@ import math
 import sys
 from collections import namedtuple
 
+import sysinfo
+
 # Rotes Startbild mit dem Timer-Modus vor dem ersten Durchgang.
 START_SEC = 1.0
 
@@ -34,8 +36,6 @@ DEFAULT_BUDGET_MB = 600
 # einem Pi mit 1 GB bliebe mit vollem Rahmen sonst zu wenig fuer App und
 # System; ab 2 GB greift die Grenze beim Standardwert nicht.
 MAX_BUDGET_SHARE = 0.4
-
-PROC_MEMINFO = '/proc/meminfo'
 
 # kind: 'start', 'frame', 'separator' oder 'end'; segment: Index des Durchgangs (0-basiert);
 # offset: Sekunden seit Beginn des Durchgangs; frame: Rohbild oder None;
@@ -72,14 +72,8 @@ def read_settings(cfg):
 
 def mem_total_bytes():
     """Gesamter Arbeitsspeicher in Bytes, None wenn nicht lesbar."""
-    try:
-        with open(PROC_MEMINFO, encoding='ascii') as f:
-            for line in f:
-                if line.startswith('MemTotal:'):
-                    return int(line.split()[1]) * 1024
-    except (OSError, ValueError, IndexError):
-        pass
-    return None
+    info = sysinfo.meminfo()
+    return info['MemTotal'] * 1024 if info and 'MemTotal' in info else None
 
 
 class Recording:

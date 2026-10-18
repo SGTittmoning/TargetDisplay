@@ -67,8 +67,6 @@ jobs:
         run: pip install "ruff==0.17.1"
       - name: ruff (Syntaxfehler und echte Fehler, siehe ruff.toml)
         run: ruff check .
-      - name: Compile check
-        run: python -m py_compile main.py camera.py transformlib.py
 
   tests-python:
     if: github.event.repository.private == false

@@ -8,6 +8,11 @@
 
 BOOT_DIR="/boot/firmware"
 
+# Zaehler des Reboot-Guards (targetdisplay-reboot-guard.sh), zurueckgesetzt
+# von targetdisplay-reboot-count-reset.sh.
+# shellcheck disable=SC2034  # genutzt von den einbindenden Skripten
+REBOOT_COUNT_FILE="$BOOT_DIR/.targetdisplay-reboot-count"
+
 bootro_now() { raspi-config nonint get_bootro_now; }   # 0=aktiv (ro), 1=inaktiv (rw)
 
 # with_boot_rw <befehl> [argumente]: fuehrt den Befehl bei beschreibbarer

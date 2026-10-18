@@ -3,6 +3,13 @@
 # Stand-Auswahl, PIN). Wird von ihnen per "source" eingebunden und ist
 # selbst nicht per sudo aufrufbar (siehe tasks/settings_sudo.yml).
 #
+# Die App laeuft als unprivilegierter Benutzer und ruft je Aktion ein eigenes
+# Skript per sudo auf: ein kompromittierter App-Prozess kann so nur genau
+# diese Aktionen ausloesen. Die Werte liegen auf der Boot-Partition statt in
+# config.yml: sie laesst sich live umschalten, das Root-Overlay nur per
+# Reboot. Die App liest beim Start config.yml und danach diese Dateien.
+# Inhaltlich (Format, Werte) prueft die App vor dem Aufruf.
+#
 # save_boot_json <dateiname>: nimmt ein JSON-Dokument auf STDIN entgegen und
 # legt es als /boot/firmware/<dateiname> ab.
 #

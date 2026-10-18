@@ -1,72 +1,31 @@
 ---
-# Zweite Eskalationsstufe nach den automatischen Dienst-Neustarts (Restart=always):
-# wiederholtes Scheitern von targetdisplay.service (StartLimitBurst,
-# siehe templates/targetdisplay.service.j2) loest per OnFailure= einen
-# Pi-Reboot aus - mit persistenter Obergrenze (targetdisplay-reboot-guard.sh,
-# Zaehler auf der Boot-Partition), damit ein dauerhafter Fehler nicht zu
-# einer Endlos-Reboot-Schleife fuehrt. Ein Timer setzt den Zaehler nach
-# stabiler Laufzeit zurueck (5 Minuten nach dem Boot, danach alle 10
-# Minuten). Ist die Obergrenze erreicht, wird der Dienst NICHT deaktiviert,
-# sondern von targetdisplay-retry.timer alle 10 Minuten neu gestartet, solange
-# er auf failed steht - die Staende laufen unbeaufsichtigt, eine dauerhafte
-# Abschaltung waere dort nicht behebbar.
+# Zweite Eskalationsstufe nach den Dienst-Neustarts (Ablauf siehe
+# templates/targetdisplay.service.j2): Reboot mit Obergrenze
+# (targetdisplay-reboot-guard.sh), Ruecksetzen des Zaehlers nach stabilem
+# Lauf (targetdisplay-reboot-count-reset.sh) und regelmaessiger Neustart
+# eines aufgegebenen Dienstes (targetdisplay-retry.sh).
 #
 # Die Skripte selbst kopiert tasks/maintenance_scripts.yml nach /root/bin.
 
-- name: targetdisplay-reboot.service aus Template rendern
+- name: Units des Reboot-Guards aus Templates rendern
   template:
-    src: targetdisplay-reboot.service.j2
-    dest: /etc/systemd/system/targetdisplay-reboot.service
+    src: "{{ item }}.j2"
+    dest: "/etc/systemd/system/{{ item }}"
     owner: root
     group: root
     mode: "0644"
-  register: targetdisplay_reboot_unit
-
-- name: targetdisplay-reboot-count-reset.service aus Template rendern
-  template:
-    src: targetdisplay-reboot-count-reset.service.j2
-    dest: /etc/systemd/system/targetdisplay-reboot-count-reset.service
-    owner: root
-    group: root
-    mode: "0644"
-  register: targetdisplay_reset_unit
-
-- name: targetdisplay-reboot-count-reset.timer aus Template rendern
-  template:
-    src: targetdisplay-reboot-count-reset.timer.j2
-    dest: /etc/systemd/system/targetdisplay-reboot-count-reset.timer
-    owner: root
-    group: root
-    mode: "0644"
-  register: targetdisplay_reset_timer
-
-- name: targetdisplay-retry.service aus Template rendern
-  template:
-    src: targetdisplay-retry.service.j2
-    dest: /etc/systemd/system/targetdisplay-retry.service
-    owner: root
-    group: root
-    mode: "0644"
-  register: targetdisplay_retry_unit
-
-- name: targetdisplay-retry.timer aus Template rendern
-  template:
-    src: targetdisplay-retry.timer.j2
-    dest: /etc/systemd/system/targetdisplay-retry.timer
-    owner: root
-    group: root
-    mode: "0644"
-  register: targetdisplay_retry_timer
+  loop:
+    - targetdisplay-reboot.service
+    - targetdisplay-reboot-count-reset.service
+    - targetdisplay-reboot-count-reset.timer
+    - targetdisplay-retry.service
+    - targetdisplay-retry.timer
+  register: targetdisplay_guard_units
 
 - name: systemd neu einlesen (nach Unit-Aenderungen)
   systemd:
     daemon_reload: yes
-  when: >-
-    targetdisplay_reboot_unit is changed or
-    targetdisplay_reset_unit is changed or
-    targetdisplay_reset_timer is changed or
-    targetdisplay_retry_unit is changed or
-    targetdisplay_retry_timer is changed
+  when: targetdisplay_guard_units is changed
 
 - name: targetdisplay-reboot-count-reset.timer aktivieren und starten
   systemd:

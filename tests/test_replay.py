@@ -14,7 +14,7 @@ def frame(value=0, size=10):
 
 def record(timer_type, until=None, latency=0.0, budget_bytes=10**9, size=10):
     rec = r.Recording(t.green_windows(timer_type), latency=latency, budget_bytes=budget_bytes)
-    end = t.total_seconds(timer_type) if until is None else until
+    end = next(s for s in range(1000) if t.timer_state(timer_type, s).finished) if until is None else until
     n = 0
     while n / FPS < end:
         rec.add(frame(n % 256, size), n / FPS)
@@ -159,7 +159,7 @@ def test_ungueltige_einstellung_faellt_auf_standard_zurueck(values, capsys):
 def meminfo(tmp_path, monkeypatch, mb):
     path = tmp_path / 'meminfo'
     path.write_text(f'MemTotal:  {mb * 1024} kB\nMemAvailable:  1 kB\n')
-    monkeypatch.setattr(r, 'PROC_MEMINFO', str(path))
+    monkeypatch.setattr(r.sysinfo, 'PROC_MEMINFO', str(path))
 
 
 def test_speicherrahmen_wird_bei_wenig_ram_begrenzt(tmp_path, monkeypatch, capsys):
@@ -176,5 +176,5 @@ def test_speicherrahmen_bei_genug_ram_unveraendert(tmp_path, monkeypatch, capsys
 
 
 def test_speicherrahmen_ohne_meminfo_unveraendert(tmp_path, monkeypatch):
-    monkeypatch.setattr(r, 'PROC_MEMINFO', str(tmp_path / 'fehlt'))
+    monkeypatch.setattr(r.sysinfo, 'PROC_MEMINFO', str(tmp_path / 'fehlt'))
     assert r.read_settings(FakeCfg({}))[1] == r.DEFAULT_BUDGET_MB * 1024 * 1024

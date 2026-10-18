@@ -9,6 +9,7 @@ import pytest
 from app_harness import needs_display, open_window
 
 import flows
+import section_editor
 import ui
 
 pytestmark = needs_display
@@ -49,7 +50,7 @@ def test_kamera_warten_zurueck(win):
             return None
 
     win.post('-CAMWAIT_BACK-')
-    assert flows.wait_for_camera_frame(Cam(), max_wait_sec=5) == 'back'
+    assert flows.wait_for_camera_frame(Cam(), max_wait_sec=5) is None
 
 
 @pytest.mark.parametrize('outcome', [1, OSError('sudo fehlt')])
@@ -373,58 +374,58 @@ POINTS = [[200, 100], [800, 110], [210, 500], [790, 490]]
 def drag(start, end):
     return [('-EDITGRAPH-', {'-EDITGRAPH-': start}),
             ('-EDITGRAPH-', {'-EDITGRAPH-': end}),
-            '-EDITGRAPH-+UP']
+            '-EDITGRAPH_UP-']
 
 
 def test_editor_speichern_ohne_aenderung(win, monkeypatch):
     script(win, monkeypatch, ['-EDIT_SAVE-'])
-    assert np.allclose(flows.edit_section_points('Ganze Scheibe', FrameCam(), POINTS), POINTS)
+    assert np.allclose(section_editor.edit_section_points('Ganze Scheibe', FrameCam(), POINTS), POINTS)
 
 
 def test_editor_ziehen_verschiebt_nur_den_gegriffenen_punkt(win, monkeypatch):
     script(win, monkeypatch, drag((205, 105), (250, 140)) + ['-EDIT_SAVE-'])
-    result = flows.edit_section_points('Ganze Scheibe', FrameCam(), POINTS)
+    result = section_editor.edit_section_points('Ganze Scheibe', FrameCam(), POINTS)
     assert np.allclose(result[0], [250, 140])
     assert np.allclose(result[1:], POINTS[1:])
 
 
 def test_editor_klick_neben_die_punkte_verschiebt_nichts(win, monkeypatch):
     script(win, monkeypatch, drag((500, 300), (520, 320)) + ['-EDIT_SAVE-'])
-    assert np.allclose(flows.edit_section_points('Ganze Scheibe', FrameCam(), POINTS), POINTS)
+    assert np.allclose(section_editor.edit_section_points('Ganze Scheibe', FrameCam(), POINTS), POINTS)
 
 
 def test_editor_ziehen_bleibt_im_bild(win, monkeypatch):
     script(win, monkeypatch, drag((200, 100), (-50, -80)) + ['-EDIT_SAVE-'])
-    assert np.allclose(flows.edit_section_points('Ganze Scheibe', FrameCam(), POINTS)[0], [0, 0])
+    assert np.allclose(section_editor.edit_section_points('Ganze Scheibe', FrameCam(), POINTS)[0], [0, 0])
 
 
 def test_editor_neues_bild_behaelt_die_punkte(win, monkeypatch):
     cam = FrameCam()
     script(win, monkeypatch, drag((200, 100), (230, 120)) + [lambda: setattr(cam, 'value', 200),
                                                               '-EDIT_REFRESH-', '-EDIT_SAVE-'])
-    result = flows.edit_section_points('Ganze Scheibe', cam, POINTS)
+    result = section_editor.edit_section_points('Ganze Scheibe', cam, POINTS)
     assert np.allclose(result[0], [230, 120])
 
 
 def test_editor_ungueltiges_viereck_bleibt_im_editor(win, monkeypatch):
     messages = []
-    monkeypatch.setattr(flows, 'popup', messages.append)
+    monkeypatch.setattr(section_editor, 'popup', messages.append)
     # Punkt 1 ueber Punkt 4 hinaus: ueberkreuztes Viereck.
     script(win, monkeypatch, drag((200, 100), (900, 550)) + ['-EDIT_SAVE-'] +
            drag((900, 550), (200, 100)) + ['-EDIT_SAVE-'])
-    result = flows.edit_section_points('Ganze Scheibe', FrameCam(), POINTS)
+    result = section_editor.edit_section_points('Ganze Scheibe', FrameCam(), POINTS)
     assert len(messages) == 1 and 'kein gültiges Viereck' in messages[0]
     assert np.allclose(result, POINTS)
 
 
 def test_editor_abbrechen(win, monkeypatch):
     script(win, monkeypatch, drag((200, 100), (230, 120)) + ['-EDIT_CANCEL-'])
-    assert flows.edit_section_points('Ganze Scheibe', FrameCam(), POINTS) is None
+    assert section_editor.edit_section_points('Ganze Scheibe', FrameCam(), POINTS) is None
 
 
 def test_editor_ohne_punkte_startet_mit_rechteck(win, monkeypatch):
     script(win, monkeypatch, ['-EDIT_SAVE-'])
-    result = flows.edit_section_points('Ganze Scheibe', FrameCam(), None, allow_cancel=False, will_restart=False)
+    result = section_editor.edit_section_points('Ganze Scheibe', FrameCam(), None, allow_cancel=False, will_restart=False)
     assert np.allclose(result, [[200, 124], [800, 124], [200, 496], [800, 496]])
 
 
@@ -433,14 +434,14 @@ def test_editor_beschriftung_und_abbrechen_im_assistenten(win, monkeypatch):
     script(win, monkeypatch, [lambda: seen.append((win['-EDIT_SAVE-'].widget.cget('text'),
                                                    visible(win, '-EDIT_CANCEL-'))),
                               '-EDIT_SAVE-'])
-    flows.edit_section_points('Ganze Scheibe', FrameCam(), POINTS, allow_cancel=False, will_restart=False)
+    section_editor.edit_section_points('Ganze Scheibe', FrameCam(), POINTS, allow_cancel=False, will_restart=False)
     assert seen == [('Speichern', False)]
 
 
 def test_editor_beschriftung_im_menue(win, monkeypatch):
     seen = []
     script(win, monkeypatch, [lambda: seen.append(win['-EDIT_SAVE-'].widget.cget('text')), '-EDIT_SAVE-'])
-    flows.edit_section_points('Ganze Scheibe', FrameCam(), POINTS)
+    section_editor.edit_section_points('Ganze Scheibe', FrameCam(), POINTS)
     assert seen == ['Speichern und\nneu starten']
 
 
@@ -473,7 +474,7 @@ def test_editor_rechnet_bei_echter_aufloesung_richtig_zurueck(win, monkeypatch, 
     grab = (points[0][0] * scale + off_x, points[0][1] * scale + off_y)
     target = (300, 200)
     script(win, monkeypatch, drag(grab, target) + ['-EDIT_SAVE-'])
-    result = flows.edit_section_points('Ganze Scheibe', SizedCam(width, height), points)
+    result = section_editor.edit_section_points('Ganze Scheibe', SizedCam(width, height), points)
     assert np.allclose(result[0], [(target[0] - off_x) / scale, (target[1] - off_y) / scale])
     assert np.allclose(result[1:], points[1:])
 
@@ -482,7 +483,7 @@ def test_editor_rechnet_bei_echter_aufloesung_richtig_zurueck(win, monkeypatch, 
 def test_editor_speichert_unveraenderte_punkte_bei_echter_aufloesung(win, monkeypatch, width, height):
     points = [[500, 300], [2000, 320], [520, 900], [1980, 880]]
     script(win, monkeypatch, ['-EDIT_SAVE-'])
-    assert np.allclose(flows.edit_section_points('Ganze Scheibe', SizedCam(width, height), points), points)
+    assert np.allclose(section_editor.edit_section_points('Ganze Scheibe', SizedCam(width, height), points), points)
 
 
 def canvas_items(win, kind, **options):
@@ -499,15 +500,15 @@ def magnifier_corner(win):
 
 @pytest.mark.parametrize('grab, end, corner', [
     # Punkt oben links -> Lupe unten rechts, und umgekehrt.
-    ((200, 100), (210, 110), (ui.EDITOR_MAX_W - flows.MAG_SIZE - 10, ui.EDITOR_MAX_H - flows.MAG_SIZE - 10)),
+    ((200, 100), (210, 110), (ui.EDITOR_MAX_W - section_editor.MAG_SIZE - 10, ui.EDITOR_MAX_H - section_editor.MAG_SIZE - 10)),
     ((790, 490), (780, 480), (10, 10)),
 ])
 def test_editor_lupe_in_der_gegenueberliegenden_ecke(win, monkeypatch, grab, end, corner):
     seen = []
     script(win, monkeypatch, [('-EDITGRAPH-', {'-EDITGRAPH-': grab}), ('-EDITGRAPH-', {'-EDITGRAPH-': end}),
                               lambda: seen.append(magnifier_corner(win)),
-                              '-EDITGRAPH-+UP', lambda: seen.append(magnifier_corner(win)), '-EDIT_SAVE-'])
-    flows.edit_section_points('Ganze Scheibe', FrameCam(), POINTS)
+                              '-EDITGRAPH_UP-', lambda: seen.append(magnifier_corner(win)), '-EDIT_SAVE-'])
+    section_editor.edit_section_points('Ganze Scheibe', FrameCam(), POINTS)
     # Waehrend des Ziehens sichtbar, nach dem Loslassen weg.
     assert seen == [corner, None]
 
@@ -515,7 +516,7 @@ def test_editor_lupe_in_der_gegenueberliegenden_ecke(win, monkeypatch, grab, end
 def test_editor_zeigt_den_anderen_ausschnitt_grau(win, monkeypatch):
     seen = []
     script(win, monkeypatch, [lambda: seen.append(canvas_items(win, 'line', fill='#c0c0c0')), '-EDIT_SAVE-'])
-    flows.edit_section_points('Innen Scheibe', FrameCam(), DETAIL, other_points=POINTS)
+    section_editor.edit_section_points('Innen Scheibe', FrameCam(), DETAIL, other_points=POINTS)
     gray_lines = seen[0]
     assert len(gray_lines) == 4
     # Die grauen Linien verbinden genau die Punkte des anderen Ausschnitts.
@@ -526,19 +527,19 @@ def test_editor_zeigt_den_anderen_ausschnitt_grau(win, monkeypatch):
 def test_editor_ohne_anderen_ausschnitt_keine_grauen_linien(win, monkeypatch):
     seen = []
     script(win, monkeypatch, [lambda: seen.append(canvas_items(win, 'line', fill='#c0c0c0')), '-EDIT_SAVE-'])
-    flows.edit_section_points('Ganze Scheibe', FrameCam(), POINTS)
+    section_editor.edit_section_points('Ganze Scheibe', FrameCam(), POINTS)
     assert seen == [[]]
 
 
 def test_editor_ohne_kamerabild(win, monkeypatch):
     messages = []
-    monkeypatch.setattr(flows, 'popup', messages.append)
+    monkeypatch.setattr(section_editor, 'popup', messages.append)
 
     class NoCam:
         def get_frame(self, full=False):
             return None
 
-    assert flows.edit_section_points('Ganze Scheibe', NoCam(), POINTS) is None
+    assert section_editor.edit_section_points('Ganze Scheibe', NoCam(), POINTS) is None
     assert len(messages) == 1
 
 
