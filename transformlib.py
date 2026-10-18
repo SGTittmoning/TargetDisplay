@@ -66,7 +66,10 @@ def crop(image, zoom_factor, center):
     # offset ist die halbe Kantenlaenge des Ausschnitts.
     offset = int(width / (2*zoom_factor)), int(height / (2*zoom_factor))
 
-    # Ausschnitt innerhalb des Bilds halten.
+    # Ausschnitt innerhalb des Bilds halten. clamp_zoom_center begrenzt die
+    # Mitte schon in Prozent; beim Umrechnen in Pixel kann die Rundung sie aber
+    # um ein Pixel ueber den Rand schieben, ein negativer Index schnitte dann
+    # das falsche Stueck aus.
     if offset[0] > center[0]:
         center = offset[0], center[1]
     if offset[1] > center[1]:

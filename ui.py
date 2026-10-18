@@ -97,9 +97,8 @@ class Elem:
         # beim Registrieren mitgegeben, weil pack_info() unter Debian Trixie/Python
         # 3.13 beim ersten Verstecken mit TclError scheitern kann.
         self._show_kwargs = show
-        self._image_ref = None
 
-    def update(self, value=None, disabled=None, visible=None, values=None, text_color=None, data=None):
+    def update(self, value=None, disabled=None, visible=None, values=None, text_color=None):
         w = self.widget
         if values is not None:
             w.delete(0, tk.END)
@@ -111,10 +110,6 @@ class Elem:
             w.config(fg=text_color)
         if disabled is not None:
             w.config(state=(tk.DISABLED if disabled else tk.NORMAL))
-        if data is not None:
-            img = tk.PhotoImage(data=data)
-            self._image_ref = img  # Referenz halten, sonst wird das Tk-Image sofort freigegeben
-            w.config(image=img)
         if visible is not None:
             if visible:
                 w.pack(**(self._show_kwargs or {}))

@@ -14,7 +14,7 @@ def frame(value=0, size=10):
 
 def record(timer_type, until=None, latency=0.0, budget_bytes=10**9, size=10):
     rec = r.Recording(t.green_windows(timer_type), latency=latency, budget_bytes=budget_bytes)
-    end = t.total_seconds(timer_type) if until is None else until
+    end = next(s for s in range(1000) if t.timer_state(timer_type, s).finished) if until is None else until
     n = 0
     while n / FPS < end:
         rec.add(frame(n % 256, size), n / FPS)

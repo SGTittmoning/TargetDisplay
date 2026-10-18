@@ -3,14 +3,20 @@ import pytest
 import timerlib as t
 
 
+def duration(timer_type):
+    """Erste ganze Sekunde, in der der Ablauf beendet ist."""
+    return next(s for s in range(1000) if t.timer_state(timer_type, s).finished)
+
+
 def colors(timer_type):
-    return [t.timer_state(timer_type, s).color for s in range(t.total_seconds(timer_type) + 1)]
+    return [t.timer_state(timer_type, s).color for s in range(duration(timer_type) + 1)]
 
 
 def test_gesamtdauer():
-    assert t.total_seconds(t.TIMER_5_3_7) == 53
-    assert t.total_seconds(t.TIMER_20) == 30
-    assert t.total_seconds(t.TIMER_10) == 20
+    # Werte laut Handbuch.
+    assert duration(t.TIMER_5_3_7) == 53
+    assert duration(t.TIMER_20) == 30
+    assert duration(t.TIMER_10) == 20
 
 
 def test_serie_ablauf():
@@ -59,7 +65,7 @@ def test_bruchteile_werden_abgerundet():
 @pytest.mark.parametrize("timer_type", [t.TIMER_5_3_7, t.TIMER_20, t.TIMER_10])
 def test_gruenfenster_passen_zum_ablauf(timer_type):
     windows = t.green_windows(timer_type)
-    green = {s for s in range(t.total_seconds(timer_type)) if t.timer_state(timer_type, s).color == 'green'}
+    green = {s for s in range(duration(timer_type)) if t.timer_state(timer_type, s).color == 'green'}
     assert green == {s for start, end in windows for s in range(start, end)}
 
 
