@@ -3,12 +3,10 @@
 # update-app.yml dieselben Tasks nutzen - so laesst sich auch ein bereits
 # eingerichteter Stand mit aktivem Overlay per update-app.yml nachziehen.
 
-# sntp gibt es auf aktuellem Raspberry Pi OS/Debian nicht mehr (Trixie:
-# "No package matching 'sntp' is available") - systemd-timesyncd laeuft
-# dort bereits standardmaessig aktiv und synchronisiert kontinuierlich,
-# ein einmaliger sntp-Sync ist nicht mehr noetig. Stattdessen den lokalen
-# NTP-Server (kein Internet-Pool - die Staende haben ggf. keinen Internet-
-# Zugang) als Zeitquelle fuer timesyncd konfigurieren.
+# systemd-timesyncd ist auf Raspberry Pi OS standardmaessig aktiv und
+# synchronisiert laufend (sntp ist unter Trixie nicht verfuegbar). Als
+# Zeitquelle dient der lokale NTP-Server, kein Internet-Pool: die Staende
+# haben ggf. keinen Internet-Zugang.
 - name: Lokalen NTP-Server fuer systemd-timesyncd konfigurieren
   lineinfile:
     path: /etc/systemd/timesyncd.conf
