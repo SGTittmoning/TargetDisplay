@@ -133,7 +133,7 @@ class Viewport:
             cx, cy, arm = (x0 + x1) // 2, (y0 + y1) // 2, (x1 - x0) // 4
             if name == 'label':
                 if self.step:
-                    text = f'{self.absolute_factor():g}x'
+                    text = f'{self.absolute_factor():g}x'.replace('.', ',')
                     scale = (x1 - x0) / 60
                     (tw, th), _ = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, scale, 2)
                     cv2.putText(out, text, (cx - tw // 2, cy + th // 2), cv2.FONT_HERSHEY_SIMPLEX, scale,

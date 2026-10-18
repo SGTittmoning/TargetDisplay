@@ -46,7 +46,7 @@ def test_pin():
 
 def test_zoom_und_blinken():
     # Tipp vergroessert dreifach (Maximum sechsfach); Blinken wechselt jede Sekunde.
-    assert (transformlib.VIDEO_ZOOM_FACTOR, transformlib.VIDEO_ZOOM_MAX) == (3, 6)
+    assert (transformlib.VIDEO_ZOOM_FACTOR, transformlib.VIDEO_ZOOM_MAX) == (3, 6.3)
     assert main.BLINK_SWITCH_SEC == 1
     assert (screenlogic.PAN_EDGE_LOW, screenlogic.PAN_EDGE_HIGH) == (30, 70)
 

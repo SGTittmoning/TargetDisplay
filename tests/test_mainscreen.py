@@ -3,6 +3,7 @@ Timer, Replay, Blinken und Zoom ohne Tk und ohne Wartezeiten."""
 import re
 
 import numpy as np
+import pytest
 from screen_harness import BLACK, RED, Screen, below_center, gray
 
 import overlays
@@ -305,3 +306,15 @@ def test_vergroesserung_der_innen_scheibe_aus_den_ausschnitten():
     detail = np.array([[200, 200], [600, 200], [600, 600], [200, 600]])
     assert main.MainScreen.detail_magnification(full, detail) == 2.0
     assert main.MainScreen.detail_magnification(full, full) == 1.0
+
+
+def test_maximum_passt_zur_innen_scheibe_von_stand_1():
+    import main
+    import transformlib
+    full = np.array([[92, 662], [1052, 514], [368, 1359], [1170, 1319]])
+    detail = np.array([[387, 839], [805, 792], [489, 1182], [901, 1170]])
+    # Innen Scheibe ist dort gut 2,1-fach vergroessert; mit der normalen Stufe
+    # ergibt das das Maximum.
+    magnification = main.MainScreen.detail_magnification(full, detail)
+    assert magnification == pytest.approx(2.11, abs=0.01)
+    assert magnification * transformlib.VIDEO_ZOOM_FACTOR == pytest.approx(transformlib.VIDEO_ZOOM_MAX, abs=0.1)

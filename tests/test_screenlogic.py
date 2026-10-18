@@ -103,11 +103,11 @@ def test_normale_stufe_ist_in_beiden_ansichten_absolut_gleich():
 def test_maximum_ist_in_beiden_ansichten_absolut_gleich():
     eye = np.eye(3, dtype=np.float64)
     view = sl.Viewport(eye, eye, SIZE, detail_factor=2.0)
-    for level, factor in (('full', 6), ('detail', 3)):
+    for level, factor in (('full', tl.VIDEO_ZOOM_MAX), ('detail', tl.VIDEO_ZOOM_MAX / 2)):
         view.set_level(level)
         view.zoom_in()
         view.zoom_in()
-        assert view.step == 2 and view.factor() == factor
+        assert view.step == 2 and view.factor() == pytest.approx(factor)
         assert abs(span_of(view.render(gradient())) - SIZE[0] / factor) <= 2
 
 
@@ -135,8 +135,8 @@ def test_stufenwechsel_begrenzt_die_mitte_neu():
     view.zoom_in()
     for _ in range(20):
         view.tap(1, 1)
-    # Sechsfach darf die Mitte naeher an den Rand als dreifach.
-    assert view.center == tl.clamp_zoom_center((0, 0), 6)
+    # Beim Maximum darf die Mitte naeher an den Rand als dreifach.
+    assert view.center == tl.clamp_zoom_center((0, 0), tl.VIDEO_ZOOM_MAX)
     view.zoom_out()
     assert view.center == tl.clamp_zoom_center((0, 0), 3)
     view.zoom_in()
