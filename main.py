@@ -65,7 +65,7 @@ CROP_MARGIN = 15
 PAN_STEP = 5
 PAN_EDGE_LOW, PAN_EDGE_HIGH = 30, 70
 
-VERSION = '0.13.3'
+VERSION = '0.13.4'
 
 
 def run_setup_wizard(cfg):
