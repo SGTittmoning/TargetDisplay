@@ -274,6 +274,9 @@ footer{
      zugehoerige Legende auf eine Seite passen. */
   figure.plate img { max-height: 88mm; width: auto; display: block; margin: 0 auto; }
   section.restricted figure.plate img { max-height: 52mm; }
+  /* Abb. 1 etwas kleiner, damit die Legende der Kopfzeile noch auf
+     dieselbe Seite passt. */
+  #hauptbildschirm > figure.plate:first-of-type img { max-height: 62mm; }
   /* Verhindert, dass ein Absatz mitten im Satz getrennt wird - erzwingt
      mindestens 3 Zeilen vor/nach einem Seitenumbruch innerhalb eines
      Absatzes (sonst wandert der ganze Absatz auf die naechste Seite). */
@@ -478,7 +481,6 @@ footer{
           <li>Die Aufnahme wird erst beim Start des nächsten Timers verworfen und durch die neue ersetzt. Ein Neustart der Anzeige oder des Geräts löscht sie ebenfalls.</li>
           <li>Wird ein Timer mit <b>Timer&nbsp;Stop</b> vorzeitig beendet, lässt sich das bis dahin Aufgezeichnete abspielen.</li>
           <li><b>Replay</b> ist gesperrt, solange keine Aufnahme vorliegt, während eines Timers und bei ausgeblendetem Video.</li>
-          <li>Fiel die Kamera während der Aufnahme aus, zeigt das Replay an dieser Stelle &bdquo;kein Bild&ldquo;.</li>
         </ul>
 
         <div class="grp">
@@ -499,7 +501,7 @@ footer{
         </span>
         <div class="chapter-head"><span class="chapter-num">02</span><h2>Administrativer Bereich</h2></div>
         <p><b>Dieser Abschnitt richtet sich an Standaufsichten</b>, nicht an normale Vereinsmitglieder. Alle Funktionen sind über das Zahnrad-Symbol (Kopfzeile, Punkt&nbsp;3) erreichbar und durch eine numerische PIN geschützt.</p>
-        <div class="callout"><p><b>Wichtig:</b> Der PIN-Schutz ist bewusst kein Hochsicherheitsmechanismus (keine dauerhafte Kontosperre) &ndash; er soll zufälliges Herumtippen von Passanten abschrecken. Nach jeder falschen Eingabe erzwingt das Gerät eine mit den Fehlversuchen wachsende Wartezeit (1&nbsp;s, 4&nbsp;s, 7&nbsp;s, &hellip; bis maximal 60&nbsp;s), bevor eine neue Eingabe möglich ist. Der Zähler setzt sich nach einer richtigen Eingabe oder nach 10 Minuten Ruhe zurück.</p></div>
+        <div class="callout"><p><b>Wichtig:</b> Nach einer falschen Eingabe ist eine neue Eingabe erst nach einer Wartezeit möglich, die mit jedem Fehlversuch wächst (1&nbsp;s, 4&nbsp;s, 7&nbsp;s, &hellip; bis höchstens 60&nbsp;s); die Restzeit steht neben &bdquo;falsch&ldquo;. Nach einer richtigen Eingabe oder 10 Minuten ohne Eingabe beginnt die Wartezeit wieder bei 1&nbsp;s.</p></div>
 
         <div class="grp">
         <h3 id="pin-eingabe">PIN-Eingabe</h3>
@@ -541,7 +543,7 @@ footer{
 
         <div class="grp">
         <h3 id="stand-wechseln">Stand wechseln</h3>
-        <p>Erlaubt, ein Gerät auf einen anderen Schießstand (mit eigener Kamera) umzustellen. Die Standliste wird zentral gepflegt und ist auf allen Geräten identisch &ndash; welcher Stand angezeigt wird, wird pro Gerät einzeln hier gewählt.</p>
+        <p>Erlaubt, ein Gerät auf einen anderen Schießstand (mit eigener Kamera) umzustellen. Die Standliste ist auf allen Geräten gleich; welcher Stand angezeigt wird, wird pro Gerät hier gewählt.</p>
         <figure class="plate"><img src="screenshots/11_stand_auswaehlen.png" alt="Stand auswählen"><figcaption class="fig-note">Abb. 11 &ndash; Stand-Auswahl.</figcaption></figure>
         </div>
         <ol class="legend">
@@ -585,14 +587,14 @@ footer{
           <li><b>Ausschnitte kalibrieren</b> &ndash; zunächst &bdquo;Ganze Scheibe&ldquo;, danach &bdquo;Innen Scheibe&ldquo;, jeweils identisch zum Ausschnitte-Editor (ohne Abbrechen; der Speichern-Button heißt hier schlicht &bdquo;Speichern&ldquo;, da der Assistent ohne Neustart weiterläuft).</li>
           <li><b>PIN festlegen</b> &ndash; identisch zum Dialog &bdquo;PIN ändern&ldquo;, nur ohne Abbrechen: Das Gerät startet mit dem eingebauten Standard-PIN &bdquo;1234&ldquo;, den der Assistent an dieser Stelle zwingend durch einen selbst gewählten PIN ersetzen lässt.</li>
         </ol>
-        <p>Ist die Kamera nicht erreichbar, zeigt der Assistent &bdquo;Kamera nicht erreichbar&ldquo; mit &bdquo;Erneut versuchen&ldquo; und &bdquo;Zurück zur Stand-Auswahl&ldquo;. Er wartet, bis die Kamera antwortet, und geht dann von selbst weiter. &bdquo;Erneut versuchen&ldquo; zeigt wieder &bdquo;Verbinde mit Kamera&hellip;&ldquo; und wartet erneut bis zu 30&nbsp;Sekunden; ansonsten führt nur &bdquo;Zurück zur Stand-Auswahl&ldquo; hier heraus.</p>
+        <p>Nach der Stand-Auswahl steht &bdquo;Verbinde mit Kamera&hellip;&ldquo; da, bis das erste Kamerabild ankommt; dann geht es von selbst weiter. Antwortet die Kamera nach 30&nbsp;Sekunden noch nicht, erscheint &bdquo;Kamera nicht erreichbar. Bitte URL/Verkabelung prüfen.&ldquo; Der Assistent wartet trotzdem weiter und geht weiter, sobald ein Bild kommt. &bdquo;Erneut versuchen&ldquo; zeigt wieder &bdquo;Verbinde mit Kamera&hellip;&ldquo;, &bdquo;Zurück zur Stand-Auswahl&ldquo; führt zur Auswahl eines anderen Standes.</p>
         <p>Erst nach allen drei Schritten erscheint der normale Hauptbildschirm aus Kapitel 1.</p>
       </section>
 
       <section class="chapter" id="bei-problemen">
         <div class="chapter-head"><h2>Bei Problemen</h2></div>
-        <p>Fällt das Kamerabild aus, startet sich das Gerät mehrfach selbst neu (dabei erscheint jeweils kurz das Vereinswappen) und versucht es danach alle 10 Minuten erneut; ein manueller Neustart beschleunigt das.</p>
-        <p>Lässt sich ein Problem nicht durch einen einfachen Geräteneustart beheben (siehe Abschnitt &bdquo;Gerät neu starten&ldquo;), wenden Sie sich bitte an:</p>
+        <p>Fällt das Kamerabild aus, versucht das Gerät selbst, die Verbindung wiederherzustellen, und startet dafür bei Bedarf neu. Kommt das Bild nicht zurück, bitte die Standaufsicht verständigen: Sie kann das Gerät über das Einstellungen-Menü neu starten (Abschnitt &bdquo;Gerät neu starten&ldquo;).</p>
+        <p>Lässt sich ein Problem so nicht beheben, wenden Sie sich bitte an:</p>
         <hr class="writeline">
       </section>
 
