@@ -108,3 +108,16 @@ def test_release_tag_passt_zur_version():
 def test_app_deploy_nutzt_das_release_tag():
     [task] = [t for t in load('tasks', 'app_deploy.yml') if 'git' in t]
     assert task['git']['version'] == "{{ targetdisplay_git_version | default(targetdisplay_release) }}"
+
+
+def test_eigenes_logo_ueberschreibt_keine_versionierte_datei():
+    # Sonst setzte der Checkout (force) die Datei bei jedem Lauf zurueck und
+    # der Dienst startete jedes Mal neu.
+    tasks = load('tasks', 'app_deploy.yml')
+    [copy_task] = [t for t in tasks if 'copy' in t]
+    assert copy_task['copy']['dest'].endswith('/ressources/logo-custom.png')
+    [removal] = [t for t in tasks if 'file' in t]
+    assert removal['file']['path'].endswith('/ressources/logo-custom.png')
+    assert removal['file']['state'] == 'absent'
+    with open(os.path.join(ROOT, '.gitignore'), encoding='utf-8') as f:
+        assert 'ressources/logo-custom.png' in f.read().split()

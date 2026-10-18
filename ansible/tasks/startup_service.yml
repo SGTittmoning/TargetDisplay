@@ -50,5 +50,6 @@
         targetdisplay_app_checkout is changed or
         targetdisplay_app_venv is changed or
         targetdisplay_app_config is changed or
-        targetdisplay_app_logo is changed
+        targetdisplay_app_logo is changed or
+        targetdisplay_app_logo_removed is changed
       ) else 'started' }}

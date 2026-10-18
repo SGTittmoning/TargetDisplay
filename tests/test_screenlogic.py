@@ -79,3 +79,15 @@ def test_fps_nur_ueber_das_letzte_zeitfenster():
     # Die alten Zeitstempel sind herausgefallen (2 Bilder in 1 s), der
     # Bildzaehler laeuft weiter.
     assert fps.tick(11.0 + sl.FPS_WINDOW_SECONDS) == 'FPS: 2.0 - Frame 12'
+
+
+def test_tipp_zoom_ist_in_beiden_stufen_dreifach(view):
+    # Der Tipp-Zoom wirkt auf das entzerrte Anzeigebild: in beiden Stufen
+    # zeigt er ein Drittel der Breite, also dreifache Vergroesserung.
+    for level in ('full', 'detail'):
+        view.set_level(level)
+        view.tap(50, 50)
+        image = view.render(gradient())
+        # x-Verlauf: der sichtbare Bereich umfasst ein Drittel des Anzeigebilds.
+        span = int(image[30, -1, 0]) - int(image[30, 0, 0])
+        assert abs(span - SIZE[0] / 3) <= 2, level

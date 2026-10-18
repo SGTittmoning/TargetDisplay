@@ -6,9 +6,10 @@
 # bleibt bestehen.
 #
 # Bildquelle: ansible/files/splash.png (auf dem Control-Rechner, nicht im Repo -
-# vereinsspezifisch), sonst das Logo der App (ressources/logo.png im
-# App-Verzeichnis, also das mitgelieferte Platzhalter-Wappen bzw. ein eigenes
-# files/logo.png, siehe tasks/app_deploy.yml).
+# vereinsspezifisch), sonst das Logo der App (im App-Verzeichnis
+# ressources/logo-custom.png, wenn ein eigenes files/logo.png vorliegt, sonst
+# das mitgelieferte Platzhalter-Wappen ressources/logo.png, siehe
+# tasks/app_deploy.yml).
 #
 # Das Theme steckt im initramfs; deshalb wird es nach jeder Aenderung neu
 # erzeugt. Ablauf auf Staenden mit Overlay: siehe update-app.yml (Phase 2 hat
@@ -50,7 +51,7 @@
 
     - name: Boot-Bild einspielen (Logo der App)
       copy:
-        src: "{{ targetdisplay_app_path }}/ressources/logo.png"
+        src: "{{ targetdisplay_app_path }}/ressources/{{ 'logo-custom.png' if (targetdisplay_custom_logo.stat.exists | default(false)) else 'logo.png' }}"
         dest: /usr/share/plymouth/themes/targetdisplay/splash.png
         remote_src: yes
         owner: root
