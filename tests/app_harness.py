@@ -31,6 +31,29 @@ video:
 """
 
 
+class ScreenConfig:
+    """Konfiguration nur mit der Bildschirmgroesse, fuer ein Fenster ohne App."""
+
+    def __init__(self, screen_size):
+        self.screen_size = screen_size
+
+    def get_property(self, key):
+        return {'screenSize': self.screen_size}[key]
+
+
+@contextlib.contextmanager
+def open_window(ui, screen_size, video_size):
+    """Legt ui.window an und schliesst es danach wieder. ui ist das Modul,
+    das der Test importiert hat: load_app() laedt ui neu, ein spaeterer
+    Import hier liefert dann ein anderes Modul als das von flows genutzte."""
+    ui.window = ui.Window(ScreenConfig(screen_size), video_size, 'test')
+    try:
+        yield ui.window
+    finally:
+        ui.window.close()
+        ui.window = None
+
+
 class FakeCamera:
     def __init__(self, url, **kwargs):
         self.url = url
@@ -83,12 +106,9 @@ class Driver(threading.Thread):
         self.steps = steps
         self.error = None
 
-    def send(self, event):
-        # Nur die Queue ist thread-sicher, Tk-Aufrufe aus einem anderen Thread
-        # sind es nicht.
-        self.ui.window.post(event)
-
     def run(self):
+        # Nur die Queue (post) ist thread-sicher, Tk-Aufrufe aus diesem
+        # Thread waeren es nicht.
         try:
             for delay, event in self.steps:
                 time.sleep(delay)
@@ -98,7 +118,7 @@ class Driver(threading.Thread):
                 elif isinstance(event, tuple):
                     self.ui.window.post(*event)
                 else:
-                    self.send(event)
+                    self.ui.window.post(event)
         except Exception as e:  # pragma: no cover
             self.error = e
 
@@ -185,22 +205,6 @@ class CountingCamera(FakeCamera):
     def get_frame(self, full=False):
         self.last_frame_time = time.monotonic()
         return np.full((700, 700, 3), self.frame_id % 200, np.uint8)
-
-
-def button_states(monkeypatch, keys):
-    """Haelt beim Schliessen des Fensters fest, welche Buttons bedienbar sind."""
-    import ui
-    states = {}
-    real_close = ui.Window.close
-
-    def close(self):
-        for k in keys:
-            states[k] = self[k].widget.cget('bg') == self._btn_style[k]['bg_on']
-        states['replay_text'] = self._btn_style['-REPLAY-']['label'].cget('text')
-        real_close(self)
-
-    monkeypatch.setattr(ui.Window, 'close', close)
-    return states
 
 
 def is_timer_frame(d):

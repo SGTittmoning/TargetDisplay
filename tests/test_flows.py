@@ -6,22 +6,18 @@ import time
 
 import numpy as np
 import pytest
+from app_harness import needs_display, open_window
 
 import flows
 import ui
 
-
-class Cfg:
-    def get_property(self, key):
-        return {'screenSize': [1024, 768]}[key]
+pytestmark = needs_display
 
 
 @pytest.fixture
 def win():
-    ui.window = ui.Window(Cfg(), (600, 600), 'test')
-    yield ui.window
-    ui.window.close()
-    ui.window = None
+    with open_window(ui, [1024, 768], (600, 600)) as window:
+        yield window
 
 
 def camwait_text():
@@ -182,6 +178,17 @@ def test_pin_erst_falsch_dann_richtig(win, monkeypatch, limiter):
     assert limiter.failures == 1
 
 
+def test_pin_abbrechen_in_der_wartezeit_beendet_sofort(win, monkeypatch, limiter):
+    # Ohne Wirkung von "Abbrechen" liefe die Wartezeit weiter und verbrauchte
+    # die folgenden Ereignisse; '-UNGELESEN-' bliebe dann nicht uebrig.
+    monkeypatch.setattr(limiter, 'register_failure', lambda: 30)
+    rest = script(win, monkeypatch, ['1', '-PIN_OK-', '-PIN_CANCEL-', '-UNGELESEN-'])
+    started = time.monotonic()
+    assert flows.check_pin('4711') is False
+    assert time.monotonic() - started < 5
+    assert rest == ['-UNGELESEN-']
+
+
 def test_pin_falsch_zeigt_hinweis(win, monkeypatch, limiter):
     monkeypatch.setattr(limiter, 'register_failure', lambda: 1.0)
     texts = []
@@ -190,6 +197,19 @@ def test_pin_falsch_zeigt_hinweis(win, monkeypatch, limiter):
                               '-PIN_CANCEL-'])
     flows.check_pin('4711')
     assert texts == ['falsch']
+
+
+def test_pin_wartezeit_zeigt_die_restsekunden(win, monkeypatch, limiter):
+    monkeypatch.setattr(limiter, 'register_failure', lambda: 2.5)
+    texts = []
+
+    def shown():
+        texts.append(win['-PINDISPLAY-'].widget.cget('text'))
+
+    script(win, monkeypatch, ['1', '-PIN_OK-', shown, lambda: time.sleep(1.0), '-VERWORFEN-',
+                              shown, '-PIN_CANCEL-'])
+    flows.check_pin('4711')
+    assert texts == ['falsch 3s', 'falsch 2s']
 
 
 # ---------------------------------------------------------- PIN aendern
@@ -220,6 +240,17 @@ def test_pin_aendern_ungleiche_wiederholung_fragt_neu(win, monkeypatch, limiter,
     assert flows.change_pin_flow('4711', forced=False) == '3690'
     assert saved_pins == ['3690']
     assert limiter.successes == 1
+
+
+def test_pin_aendern_meldet_ungleiche_wiederholung(win, monkeypatch, limiter, saved_pins):
+    titles = []
+    monkeypatch.setattr(flows.time, 'sleep', lambda s: titles.append(win['-PIN_TITLE-'].widget.cget('text')))
+    script(win, monkeypatch, ['4', '7', '1', '1', '-PIN_OK-',
+                              '2', '5', '8', '0', '-PIN_OK-',
+                              '9', '9', '9', '9', '-PIN_OK-',
+                              '-PIN_CANCEL-'])
+    assert flows.change_pin_flow('4711', forced=False) is None
+    assert titles == ['PINs stimmen nicht überein']
 
 
 @pytest.mark.parametrize('steps', [
@@ -397,6 +428,92 @@ def test_editor_beschriftung_im_menue(win, monkeypatch):
     assert seen == ['Speichern und\nneu starten']
 
 
+class SizedCam:
+    """Kamerabild in echter Groesse: der Editor verkleinert es und setzt es
+    mittig in den Canvas, Canvas- und Kamerakoordinaten unterscheiden sich."""
+
+    def __init__(self, width, height):
+        self.shape = (height, width, 3)
+
+    def get_frame(self, full=False):
+        return np.full(self.shape, 80, np.uint8)
+
+
+def canvas_mapping(width, height):
+    # Massstab und Versatz wie im Editor, unabhaengig nachgerechnet.
+    scale = min(ui.EDITOR_MAX_W / width, ui.EDITOR_MAX_H / height)
+    off_x = (ui.EDITOR_MAX_W - int(width * scale)) // 2
+    off_y = (ui.EDITOR_MAX_H - int(height * scale)) // 2
+    return scale, off_x, off_y
+
+
+# 2560x1920 (Kamera der Staende): Rand links und rechts. 2560x1000: Rand
+# oben und unten.
+@pytest.mark.parametrize('width, height', [(2560, 1920), (2560, 1000)])
+def test_editor_rechnet_bei_echter_aufloesung_richtig_zurueck(win, monkeypatch, width, height):
+    scale, off_x, off_y = canvas_mapping(width, height)
+    assert off_x > 0 or off_y > 0
+    points = [[500, 300], [2000, 320], [520, 900], [1980, 880]]
+    grab = (points[0][0] * scale + off_x, points[0][1] * scale + off_y)
+    target = (300, 200)
+    script(win, monkeypatch, drag(grab, target) + ['-EDIT_SAVE-'])
+    result = flows.edit_section_points('Ganze Scheibe', SizedCam(width, height), points)
+    assert np.allclose(result[0], [(target[0] - off_x) / scale, (target[1] - off_y) / scale])
+    assert np.allclose(result[1:], points[1:])
+
+
+@pytest.mark.parametrize('width, height', [(2560, 1920), (2560, 1000)])
+def test_editor_speichert_unveraenderte_punkte_bei_echter_aufloesung(win, monkeypatch, width, height):
+    points = [[500, 300], [2000, 320], [520, 900], [1980, 880]]
+    script(win, monkeypatch, ['-EDIT_SAVE-'])
+    assert np.allclose(flows.edit_section_points('Ganze Scheibe', SizedCam(width, height), points), points)
+
+
+def canvas_items(win, kind, **options):
+    canvas = win.editor_canvas
+    return [canvas.coords(i) for i in canvas.find_all()
+            if canvas.type(i) == kind and all(canvas.itemcget(i, k) == v for k, v in options.items())]
+
+
+def magnifier_corner(win):
+    """Linke obere Ecke der Lupe (gelber Rahmen), oder None."""
+    frames = canvas_items(win, 'rectangle', outline='yellow')
+    return tuple(frames[0][:2]) if frames else None
+
+
+@pytest.mark.parametrize('grab, end, corner', [
+    # Punkt oben links -> Lupe unten rechts, und umgekehrt.
+    ((200, 100), (210, 110), (ui.EDITOR_MAX_W - flows.MAG_SIZE - 10, ui.EDITOR_MAX_H - flows.MAG_SIZE - 10)),
+    ((790, 490), (780, 480), (10, 10)),
+])
+def test_editor_lupe_in_der_gegenueberliegenden_ecke(win, monkeypatch, grab, end, corner):
+    seen = []
+    script(win, monkeypatch, [('-EDITGRAPH-', {'-EDITGRAPH-': grab}), ('-EDITGRAPH-', {'-EDITGRAPH-': end}),
+                              lambda: seen.append(magnifier_corner(win)),
+                              '-EDITGRAPH-+UP', lambda: seen.append(magnifier_corner(win)), '-EDIT_SAVE-'])
+    flows.edit_section_points('Ganze Scheibe', FrameCam(), POINTS)
+    # Waehrend des Ziehens sichtbar, nach dem Loslassen weg.
+    assert seen == [corner, None]
+
+
+def test_editor_zeigt_den_anderen_ausschnitt_grau(win, monkeypatch):
+    seen = []
+    script(win, monkeypatch, [lambda: seen.append(canvas_items(win, 'line', fill='#c0c0c0')), '-EDIT_SAVE-'])
+    flows.edit_section_points('Innen Scheibe', FrameCam(), DETAIL, other_points=POINTS)
+    gray_lines = seen[0]
+    assert len(gray_lines) == 4
+    # Die grauen Linien verbinden genau die Punkte des anderen Ausschnitts.
+    ends = {tuple(map(round, line[i:i + 2])) for line in gray_lines for i in (0, 2)}
+    assert ends == {tuple(p) for p in POINTS}
+
+
+def test_editor_ohne_anderen_ausschnitt_keine_grauen_linien(win, monkeypatch):
+    seen = []
+    script(win, monkeypatch, [lambda: seen.append(canvas_items(win, 'line', fill='#c0c0c0')), '-EDIT_SAVE-'])
+    flows.edit_section_points('Ganze Scheibe', FrameCam(), POINTS)
+    assert seen == [[]]
+
+
 def test_editor_ohne_kamerabild(win, monkeypatch):
     messages = []
     monkeypatch.setattr(flows, 'popup', messages.append)
@@ -475,6 +592,20 @@ def test_menue_pin_aendern(win, monkeypatch, saved, limiter, saved_pins):
                               '2', '5', '8', '0', '-PIN_OK-'])
     assert flows.run_settings_flow(FrameCam(), POINTS, DETAIL, STANDS, '4711') is True
     assert saved_pins == ['2580']
+
+
+def test_menue_pin_aendern_abbrechen_zurueck_ins_menue(win, monkeypatch, saved, limiter, saved_pins):
+    pages = []
+    real_show = flows.show_page
+    monkeypatch.setattr(flows, 'show_page', lambda key: (pages.append(key), real_show(key))[1])
+    script(win, monkeypatch, ['-MENU_PIN-',
+                              '4', '7', '1', '1', '-PIN_OK-',
+                              '-PIN_CANCEL-',
+                              '-MENU_BACK-'])
+    assert flows.run_settings_flow(FrameCam(), POINTS, DETAIL, STANDS, '4711') is False
+    assert saved_pins == []
+    # Nach dem Abbrechen wieder das Menue, erst "Zurueck" fuehrt hinaus.
+    assert pages[-2:] == ['-MENUVIEW-', '-MAINVIEW-']
 
 
 def test_menue_neustart_abbrechen(win, monkeypatch, saved):

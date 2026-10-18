@@ -60,9 +60,8 @@ class Camera:
         self._stop_event = threading.Event()
         self._container = None
 
-        thread = threading.Thread(target=self._buffer_loop, name="rtsp_read_thread")
-        thread.daemon = True
-        thread.start()
+        self._thread = threading.Thread(target=self._buffer_loop, name="rtsp_read_thread", daemon=True)
+        self._thread.start()
 
     def stop(self):
         # Beendet den Lesethread und die Verbindung, z.B. beim Stand-Wechsel im

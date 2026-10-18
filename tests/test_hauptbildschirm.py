@@ -14,6 +14,7 @@ import numpy as np
 import pytest
 from app_harness import (
     ROOT,
+    CountingCamera,
     FakeCamera,
     is_replay_frame,
     is_timer_frame,
@@ -108,6 +109,28 @@ def test_sperren_waehrend_des_blinkens(gradient, monkeypatch):
     assert only(probes['danach'], *ZOOM, '-BLINK_START-', *TIMERS, '-TOGGLEVIDEO-')
 
 
+def gray(frame):
+    return int(frame[300, 300, 0])
+
+
+def test_blinken_referenz_nimmt_ein_neues_bezugsbild_auf(app, monkeypatch):
+    # Die Kamera liefert jedes Bild in einem anderen, steigenden Grauwert.
+    # Ein Livebild erscheint nur einmal, die Referenz beim Blinken immer
+    # wieder: der haeufigste Grauwert ist die Referenz. Nach "Referenz" muss
+    # sie heller (neuer) sein als die von "Start".
+    monkeypatch.setattr(app, 'Camera', CountingCamera)
+    probes = {}
+    draws = run_app(app, [(1.0, '-BLINK_START-'), (2.5, '-PROBE-vorher-'), (0.0, '-BLINK_REF-'),
+                          (2.5, '-PROBE-nachher-')], monkeypatch, probes=probes)
+    split = probes['vorher']['draws']
+    before = [gray(d) for d in draws[:split]]
+    after = [gray(d) for d in draws[split:probes['nachher']['draws']]]
+    ref_before = max(set(before), key=before.count)
+    ref_after = max(set(after), key=after.count)
+    assert before.count(ref_before) > 1 and after.count(ref_after) > 1
+    assert ref_after > ref_before
+
+
 def test_sperren_bei_video_aus(gradient, monkeypatch):
     probes = {}
     run_app(gradient, [(1.0, '-TOGGLEVIDEO-'), (0.3, '-PROBE-aus-'),
@@ -118,7 +141,8 @@ def test_sperren_bei_video_aus(gradient, monkeypatch):
 
 def test_sperren_waehrend_des_replays(gradient, monkeypatch, short_timers):
     probes = {}
-    run_app(gradient, [(1.0, '-TIMER_10-'), (3.5, '-PROBE-aufnahme-'),
+    # Timer: 1 s Vorbereitung, 1 s Gruen, 1 s Stopp.
+    run_app(gradient, [(1.0, '-TIMER_10-'), (4.5, '-PROBE-aufnahme-'),
                        (0.2, '-REPLAY-'), (0.3, '-PROBE-replay-'),
                        (0.2, '-REPLAY_END-'), (0.3, '-PROBE-ende-')], monkeypatch, probes=probes)
     assert only(probes['aufnahme'], *ZOOM, '-BLINK_START-', *TIMERS, '-REPLAY-', '-TOGGLEVIDEO-')
@@ -158,6 +182,28 @@ def test_tippen_zoomt_verschiebt_und_reset_stellt_zurueck(gradient, monkeypatch)
     assert int(rechts['frame'][300, 300, 2]) > int(zoom['frame'][300, 300, 2])
     assert np.array_equal(reset['frame'], start['frame'])
     assert not reset['clickable']['-RESETZOOM-']
+
+
+def test_tippen_oben_und_unten_verschiebt_senkrecht(gradient, monkeypatch):
+    # Kanal 1 = y-Verlauf: nach unten verschoben wird er groesser.
+    probes = {}
+    run_app(gradient, [(1.0, tap(50, 50)), (0.4, '-PROBE-zoom-'),
+                       (0.1, tap(50, 90)), (0.4, '-PROBE-unten-'),
+                       (0.1, tap(50, 10)), (0.1, tap(50, 10)), (0.4, '-PROBE-oben-')],
+            monkeypatch, probes=probes)
+    green = {k: int(probes[k]['frame'][300, 300, 1]) for k in ('zoom', 'unten', 'oben')}
+    assert green['unten'] > green['zoom'] > green['oben']
+    # Waagerecht bleibt alles gleich (Kanal 0 = x-Verlauf).
+    assert len({int(probes[k]['frame'][300, 300, 0]) for k in ('zoom', 'unten', 'oben')}) == 1
+
+
+def test_innen_scheibe_hebt_den_tipp_zoom_auf(gradient, monkeypatch):
+    probes = {}
+    run_app(gradient, [(1.0, '-DETAIL_VIDEO-'), (0.4, '-PROBE-innen-'),
+                       (0.1, tap(20, 20)), (0.4, '-PROBE-zoom-'),
+                       (0.1, '-DETAIL_VIDEO-'), (0.4, '-PROBE-wieder-')], monkeypatch, probes=probes)
+    assert not np.array_equal(probes['zoom']['frame'], probes['innen']['frame'])
+    assert np.array_equal(probes['wieder']['frame'], probes['innen']['frame'])
 
 
 def test_reset_setzt_auch_innen_scheibe_zurueck(gradient, monkeypatch):
@@ -220,6 +266,37 @@ def test_einzeltimer_ohne_durchgangszahl(gradient, monkeypatch, short_timers):
     draws = run_app(gradient, [(1.0, '-TIMER_20-'), (2.5, '-FULL_VIDEO-')], monkeypatch)
     green = [d for d in draws if is_green(d)]
     assert green and not any(has_number(d) for d in green)
+
+
+def drawn_texts(monkeypatch):
+    import overlays
+    texts = []
+    real = overlays.cv2.putText
+    monkeypatch.setattr(overlays.cv2, 'putText',
+                        lambda img, text, *a, **k: (texts.append(text), real(img, text, *a, **k))[1])
+    return texts
+
+
+def test_serie_zeigt_countdown_und_durchgang(gradient, monkeypatch, short_timers):
+    texts = drawn_texts(monkeypatch)
+    run_app(gradient, [(1.0, '-TIMER_5_3_7-'), (5.5, '-FULL_VIDEO-')], monkeypatch)
+    # Vorbereitung 1 s (Countdown), zwei Durchgaenge je 1 s Gruen und
+    # dazwischen 1 s Pause (jeweils Nummer und Countdown), 1 s Stopp ohne Text.
+    assert texts == ['1', '1', '1', '1', '1', '2', '1']
+
+
+def test_replay_zeigt_titel_trenntext_und_zaehler(gradient, monkeypatch, short_timers):
+    texts = drawn_texts(monkeypatch)
+    # Die Serie dauert 5 s, Replay mit Abstand danach.
+    run_app(gradient, [(1.0, '-TIMER_5_3_7-'), (7.0, '-REPLAY-'), (5.0, '-FULL_VIDEO-')], monkeypatch)
+    replay = texts[texts.index('5 x 3 Sek.'):]
+    assert 'Durchgang 2/2' in replay
+    counters = [t for t in replay if t.startswith('Durchgang ') and t.endswith(' s')]
+    assert re.fullmatch(r'Durchgang 1/2  0,\d s', counters[0])
+    assert re.fullmatch(r'Durchgang 2/2  \d,\d s', counters[-1])
+    # Der Zaehler beginnt fuer Durchgang 2 von vorn.
+    first_2 = next(t for t in counters if t.startswith('Durchgang 2/2'))
+    assert first_2.startswith('Durchgang 2/2  0,')
 
 
 # ---------------------------------------------------------- Exit-Codes (T7)
@@ -288,8 +365,11 @@ def test_replay_kein_bild_bei_ausgefallener_kamera(gradient, monkeypatch, short_
     # Serie mit zwei Durchgaengen; im ersten liefert die Kamera kein Bild.
     def blank(value):
         return lambda: setattr(GradientCamera.last, 'blank', value)
+    # Aufgenommen wird 1 s verzoegert (Latenz): Durchgang 1 von 2 bis 3 s,
+    # Durchgang 2 von 4 bis 5 s nach dem Start. Die Kamera kommt dazwischen
+    # zurueck, das Replay startet nach dem Ende der Serie.
     draws = run_app(gradient, [(1.0, blank(True)), (0.1, '-TIMER_5_3_7-'), (3.5, blank(False)),
-                               (2.0, '-REPLAY-'), (5.5, '-FULL_VIDEO-')], monkeypatch)
+                               (3.0, '-REPLAY-'), (5.5, '-FULL_VIDEO-')], monkeypatch)
     replay = [color_at_bottom(d) for d in draws if is_replay_frame(d) and not is_red(d)]
     # "kein Bild" ist schwarz mit grauer Schrift, danach das Kamerabild.
     assert (0, 0, 0) in replay

@@ -1,8 +1,8 @@
 """Rauchtest der gesamten Anwendung unter einem X-Server (Xvfb).
 
 Startet main.main() mit einer Fake-Kamera und steuert die Oberflaeche wie ein
-Bediener: Timer, Video aus/ein, PIN-Eingabe mit falscher und richtiger PIN,
-Einstellungsmenue, Replay, Ersteinrichtung. Ausfuehren mit:
+Bediener: PIN-Eingabe, Timer waehrend des Blinkens, Replay, Ersteinrichtung.
+Sperren, Zoom, Timer-Ablauf und Exit-Codes: test_hauptbildschirm.py. Ausfuehren mit:
 xvfb-run -a python -m pytest tests
 """
 import itertools
@@ -12,7 +12,6 @@ import numpy as np
 from app_harness import (
     CountingCamera,
     FakeCamera,
-    button_states,
     is_replay_frame,
     is_timer_frame,
     load_app,
@@ -21,23 +20,6 @@ from app_harness import (
 )
 
 pytestmark = needs_display
-
-
-def test_video_timer_und_video_aus(app, monkeypatch):
-    steps = [
-        (1.0, '-FULL_VIDEO-'),
-        (0.3, '-DETAIL_VIDEO-'),
-        (0.3, '-TOGGLEVIDEO-'),      # Video aus
-        (0.5, '-TOGGLEVIDEO-'),      # Video ein
-        (0.3, '-TIMER_10-'),         # Timer-Serie
-        (2.5, '-TIMER_STOP-'),
-        (0.5, '-BLINK_START-'),
-        (1.0, '-BLINK_STOP-'),
-    ]
-    draws = run_app(app, steps, monkeypatch)
-    assert len(draws) > 10
-    # Die Timer-Anzeige ist rot (Vorbereitung): BGR (0, 0, 255)
-    assert any((d[100, 100] == (0, 0, 255)).all() for d in draws)
 
 
 def test_pin_falsch_dann_richtig_und_einstellungsmenue(app, monkeypatch):
@@ -60,6 +42,22 @@ def test_pin_falsch_dann_richtig_und_einstellungsmenue(app, monkeypatch):
     # Die falsche PIN wurde abgewiesen, erst die richtige oeffnet das Menue.
     assert failures == [1]
     assert opened == [True]
+
+
+def opened_menus(app, monkeypatch):
+    opened = []
+    monkeypatch.setattr(app, 'run_settings_flow', lambda *a, **k: opened.append(True) or False)
+    return opened
+
+
+def test_pin_abbrechen_oeffnet_das_menue_nicht(app, monkeypatch):
+    opened = opened_menus(app, monkeypatch)
+    probes = {}
+    run_app(app, [(1.0, '-SETTINGS-'), (0.4, '4'), (0.1, '-PIN_CANCEL-'),
+                  (0.4, '-PROBE-danach-')], monkeypatch, probes=probes)
+    assert opened == []
+    # Zurueck auf dem Hauptbildschirm: dessen Buttons reagieren wieder.
+    assert probes['danach']['clickable']['-FULL_VIDEO-']
 
 
 def test_pin_abbrechen_waehrend_wartezeit(app, monkeypatch):
@@ -85,25 +83,26 @@ def test_pin_abbrechen_waehrend_wartezeit(app, monkeypatch):
         (0.4, '1'), (0.1, '-PIN_OK-'),
         (0.5, '-PIN_CANCEL-'),   # waehrend der 30 s Wartezeit
     ]
+    opened = opened_menus(app, monkeypatch)
     run_app(app, steps, monkeypatch)
+    assert opened == []
     # Abgebrochen (False) lange vor Ablauf der 30 s.
     assert len(waits) == 1
     result, duration = waits[0]
     assert result is False and duration < 10
 
 
-
 def test_timer_waehrend_blinken(app, monkeypatch):
     monkeypatch.setattr(app, 'Camera', CountingCamera)
-    keys = ('-BLINK_START-', '-BLINK_REF-', '-BLINK_STOP-', '-TIMER_10-', '-TIMER_STOP-')
-    states = button_states(monkeypatch, keys)
+    probes = {}
     steps = [
         (1.0, '-BLINK_START-'),
         (0.5, '-TIMER_10-'),      # Timer trotz Blinken startbar
         (1.5, '-TIMER_STOP-'),
-        (2.5, '-FULL_VIDEO-'),
+        (2.5, '-PROBE-danach-'),
     ]
-    draws = run_app(app, steps, monkeypatch)
+    draws = run_app(app, steps, monkeypatch, probes=probes)
+    states = probes['danach']['clickable']
     timer_idx = [i for i, d in enumerate(draws) if is_timer_frame(d)]
     assert timer_idx, 'Timer wurde nicht angezeigt'
     before = [int(d[300, 300, 0]) for d in draws[:timer_idx[0]]]
@@ -118,20 +117,11 @@ def test_timer_waehrend_blinken(app, monkeypatch):
     assert states['-TIMER_10-'] and not states['-TIMER_STOP-']
 
 
-def test_timer_ohne_blinken_gibt_blinken_frei(app, monkeypatch):
-    keys = ('-BLINK_START-', '-BLINK_REF-', '-BLINK_STOP-')
-    states = button_states(monkeypatch, keys)
-    run_app(app, [(1.0, '-TIMER_10-'), (1.0, '-TIMER_STOP-')], monkeypatch)
-    assert states['-BLINK_START-']
-    assert not states['-BLINK_REF-'] and not states['-BLINK_STOP-']
-
-
 def test_replay_nach_timer(app, monkeypatch):
     import timerlib
     # Kurze Vorbereitungszeit, damit die Gruenphase im Test schnell beginnt.
     monkeypatch.setattr(timerlib, 'PREP_TIME', 1)
-    keys = ('-REPLAY-', '-TIMER_10-', '-FULL_VIDEO-', '-BLINK_START-')
-    states = button_states(monkeypatch, keys)
+    probes = {}
     steps = [
         (1.0, '-TIMER_10-'),
         (3.5, '-TIMER_STOP-'),     # ca. 1,5 s Gruen aufgenommen (Verzoegerung 1 s)
@@ -139,67 +129,58 @@ def test_replay_nach_timer(app, monkeypatch):
         (1.5, '-DETAIL_VIDEO-'),   # Zoom im Replay (nach dem Startbild)
         (0.5, '-REPLAY-'),         # erneut abspielen
         (2.0, '-REPLAY_END-'),
-        (0.8, '-FULL_VIDEO-'),
+        (0.8, '-PROBE-danach-'),
     ]
-    draws = run_app(app, steps, monkeypatch)
-    replay_idx = [i for i, d in enumerate(draws) if is_replay_frame(d)]
-    assert len(replay_idx) > 5
+    draws = run_app(app, steps, monkeypatch, probes=probes)
+    replay = [d for d in draws if is_replay_frame(d)]
+    # Bilder der Aufnahme (nicht nur rote Start-/Trennbilder), auch nach dem
+    # Wechsel auf Innen Scheibe und nach dem erneuten Start.
+    shown = [d for d in replay if tuple(d[300, 300]) != (0, 0, 255)]
+    assert len(shown) > 5
+    after = probes['danach']
     # Nach "Replay Ende" wieder Livebild ohne Replay-Rahmen
-    assert not is_replay_frame(draws[-1])
+    assert not is_replay_frame(after['frame'])
     # Aufnahme bleibt nach "Replay Ende" fuer ein weiteres Replay erhalten
-    assert states['-REPLAY-'] and states['replay_text'] == 'Replay'
-    assert states['-TIMER_10-'] and states['-FULL_VIDEO-'] and states['-BLINK_START-']
+    assert after['clickable']['-REPLAY-'] and after['replay_text'] == 'Replay'
+    assert all(after['clickable'][k] for k in ('-TIMER_10-', '-FULL_VIDEO-', '-BLINK_START-'))
 
 
 def test_replay_endet_nach_rotem_schlussbild(app, monkeypatch):
     import timerlib
     monkeypatch.setattr(timerlib, 'PREP_TIME', 1)
-    states = button_states(monkeypatch, ('-REPLAY-', '-TIMER_10-'))
+    probes = {}
     steps = [
         (1.0, '-TIMER_10-'),
         (3.0, '-TIMER_STOP-'),
         (0.3, '-REPLAY-'),
-        (4.5, '-FULL_VIDEO-'),     # Replay (ca. 1 s + 1 s Rot) ist laengst vorbei
+        (4.5, '-PROBE-danach-'),   # Replay (ca. 1 s + 1 s Rot) ist laengst vorbei
     ]
-    draws = run_app(app, steps, monkeypatch)
+    draws = run_app(app, steps, monkeypatch, probes=probes)
+    after = probes['danach']
     assert any(is_replay_frame(d) for d in draws)
-    assert not is_replay_frame(draws[-1])
-    assert states['-REPLAY-'] and states['replay_text'] == 'Replay' and states['-TIMER_10-']
-
-
-def test_replay_button_wird_zu_replay_ende(app, monkeypatch):
-    import timerlib
-    monkeypatch.setattr(timerlib, 'PREP_TIME', 1)
-    states = button_states(monkeypatch, ('-REPLAY-',))
-    steps = [
-        (1.0, '-TIMER_10-'),
-        (3.0, '-TIMER_STOP-'),
-        (0.3, '-REPLAY-'),
-        (0.5, '-FULL_VIDEO-'),     # Replay laeuft noch
-    ]
-    run_app(app, steps, monkeypatch)
-    assert states['-REPLAY-'] and states['replay_text'] == 'Replay Ende'
+    assert not is_replay_frame(after['frame'])
+    assert after['clickable']['-REPLAY-'] and after['replay_text'] == 'Replay'
+    assert after['clickable']['-TIMER_10-']
 
 
 def test_replay_gesperrt_bei_video_aus(app, monkeypatch):
     import timerlib
     monkeypatch.setattr(timerlib, 'PREP_TIME', 1)
-    states = button_states(monkeypatch, ('-REPLAY-',))
+    probes = {}
     steps = [
         (1.0, '-TIMER_10-'),
         (3.0, '-TIMER_STOP-'),
         (0.3, '-TOGGLEVIDEO-'),    # Video aus
-        (0.3, '-REPLAY-'),         # wirkungslos, Button gesperrt
+        (0.3, '-PROBE-aus-'),
+        # Ereignis direkt, wie es ein gesperrter Button nie senden wuerde:
+        # auch dann startet kein Replay.
+        (0.0, '-REPLAY-'),
+        (0.3, '-PROBE-danach-'),
     ]
-    draws = run_app(app, steps, monkeypatch)
+    draws = run_app(app, steps, monkeypatch, probes=probes)
     assert not any(is_replay_frame(d) for d in draws)
-    assert not states['-REPLAY-'] and states['replay_text'] == 'Replay'
-
-
-def test_kein_replay_ohne_aufnahme(app, monkeypatch):
-    states = button_states(monkeypatch, ('-REPLAY-',))
-    run_app(app, [(1.0, '-FULL_VIDEO-')], monkeypatch)
-    assert not states['-REPLAY-'] and states['replay_text'] == 'Replay'
+    assert not probes['aus']['clickable']['-REPLAY-']
+    assert probes['danach']['replay_text'] == 'Replay'
 
 
 # ------------------------------------------------- Ersteinrichtungs-Assistent
@@ -324,4 +305,61 @@ def test_ersteinrichtung_ueberspringt_vorhandene_schritte(tmp_path, monkeypatch)
     for name in ('run_stand_select', 'wait_for_camera_frame', 'edit_section_points', 'change_pin_flow'):
         monkeypatch.setattr(main, name, unexpected)
     draws = run_app(main, [(1.0, '-FULL_VIDEO-')], monkeypatch)
+    assert len(draws) > 3
+
+
+def test_ersteinrichtung_wiederholt_schritte_nach_speicherfehler(tmp_path, monkeypatch):
+    # Jeder Schritt scheitert beim ersten Speichern und erscheint deshalb
+    # noch einmal; erst danach geht es weiter.
+    import json
+    main = load_app(tmp_path, monkeypatch, WIZARD_CONFIG)
+    import settings_store
+    with open(settings_store.STANDS_FILE, 'w') as f:
+        json.dump({'stands': WIZARD_STANDS}, f)
+
+    log = []
+    failed = set()
+
+    def fails_once(step):
+        if step in failed:
+            return False
+        failed.add(step)
+        return True
+
+    def save_active_stand(stand_id):
+        if fails_once('stand'):
+            log.append('stand fehlgeschlagen')
+            return False
+        with open(settings_store.ACTIVE_STAND_FILE, 'w') as f:
+            json.dump({'id': stand_id}, f)
+        return True
+
+    def save_sections(full, detail):
+        if fails_once('ausschnitte'):
+            log.append('ausschnitte fehlgeschlagen')
+            return False
+        with open(settings_store.SECTIONS_OVERRIDE_FILE, 'w') as f:
+            json.dump({'section_full': full, 'section_detail': detail}, f)
+        return True
+
+    def change_pin(current, forced):
+        log.append('pin')
+        # None: Speichern fehlgeschlagen (Meldung kommt aus flows).
+        return None if fails_once('pin') else '2580'
+
+    def edit(label, *args, **kwargs):
+        log.append(label)
+        return WIZARD_FULL if label == 'Ganze Scheibe' else WIZARD_DETAIL
+
+    monkeypatch.setattr(main, 'run_stand_select', lambda stands, forced: log.append('stand') or WIZARD_STANDS[0])
+    monkeypatch.setattr(main, 'save_active_stand', save_active_stand)
+    monkeypatch.setattr(main, 'wait_for_camera_frame', lambda cap: np.zeros((700, 700, 3), np.uint8))
+    monkeypatch.setattr(main, 'edit_section_points', edit)
+    monkeypatch.setattr(main, 'save_sections_override', save_sections)
+    monkeypatch.setattr(main, 'change_pin_flow', change_pin)
+
+    draws = run_app(main, [(1.0, '-FULL_VIDEO-')], monkeypatch)
+    assert log == ['stand', 'stand fehlgeschlagen', 'stand',
+                   'Ganze Scheibe', 'ausschnitte fehlgeschlagen', 'Ganze Scheibe', 'Innen Scheibe',
+                   'pin', 'pin']
     assert len(draws) > 3

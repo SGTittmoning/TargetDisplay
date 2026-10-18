@@ -4,10 +4,16 @@ import numpy as np
 
 import camera
 
+# Jedes Pixel traegt seine Koordinaten (Kanal 0: x, Kanal 1: y), damit ein
+# Zuschnitt mit vertauschten Achsen auffaellt.
+FRAME_H, FRAME_W = 12, 20
+_y, _x = np.mgrid[0:FRAME_H, 0:FRAME_W]
+FRAME = np.dstack([_x, _y, np.zeros_like(_x)]).astype(np.uint8)
+
 
 class FakeFrame:
     def to_ndarray(self, format):
-        return np.zeros((8, 8, 3), np.uint8)
+        return FRAME.copy()
 
 
 class FakeContainer:
@@ -31,10 +37,10 @@ class FakeContainer:
             raise self.close_error
 
 
-def start_camera(monkeypatch, containers):
+def start_camera(monkeypatch, containers, reconnect_delay=0.01):
     it = iter(containers)
     monkeypatch.setattr(camera.Camera, '_open_container', lambda self: next(it))
-    return camera.Camera('rtmp://test.invalid/live', reconnect_delay=0.01)
+    return camera.Camera('rtmp://test.invalid/live', reconnect_delay=reconnect_delay)
 
 
 def wait_for_frames(cam, count, timeout=3.0):
@@ -48,11 +54,22 @@ def wait_for_frames(cam, count, timeout=3.0):
 
 def test_liefert_bilder_und_zuschnitt(monkeypatch):
     cam = start_camera(monkeypatch, [FakeContainer(0)])
-    cam.set_crop_region((2, 1, 6, 5))
+    # Nicht quadratisch, nicht am Ursprung: (x0, y0, x1, y1).
+    cam.set_crop_region((3, 2, 15, 7))
     try:
         assert wait_for_frames(cam, 3)
-        assert cam.get_frame().shape == (4, 4, 3)
-        assert cam.get_frame(full=True).shape == (8, 8, 3)
+        assert np.array_equal(cam.get_frame(), FRAME[2:7, 3:15])
+        assert np.array_equal(cam.get_frame(full=True), FRAME)
+    finally:
+        cam.stop()
+
+
+def test_zuschnitt_ueber_den_bildrand_wird_begrenzt(monkeypatch):
+    cam = start_camera(monkeypatch, [FakeContainer(0)])
+    cam.set_crop_region((10, 5, 40, 30))
+    try:
+        assert wait_for_frames(cam, 3)
+        assert np.array_equal(cam.get_frame(), FRAME[5:, 10:])
     finally:
         cam.stop()
 
@@ -91,3 +108,21 @@ def test_zugangsdaten_landen_nicht_im_log(monkeypatch, capsys):
     finally:
         cam.stop()
     assert 'geheim' not in capsys.readouterr().err
+
+
+def test_stop_beendet_den_lesethread(monkeypatch):
+    cam = start_camera(monkeypatch, [FakeContainer(0)])
+    assert wait_for_frames(cam, 3)
+    cam.stop()
+    cam._thread.join(timeout=2)
+    assert not cam._thread.is_alive()
+
+
+def test_stop_waehrend_der_wartezeit_vor_dem_neuen_versuch(monkeypatch):
+    cam = start_camera(monkeypatch, [FakeContainer(1, error=OSError('weg')), FakeContainer(0)],
+                       reconnect_delay=30)
+    assert wait_for_frames(cam, 1)
+    time.sleep(0.1)
+    cam.stop()
+    cam._thread.join(timeout=2)
+    assert not cam._thread.is_alive()

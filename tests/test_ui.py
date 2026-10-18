@@ -1,21 +1,16 @@
 import pytest
+from app_harness import needs_display, open_window
 
 import ui
 
-
-class Cfg:
-    def get_property(self, key):
-        return {'screenSize': [1280, 800]}[key]
+pytestmark = needs_display
 
 
 @pytest.fixture
 def win():
-    ui.window = ui.Window(Cfg(), (780, 780), 'test')
-    ui.window.show_page('-MAINVIEW-')
-    ui.window.root.update()
-    yield ui.window
-    ui.window.close()
-    ui.window = None
+    with open_window(ui, [1280, 800], (780, 780)) as window:
+        window.show_page('-MAINVIEW-')
+        yield window
 
 
 def test_sperren_und_entsperren_verschiebt_keine_buttons(win):
