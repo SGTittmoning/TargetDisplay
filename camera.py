@@ -32,6 +32,7 @@ STREAM_STALE_TIMEOUT_SEC = 10
 # laufenden Betrieb gilt das knappere STREAM_STALE_TIMEOUT_SEC.
 STREAM_STARTUP_TIMEOUT_SEC = 30
 
+
 def _close_quietly(container):
     # Ein Fehler beim Schliessen einer ohnehin verworfenen Verbindung darf
     # weder stop() noch den Lesethread abbrechen.
