@@ -13,6 +13,8 @@
 #   ansible-playbook -i inventory.yml update-app.yml --limit <host>
 #   ansible-playbook -i inventory.yml update-app.yml --limit <host> \
 #       -e targetdisplay_git_version=<branch|tag|commit>
+# Ohne targetdisplay_git_version kommt das Release targetdisplay_release aus
+# vars/common.yml.
 #
 # Ablauf bei aktivem Overlay (automatisch erkannt):
 #   1. targetdisplay-writable.sh rw   (Overlay aus -> Reboot -> Boot-RO aus)

@@ -98,3 +98,13 @@ def test_gerenderte_liste_liest_die_app(tmp_path, monkeypatch):
     path.write_text(json.dumps(render_stands(targetdisplay_stands=STANDS)))
     monkeypatch.setattr(settings_store, 'STANDS_FILE', str(path))
     assert settings_store.load_stands() == STANDS
+
+
+def test_release_tag_passt_zur_version():
+    import main
+    assert load('vars', 'common.yml')['targetdisplay_release'] == 'v' + main.VERSION
+
+
+def test_app_deploy_nutzt_das_release_tag():
+    [task] = [t for t in load('tasks', 'app_deploy.yml') if 'git' in t]
+    assert task['git']['version'] == "{{ targetdisplay_git_version | default(targetdisplay_release) }}"
