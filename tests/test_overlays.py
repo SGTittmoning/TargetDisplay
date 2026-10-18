@@ -1,7 +1,17 @@
 import numpy as np
+import pytest
 
 import overlays as ov
 from overlays import blend_logo_centered
+
+
+@pytest.fixture
+def texts(monkeypatch):
+    """Alle Texte, die in ein Bild geschrieben werden, in Reihenfolge."""
+    drawn = []
+    real = ov.cv2.putText
+    monkeypatch.setattr(ov.cv2, 'putText', lambda img, text, *a, **k: (drawn.append(text), real(img, text, *a, **k))[1])
+    return drawn
 
 
 def make_canvas():
@@ -73,3 +83,22 @@ def test_video_aus_bild_ohne_und_mit_logo():
     logo = np.full((50, 50, 4), 255, np.uint8)
     with_logo = ov.blank_frame((300, 200), logo)
     assert with_logo[100, 150].max() == 255 and not with_logo[0, 0].any()
+
+
+def test_texte_im_timer_bild(texts):
+    import timerlib
+    ov.timer_frame((600, 400), timerlib.TimerState('green', 2, 3, False))
+    assert texts == ['2', '3']
+    texts.clear()
+    ov.timer_frame((600, 400), timerlib.TimerState('red', None, 7, False))
+    assert texts == ['7']
+
+
+def test_texte_im_replay(texts):
+    ov.draw_replay_marker(np.zeros((300, 300, 3), np.uint8), 'Durchgang 2/5  1,4 s')
+    assert texts == ['REPLAY', 'Durchgang 2/5  1,4 s']
+    texts.clear()
+    ov.replay_separator((300, 200), 'Durchgang 3/5')
+    ov.replay_separator((300, 200), '')
+    ov.replay_no_frame((300, 200))
+    assert texts == ['Durchgang 3/5', 'kein Bild']

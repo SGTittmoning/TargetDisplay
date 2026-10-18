@@ -267,6 +267,37 @@ def test_einzeltimer_ohne_durchgangszahl(gradient, monkeypatch, short_timers):
     assert green and not any(has_number(d) for d in green)
 
 
+def drawn_texts(monkeypatch):
+    import overlays
+    texts = []
+    real = overlays.cv2.putText
+    monkeypatch.setattr(overlays.cv2, 'putText',
+                        lambda img, text, *a, **k: (texts.append(text), real(img, text, *a, **k))[1])
+    return texts
+
+
+def test_serie_zeigt_countdown_und_durchgang(gradient, monkeypatch, short_timers):
+    texts = drawn_texts(monkeypatch)
+    run_app(gradient, [(1.0, '-TIMER_5_3_7-'), (5.5, '-FULL_VIDEO-')], monkeypatch)
+    # Vorbereitung 1 s (Countdown), zwei Durchgaenge je 1 s Gruen und
+    # dazwischen 1 s Pause (jeweils Nummer und Countdown), 1 s Stopp ohne Text.
+    assert texts == ['1', '1', '1', '1', '1', '2', '1']
+
+
+def test_replay_zeigt_titel_trenntext_und_zaehler(gradient, monkeypatch, short_timers):
+    texts = drawn_texts(monkeypatch)
+    # Die Serie dauert 5 s, Replay mit Abstand danach.
+    run_app(gradient, [(1.0, '-TIMER_5_3_7-'), (7.0, '-REPLAY-'), (5.0, '-FULL_VIDEO-')], monkeypatch)
+    replay = texts[texts.index('5 x 3 Sek.'):]
+    assert 'Durchgang 2/2' in replay
+    counters = [t for t in replay if t.startswith('Durchgang ') and t.endswith(' s')]
+    assert re.fullmatch(r'Durchgang 1/2  0,\d s', counters[0])
+    assert re.fullmatch(r'Durchgang 2/2  \d,\d s', counters[-1])
+    # Der Zaehler beginnt fuer Durchgang 2 von vorn.
+    first_2 = next(t for t in counters if t.startswith('Durchgang 2/2'))
+    assert first_2.startswith('Durchgang 2/2  0,')
+
+
 # ---------------------------------------------------------- Exit-Codes (T7)
 
 @pytest.fixture
