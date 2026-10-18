@@ -459,25 +459,25 @@ class Window:
         stop_btn.grid(row=0, column=0, columnspan=3, sticky='nsew')
         replay_btn.grid(row=0, column=4, sticky='nsew')
 
-        # -- Footer, von unten gepackt: Infozeile ganz unten, darueber Version/FPS,
-        # darueber Datum und Uhrzeit. Der freie Platz zwischen Buttons und Footer
-        # haelt ihn unten. Im Normalfall steht nur die Version da; ein Tipp auf
-        # den Fussbereich blendet FPS und Systemwerte ein und wieder aus
+        # -- Footer, von unten gepackt: Version/FPS ganz unten, darueber die
+        # Infozeile, darueber Datum und Uhrzeit. Der freie Platz zwischen Buttons
+        # und Footer haelt ihn unten. Im Normalfall steht nur die Version da; ein
+        # Tipp auf den Fussbereich blendet FPS und Systemwerte ein und wieder aus
         # (-INFO-). Die Infozeile belegt ihre Hoehe auch leer, das Umschalten
         # verschiebt also nichts.
-        info_row = tk.Frame(left, bg=BG)
-        info_row.pack(side='bottom', fill='x')
         version_row = tk.Frame(left, bg=BG)
         version_row.pack(side='bottom', fill='x')
+        info_row = tk.Frame(left, bg=BG)
+        info_row.pack(side='bottom', fill='x')
         footer_font = ('Helvetica', 11)
         version_label = tk.Label(version_row, text='V: ' + self.version, font=footer_font, bg=BG, fg=FG_MUTED)
-        version_label.pack(side='left', padx=5, pady=(8, 0))
+        version_label.pack(side='left', padx=5, pady=(2, 0))
         fps_label = tk.Label(version_row, text='', font=footer_font, bg=BG, fg=FG_MUTED, anchor='w')
-        self._reg('-FPS-', fps_label, show={'side': 'left', 'padx': 5, 'pady': (8, 0)})
+        self._reg('-FPS-', fps_label, show={'side': 'left', 'padx': 5, 'pady': (2, 0)})
         info_labels = []
         for key in ('-USAGE-', '-TEMP-', '-LOAD-'):
             label = tk.Label(info_row, text='', font=footer_font, bg=BG, fg=FG_MUTED, anchor='w')
-            label.pack(side='left', padx=5, pady=(2, 0))
+            label.pack(side='left', padx=5, pady=(8, 0))
             self._reg(key, label)
             info_labels.append(label)
         for w in (info_row, version_row, version_label, fps_label, *info_labels):
