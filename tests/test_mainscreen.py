@@ -2,6 +2,8 @@
 Timer, Replay, Blinken und Zoom ohne Tk und ohne Wartezeiten."""
 import re
 
+import numpy as np
+import pytest
 from screen_harness import BLACK, RED, Screen, below_center, gray
 
 import overlays
@@ -264,3 +266,55 @@ def test_uhr_wechselt_um_mitternacht_das_datum(monkeypatch):
     s.run(10, each=lambda: (dates.append(s.window['-DATE-'].value), times.append(s.window['-TIME-'].value)))
     assert dates[0] == '18.10.2026' and dates[-1] == '19.10.2026'
     assert times[0] == '23:59:55' and times[-1] in ('00:00:04', '00:00:05')
+
+
+def test_zoomfelder_im_bild_schalten_die_stufen(monkeypatch):
+    s = Screen(monkeypatch)
+    rects = s.screen.view._control_rects()
+    cx = lambda r: ((r[0] + r[2]) / 2 * 100 / 300, (r[1] + r[3]) / 2 * 100 / 300)  # noqa: E731
+    plus, minus = cx(rects['in']), cx(rects['out'])
+    s.send('-VIDEO-', {'-VIDEO-': plus}).run(0.2)
+    assert s.screen.view.step == 1 and s.window.controls['zoom_center'] is not None
+    s.send('-VIDEO-', {'-VIDEO-': plus}).run(0.2)
+    assert s.screen.view.step == 2
+    s.send('-VIDEO-', {'-VIDEO-': minus}).run(0.2)
+    assert s.screen.view.step == 1
+    s.send('-VIDEO-', {'-VIDEO-': minus}).run(0.2)
+    assert s.screen.view.step == 0 and s.window.controls['zoom_center'] is None
+    # Ein Tipp aufs Feld vergroessert nicht zusaetzlich um die getippte Stelle.
+    assert s.screen.view.center is None
+
+
+def test_zoomfelder_im_timer_ohne_wirkung(monkeypatch):
+    s = Screen(monkeypatch)
+    rects = s.screen.view._control_rects()
+    x0, y0, x1, y1 = rects['in']
+    s.send('-TIMER_10-').run(1).send('-VIDEO-', {'-VIDEO-': ((x0 + x1) / 6, (y0 + y1) / 6)}).run(1)
+    assert s.screen.view.step == 0
+
+
+def test_zoomfelder_sind_im_livebild_sichtbar(monkeypatch):
+    s = Screen(monkeypatch)
+    s.run(0.5)
+    x0, y0, x1, y1 = s.screen.view._control_rects()['out']
+    assert s.window.draws[-1][y0:y1, x0:x1].mean() < 100
+
+
+def test_vergroesserung_der_innen_scheibe_aus_den_ausschnitten():
+    import main
+    full = np.array([[0, 0], [800, 0], [800, 800], [0, 800]])
+    detail = np.array([[200, 200], [600, 200], [600, 600], [200, 600]])
+    assert main.MainScreen.detail_magnification(full, detail) == 2.0
+    assert main.MainScreen.detail_magnification(full, full) == 1.0
+
+
+def test_maximum_passt_zur_innen_scheibe_von_stand_1():
+    import main
+    import transformlib
+    full = np.array([[92, 662], [1052, 514], [368, 1359], [1170, 1319]])
+    detail = np.array([[387, 839], [805, 792], [489, 1182], [901, 1170]])
+    # Innen Scheibe ist dort gut 2,1-fach vergroessert; mit der normalen Stufe
+    # ergibt das das Maximum.
+    magnification = main.MainScreen.detail_magnification(full, detail)
+    assert magnification == pytest.approx(2.11, abs=0.01)
+    assert magnification * transformlib.VIDEO_ZOOM_FACTOR == pytest.approx(transformlib.VIDEO_ZOOM_MAX, abs=0.1)

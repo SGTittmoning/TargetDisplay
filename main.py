@@ -1,3 +1,4 @@
+import os
 import sys
 import time
 from collections import namedtuple
@@ -57,7 +58,7 @@ BLINK_SWITCH_SEC = 1
 # Rand um die beiden Ausschnitte beim Zuschnitt des Kamerabilds (Pixel).
 CROP_MARGIN = 15
 
-VERSION = '0.13.6'
+VERSION = '0.13.7'
 
 
 # Ergebnis des Assistenten: alles, was der Hauptbildschirm zum Start braucht.
@@ -73,7 +74,8 @@ def load_logo():
     # nicht versionierte Datei ab; sie hat Vorrang vor dem Platzhalter im Repo.
     # Fehlt beides, bleibt der Bildschirm bei "Video aus" schwarz.
     for path in (LOGO_CUSTOM, LOGO_DEFAULT):
-        logo = cv2.imread(path, cv2.IMREAD_UNCHANGED)
+        # Ohne Vorpruefung meldet OpenCV jede fehlende Datei im Journal.
+        logo = cv2.imread(path, cv2.IMREAD_UNCHANGED) if os.path.exists(path) else None
         if logo is not None:
             return logo
     print(f"{LOGO_DEFAULT} nicht gefunden - Blank-Screen-Wasserzeichen bleibt leer.", file=sys.stderr)
@@ -204,7 +206,7 @@ class MainScreen:
         # eigenes Skalieren entfaellt.
         self.view = Viewport(tl.compute_perspective_matrix(pts_full - [x0, y0], video_size),
                              tl.compute_perspective_matrix(pts_detail - [x0, y0], video_size),
-                             video_size)
+                             video_size, detail_factor=self.detail_magnification(pts_full, pts_detail))
 
         self._handlers = {
             '-TOGGLEVIDEO-': self.toggle_video,
@@ -316,13 +318,28 @@ class MainScreen:
     def zoom_detail(self, event, values):
         self.view.set_level('detail')
 
+    @staticmethod
+    def detail_magnification(pts_full, pts_detail):
+        # Vergroesserung von "Innen Scheibe" gegenueber "Ganze Scheibe": Wurzel
+        # des Flaechenverhaeltnisses der beiden Ausschnitte im Kamerabild.
+        full = cv2.contourArea(cv2.convexHull(pts_full.astype(np.int32)))
+        detail = cv2.contourArea(cv2.convexHull(pts_detail.astype(np.int32)))
+        return (full / detail) ** 0.5 if full > 0 and detail > 0 else 1.0
+
     def tap_video(self, event, values):
         # Zoomen nur, solange ein Bild zu sehen ist: im Timer und bei
         # "Video aus" bliebe ein Tipp sonst unbemerkt bis zum naechsten
         # Livebild stehen.
         if self.mode not in ('live', 'replay'):
             return
-        self.view.tap(*values['-VIDEO-'])
+        x, y = values['-VIDEO-']
+        hit = self.view.hit(x, y)
+        if hit == 'in':
+            self.view.zoom_in()
+        elif hit == 'out':
+            self.view.zoom_out()
+        else:
+            self.view.tap(x, y)
 
     def blink_start(self, event, values):
         # Das naechste Livebild wird zur Referenz. Zoom bleibt bedienbar, er
@@ -416,7 +433,7 @@ class MainScreen:
         elif view.frame is None:
             frame = replay_no_frame(self.video_size)
         else:
-            frame = self.view.render(view.frame)
+            frame = self.view.render_with_controls(view.frame)
         self.window.draw_image(draw_replay_marker(frame, counter))
         self.window_fps.update('')
 
@@ -435,9 +452,9 @@ class MainScreen:
         if self.blink and self.blink_ref is None:
             self.blink_ref = frame
         if self.blink and int(self.clock() / BLINK_SWITCH_SEC) % 2 == 1:
-            self.window.draw_image(self.view.render(self.blink_ref))
+            self.window.draw_image(self.view.render_with_controls(self.blink_ref))
         else:
-            self.window.draw_image(self.view.render(frame))
+            self.window.draw_image(self.view.render_with_controls(frame))
         self.update_fps()
 
     def update_fps(self):
