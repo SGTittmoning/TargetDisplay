@@ -37,9 +37,13 @@
         msg: "Reboot fuer targetdisplay-update.sh Phase 1 (OverlayFS deaktivieren)"
       when: "'awaiting-reboot-1' in targetdisplay_status_after_begin.stdout"
 
+    # Exit 3: Updates eingespielt, aber nicht alle Paketquellen waren
+    # lesbar (siehe targetdisplay-update.sh). Der Ablauf geht bis zum Reboot
+    # weiter und schlaegt am Ende fehl.
     - name: "Phase 2: Updates einspielen (apply)"
       command: /root/bin/targetdisplay-update.sh apply
       register: targetdisplay_apply_result
+      failed_when: targetdisplay_apply_result.rc not in [0, 3]
 
     - name: Ergebnis von apply anzeigen
       debug:
@@ -59,3 +63,11 @@
       debug:
         msg: "WARNUNG: targetdisplay.service ist nach dem Update nicht aktiv (Status: {{ targetdisplay_service_status.stdout }})"
       when: targetdisplay_service_status.stdout != 'active'
+
+    - name: Fehler, falls nicht alle Paketquellen gelesen werden konnten
+      fail:
+        msg: >-
+          apt-get update konnte nicht alle Paketquellen lesen, die Updates sind
+          evtl. unvollstaendig (Ausgabe von apply oben). Ursache beheben (z.B.
+          Uhrzeit, Netz) und maintain.yml erneut ausfuehren.
+      when: targetdisplay_apply_result.rc == 3

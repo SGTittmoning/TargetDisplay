@@ -56,6 +56,8 @@ STUB
 cat > "$STUBS/apt-get" <<'STUB'
 #!/bin/bash
 echo "apt-get $*" >> "$STUB_LOG"
+[ "$1" = update ] && [ "${STUB_APT_UPDATE_FAIL:-0}" = 1 ] && exit 100
+exit 0
 STUB
 cat > "$STUBS/mount" <<'STUB'
 #!/bin/bash
@@ -95,7 +97,7 @@ done
 
 export STUB_LOG="$WORK/stub.log"
 export PATH="$STUBS:$PATH"
-reset() { : > "$STUB_LOG"; rm -rf "$BOOT"; mkdir -p "$BOOT"; unset BOOTRO OVERLAY FAIL_MOUNT_RW FAIL_MV STUB_INACTIVE STUB_FAILED STUB_NRESTARTS STUB_ACTIVE_ENTER_US STUB_HOOK STUB_HOOK_STAYS_MISSING; rm -f "$STUB_LOG.rebuilt"; }
+reset() { : > "$STUB_LOG"; rm -rf "$BOOT"; mkdir -p "$BOOT"; unset STUB_APT_UPDATE_FAIL BOOTRO OVERLAY FAIL_MOUNT_RW FAIL_MV STUB_INACTIVE STUB_FAILED STUB_NRESTARTS STUB_ACTIVE_ENTER_US STUB_HOOK STUB_HOOK_STAYS_MISSING; rm -f "$STUB_LOG.rebuilt"; }
 calls() { grep -c "$1" "$STUB_LOG" 2>/dev/null || true; }
 lineof() { grep -n -m1 "$1" "$STUB_LOG" 2>/dev/null | cut -d: -f1; }
 
@@ -347,6 +349,15 @@ reset; touch "$BOOT/initramfs8"; echo awaiting-apply-no-reboot > "$BOOT/.targetd
 STUB_HOOK=0 STUB_HOOK_STAYS_MISSING=1 OVERLAY=1 BOOTRO=0 "$BIN/targetdisplay-update.sh" apply >/dev/null 2>&1; rc=$?
 check "apply, Hook bleibt weg: Exit 1" 1 "$rc"
 check "apply, Hook bleibt weg: Zustandsdatei bleibt" 1 "$([ -f "$BOOT/.targetdisplay-update.state" ] && echo 1 || echo 0)"
+
+reset; touch "$BOOT/initramfs8"; echo awaiting-apply-no-reboot > "$BOOT/.targetdisplay-update.state"
+STUB_APT_UPDATE_FAIL=1 OVERLAY=1 BOOTRO=0 "$BIN/targetdisplay-update.sh" apply >/dev/null 2>&1; rc=$?
+check "apply, Paketquelle unlesbar: Exit 3" 3 "$rc"
+check "apply, Paketquelle unlesbar: Upgrade laeuft trotzdem" 1 "$(calls 'apt-get full-upgrade')"
+check "apply, Paketquelle unlesbar: Overlay wieder aktiviert" 1 "$(calls 'enable_overlayfs')"
+check "apply, Paketquelle unlesbar: Boot wieder read-only" 1 "$([ "$(grep -c 'remount,ro' "$STUB_LOG")" -ge 1 ] && echo 1 || echo 0)"
+check "apply, Paketquelle unlesbar: Zustand aufgeraeumt" 0 "$([ -f "$BOOT/.targetdisplay-update.state" ] && echo 1 || echo 0)"
+check "apply: update mit --error-on=any" 1 "$(calls 'apt-get update --error-on=any')"
 
 echo
 echo "Ergebnis: $pass ok, $fail Fehler"
