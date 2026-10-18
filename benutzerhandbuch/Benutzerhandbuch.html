@@ -175,6 +175,13 @@ figcaption.fig-note{
   padding:14px 18px; margin:22px 0; font-size:15.5px;
 }
 .callout p{ margin:0; }
+table.locks{ border-collapse:collapse; width:100%; font-size:14px; margin:12px 0 6px; }
+table.locks th,table.locks td{ border:1px solid var(--line); padding:5px 8px; text-align:center; }
+table.locks thead th{ background:var(--paper-raised-2); font-family:"Barlow Condensed",sans-serif; }
+table.locks tbody th{ text-align:left; background:var(--paper-raised); }
+.table-note{ font-size:13px; color:var(--muted); margin:0 0 16px; }
+.quick{ margin-top:36px; background:var(--paper-raised); border:1px solid var(--line); border-radius:3px; padding:6px 24px 14px; }
+.quick li{ margin-bottom:6px; }
 .callout + .callout{ margin-top:-10px; }
 
 /* ---------- Admin chapter (restricted styling) ---------- */
@@ -274,6 +281,8 @@ footer{
      zugehoerige Legende auf eine Seite passen. */
   figure.plate img { max-height: 88mm; width: auto; display: block; margin: 0 auto; }
   section.restricted figure.plate img { max-height: 52mm; }
+  /* Einfache Dialoge (PIN, Menue) klein, damit Kapitel 2 die Seite fuellt. */
+  section.restricted figure.plate img[src*="08_pin"], section.restricted figure.plate img[src*="09_einst"] { max-height: 42mm; }
   /* Abb. 1 etwas kleiner, damit die Legende der Kopfzeile noch auf
      dieselbe Seite passt. */
   #hauptbildschirm > figure.plate:first-of-type img { max-height: 62mm; }
@@ -325,12 +334,15 @@ footer{
     <h2>Inhaltsverzeichnis</h2>
     <ol>
       <li><a href="#einleitung">Einleitung</a></li>
+      <li><a href="#kurzanleitung">Kurzanleitung</a></li>
       <li><a href="#hauptbildschirm">01&nbsp;&nbsp;Der Hauptbildschirm</a></li>
       <li class="sub"><a href="#zoom-detail">Zoom im Detail</a></li>
       <li class="sub"><a href="#blinken">&bdquo;Blinken&ldquo;-Vergleichsmodus im Detail</a></li>
       <li class="sub"><a href="#timer">Wettkampf-Timer im Detail</a></li>
       <li class="sub"><a href="#replay">Replay im Detail</a></li>
       <li class="sub"><a href="#video-aus">&bdquo;Video aus&ldquo; im Detail</a></li>
+      <li class="sub"><a href="#sperren">Was wann bedienbar ist</a></li>
+      <li class="sub"><a href="#ausschalten">Ausschalten</a></li>
       <li><a href="#admin">02&nbsp;&nbsp;Administrativer Bereich</a></li>
       <li class="sub"><a href="#pin-eingabe">PIN-Eingabe</a></li>
       <li class="sub"><a href="#einstellungen">Einstellungen-Menü</a></li>
@@ -348,12 +360,15 @@ footer{
     <nav class="toc" aria-label="Inhalt">
       <ol>
         <li><a href="#einleitung"><span class="toc-num">&mdash;</span>Einleitung</a></li>
+        <li><a href="#kurzanleitung"><span class="toc-num">&mdash;</span>Kurzanleitung</a></li>
         <li><a href="#hauptbildschirm"><span class="toc-num">01</span>Hauptbildschirm</a></li>
         <li class="toc-sub"><a href="#zoom-detail">Zoom im Detail</a></li>
         <li class="toc-sub"><a href="#blinken">"Blinken"-Modus</a></li>
         <li class="toc-sub"><a href="#timer">Wettkampf-Timer</a></li>
         <li class="toc-sub"><a href="#replay">Replay</a></li>
         <li class="toc-sub"><a href="#video-aus">Video aus im Detail</a></li>
+        <li class="toc-sub"><a href="#sperren">Was wann bedienbar ist</a></li>
+        <li class="toc-sub"><a href="#ausschalten">Ausschalten</a></li>
         <li><a href="#admin"><span class="toc-num">02</span>Administrativ</a></li>
         <li class="toc-sub"><a href="#pin-eingabe">PIN-Eingabe</a></li>
         <li class="toc-sub"><a href="#einstellungen">Einstellungen-Menü</a></li>
@@ -376,14 +391,25 @@ footer{
         <p>Kapitel 1 beschreibt die Bedienelemente für den täglichen Gebrauch. Kapitel 2, <em>Administrativer Bereich</em>, richtet sich an Standaufsichten.</p>
       </section>
 
+      <section class="quick" id="kurzanleitung">
+        <h2>Kurzanleitung</h2>
+        <ol>
+          <li><b>Ansehen:</b> Das Livebild zeigt die Scheibe. <b>Innen Scheibe</b> vergrößert die Mitte, ein Tipp ins Bild zoomt um die getippte Stelle, <b>Reset</b> stellt die Ansicht zurück.</li>
+          <li><b>Neue Treffer finden:</b> <b>Blinken &rarr; Start</b>. Aufblinkende Löcher sind neu.</li>
+          <li><b>Zeit nehmen:</b> Einen der drei Timer antippen. Rot ist Vorbereitung bzw. Pause, grün ist Sichtzeit.</li>
+          <li><b>Noch einmal ansehen:</b> Nach dem Timer <b>Replay</b> antippen; <b>Replay&nbsp;Ende</b> geht zurück zum Livebild.</li>
+          <li><b>Ausschalten:</b> Netzstecker ziehen genügt.</li>
+        </ol>
+      </section>
+
       <!-- ================= KAPITEL 1 ================= -->
       <section class="chapter" id="hauptbildschirm">
         <div class="chapter-head"><span class="chapter-num">01</span><h2>Der Hauptbildschirm</h2></div>
         <p>Nach dem Einschalten erscheint zunächst das Vereinswappen auf einfarbigem Hintergrund; sobald die Anwendung gestartet ist, folgt der Hauptbildschirm. Das Gerät muss dabei nicht bedient werden. Der Hauptbildschirm ist die Ansicht, die danach dauerhaft zu sehen ist. Links liegen die Bedienelemente, rechts das entzerrte Kamerabild der Scheibe.</p>
 
         <figure class="plate">
-          <img src="screenshots/01_hauptbildschirm.png" alt="Hauptbildschirm im Normalzustand">
-          <figcaption class="fig-note">Abb. 1 &ndash; Hauptbildschirm im Normalzustand.</figcaption>
+          <img src="screenshots/01_hauptbildschirm_nummern.png" alt="Hauptbildschirm im Normalzustand">
+          <figcaption class="fig-note">Abb. 1 &ndash; Hauptbildschirm im Normalzustand. Die Nummern gelten je Gruppe (Farbe der Marke).</figcaption>
         </figure>
 
         <p style="font-size:14px; color:var(--muted); margin:-8px 0 24px;">Die Nummerierung beginnt in jeder Gruppe neu bei 1 &ndash; gemeint ist die Position innerhalb dieser Gruppe, nicht eine durchlaufende Zählung über den ganzen Bildschirm.</p>
@@ -419,7 +445,7 @@ footer{
         <div class="grp">
         <p class="group-label"><span class="swatch timer"></span>Gruppe Timer</p>
         <ol class="legend">
-          <li><span class="legend-num timer">1</span><div><b>5&nbsp;x&nbsp;3&nbsp;Sek.</b><p>Fünf Durchgänge im Wechsel, Scheibe 3&nbsp;Sekunden sichtbar, 7&nbsp;Sekunden verdeckt.</p></div></li>
+          <li><span class="legend-num timer">1</span><div><b>5&nbsp;x&nbsp;3&nbsp;Sek.</b><p>Fünf Durchgänge im Wechsel: 3&nbsp;Sekunden Sichtzeit, 7&nbsp;Sekunden Pause.</p></div></li>
           <li><span class="legend-num timer">2</span><div><b>20&nbsp;Sek.</b><p>Ein einzelner Durchgang mit 20 Sekunden Sichtzeit.</p></div></li>
           <li><span class="legend-num timer">3</span><div><b>10&nbsp;Sek.</b><p>Ein einzelner Durchgang mit 10 Sekunden Sichtzeit.</p></div></li>
           <li><span class="legend-num timer">4</span><div><b>Timer&nbsp;Stop</b><p>Bricht einen laufenden Timer vorzeitig ab. Nur während eines laufenden Timers farbig/aktiv.</p></div></li>
@@ -456,7 +482,7 @@ footer{
         <div class="grp">
         <h3 id="timer">Wettkampf-Timer im Detail</h3>
         <p><b>20&nbsp;Sek.</b> und <b>10&nbsp;Sek.</b> laufen nach demselben einfachen Muster ab: 7&nbsp;Sekunden roter Countdown zur Vorbereitung, dann grün für die Sichtzeit, anschließend kurz (3&nbsp;Sekunden) wieder rot als Stopp-Phase, danach automatisches Ende.</p>
-        <p><b>5&nbsp;x&nbsp;3&nbsp;Sek.</b> beginnt ebenfalls mit der 7-Sekunden-Vorbereitungszeit in Rot, wiederholt danach aber fünfmal denselben Wechsel: 3&nbsp;Sekunden grün (Scheibe sichtbar, mit Countdown und Durchgangszähler), gefolgt von 7&nbsp;Sekunden rot (Scheibe verdeckt, ebenfalls mit Countdown und Durchgangszähler). Nach der fünften grünen Phase entfällt die 7-Sekunden-Pause: Es folgt direkt, genau wie bei den anderen beiden Varianten, die kurze (3 Sekunden) rote Stopp-Phase ohne Zahl, danach schaltet der Timer automatisch ab und die Scheibe ist sofort wieder zu sehen. Die ganze Serie dauert 53 Sekunden.</p>
+        <p><b>5&nbsp;x&nbsp;3&nbsp;Sek.</b> beginnt ebenfalls mit der 7-Sekunden-Vorbereitungszeit in Rot, wiederholt danach aber fünfmal denselben Wechsel: 3&nbsp;Sekunden grün (Sichtzeit, mit Countdown und Durchgangszähler), gefolgt von 7&nbsp;Sekunden rot (Pause, ebenfalls mit Countdown und Durchgangszähler). Nach der fünften grünen Phase entfällt die 7-Sekunden-Pause: Es folgt direkt, genau wie bei den anderen beiden Varianten, die kurze (3 Sekunden) rote Stopp-Phase ohne Zahl, danach schaltet der Timer automatisch ab und die Scheibe ist sofort wieder zu sehen. Die ganze Serie dauert 53 Sekunden.</p>
         <p>Während eines laufenden Timers wird kein Kamerabild angezeigt und Zoom/Blinken/Video-aus sind gesperrt. War vor dem Start &bdquo;Blinken&ldquo; aktiv, läuft es nach dem Timer automatisch weiter (siehe &bdquo;Blinken&ldquo;-Vergleichsmodus im Detail). Die grünen Phasen werden dabei für das Replay aufgezeichnet (siehe &bdquo;Replay im Detail&ldquo;).</p>
         <div class="plate-pair">
           <figure class="plate"><img src="screenshots/04_timer_vorbereitung_rot.png" alt="Timer Vorbereitungsphase, rot"><figcaption class="fig-note">Abb. 4 &ndash; Vorbereitungsphase (rot)</figcaption></figure>
@@ -492,6 +518,27 @@ footer{
           <figcaption class="fig-note">Abb. 7 &ndash; Video ausgeblendet, Vereinswappen als Wasserzeichen (hier ein Platzhalter-Logo).</figcaption>
         </figure>
         </div>
+
+        <div class="grp">
+        <h3 id="sperren">Was wann bedienbar ist</h3>
+        <p>Je nach Zustand sind einzelne Knöpfe gesperrt (blass dargestellt). Die Übersicht fasst alle Sperren zusammen:</p>
+        <table class="locks">
+          <thead><tr><th>Zustand</th><th>Zoom</th><th>Blinken Start</th><th>Referenz / Stop</th><th>Timer</th><th>Timer Stop</th><th>Replay</th><th>Video aus</th><th>Zahnrad</th></tr></thead>
+          <tbody>
+            <tr><th>Live</th><td>ja</td><td>ja</td><td>&ndash;</td><td>ja</td><td>&ndash;</td><td>ja&nbsp;*</td><td>ja</td><td>ja</td></tr>
+            <tr><th>Blinken</th><td>ja</td><td>&ndash;</td><td>ja</td><td>ja</td><td>&ndash;</td><td>ja&nbsp;*</td><td>&ndash;</td><td>ja</td></tr>
+            <tr><th>Timer läuft</th><td>&ndash;</td><td>&ndash;</td><td>&ndash;</td><td>&ndash;</td><td>ja</td><td>&ndash;</td><td>&ndash;</td><td>&ndash;</td></tr>
+            <tr><th>Replay läuft</th><td>ja</td><td>&ndash;</td><td>&ndash;</td><td>&ndash;</td><td>&ndash;</td><td>Replay&nbsp;Ende</td><td>&ndash;</td><td>&ndash;</td></tr>
+            <tr><th>Video aus</th><td>&ndash;</td><td>&ndash;</td><td>&ndash;</td><td>&ndash;</td><td>&ndash;</td><td>&ndash;</td><td>ja (einschalten)</td><td>ja</td></tr>
+          </tbody>
+        </table>
+        <p class="table-note">ja = bedienbar, &ndash; = gesperrt. * Nur, wenn eine Aufnahme vorliegt.</p>
+        </div>
+
+        <div class="grp">
+        <h3 id="ausschalten">Ausschalten</h3>
+        <p>Das Gerät darf jederzeit ausgeschaltet werden, indem der Netzstecker gezogen wird. Es ist gegen Schreibzugriffe geschützt, ein plötzlicher Stromausfall richtet deshalb keinen Schaden an. Eine Aufnahme für das Replay geht dabei verloren; Einstellungen bleiben erhalten.</p>
+        </div>
       </section>
 
       <!-- ================= KAPITEL 2 (ADMIN) ================= -->
@@ -503,21 +550,23 @@ footer{
         <div class="chapter-head"><span class="chapter-num">02</span><h2>Administrativer Bereich</h2></div>
         <p><b>Dieser Abschnitt richtet sich an Standaufsichten</b>, nicht an normale Vereinsmitglieder. Alle Funktionen sind über das Zahnrad-Symbol (Kopfzeile, Punkt&nbsp;3) erreichbar und durch eine numerische PIN geschützt.</p>
 
+        <div class="callout"><p><b>PIN vergessen?</b> Die Standaufsicht kann die PIN nicht selbst zurücksetzen. Bitte den Verantwortlichen für die Geräte verständigen (Kontakt unter &bdquo;Bei Problemen&ldquo;); er stellt die PIN wieder her.</p></div>
+
         <div class="grp">
         <h3 id="pin-eingabe">PIN-Eingabe</h3>
         <p>Nach einem Tipp auf das Zahnrad erscheint das PIN-Tastenfeld:</p>
-        <figure class="plate"><img src="screenshots/08_pin_eingabe.png" alt="PIN-Eingabe Tastenfeld"><figcaption class="fig-note">Abb. 8 &ndash; PIN-Tastenfeld.</figcaption></figure>
+        <figure class="plate"><img src="screenshots/08_pin_eingabe_nummern.png" alt="PIN-Eingabe Tastenfeld"><figcaption class="fig-note">Abb. 8 &ndash; PIN-Tastenfeld.</figcaption></figure>
         </div>
         <ol class="legend">
           <li><span class="legend-num admin">1</span><div><b>Ziffernblock 0&ndash;9</b><p>Eingabe der PIN (4&ndash;6-stellig). Ziffern werden als Sternchen dargestellt.</p></div></li>
           <li><span class="legend-num admin">2</span><div><b>Löschen</b><p>Setzt die aktuelle Eingabe zurück auf leer.</p></div></li>
-          <li><span class="legend-num admin">3</span><div><b>OK</b><p>Bestätigt die Eingabe. Bei falscher PIN erscheint &bdquo;falsch&ldquo; in Rot, ab dem zweiten Fehlversuch mit ablaufender Wartezeit in Sekunden (wird mit jedem weiteren Fehlversuch länger, siehe oben); erst danach ist eine neue Eingabe möglich.</p></div></li>
+          <li><span class="legend-num admin">3</span><div><b>OK</b><p>Bestätigt die Eingabe. Bei falscher PIN erscheint &bdquo;falsch&ldquo; in Rot, ab dem zweiten Fehlversuch mit ablaufender Wartezeit in Sekunden (wird mit jedem weiteren Fehlversuch länger, siehe Hinweis darunter); erst danach ist eine neue Eingabe möglich.</p></div></li>
           <li><span class="legend-num admin">4</span><div><b>Abbrechen</b><p>Bricht ab, kehrt zum Hauptbildschirm zurück.</p></div></li>
         </ol>
-        <div class="callout"><p><b>Wichtig:</b> Nach einer falschen Eingabe ist eine neue Eingabe erst nach einer Wartezeit möglich, die mit jedem Fehlversuch wächst (1&nbsp;s, 4&nbsp;s, 7&nbsp;s, &hellip; bis höchstens 60&nbsp;s); die Restzeit steht neben &bdquo;falsch&ldquo;. Nach einer richtigen Eingabe oder 10 Minuten ohne Eingabe beginnt die Wartezeit wieder bei 1&nbsp;s.</p></div>
+        <div class="callout"><p><b>Wichtig:</b> Nach einer falschen Eingabe ist eine neue Eingabe erst nach einer Wartezeit möglich, die mit jedem Fehlversuch wächst (1&nbsp;s, 4&nbsp;s, 7&nbsp;s, &hellip; bis höchstens 60&nbsp;s); die Restzeit steht neben &bdquo;falsch&ldquo; (beim ersten Fehlversuch dauert die Pause 1&nbsp;s und es steht nur &bdquo;falsch&ldquo; da). Nach einer richtigen Eingabe oder 10 Minuten ohne Eingabe beginnt die Wartezeit wieder bei 1&nbsp;s.</p></div>
 
         <h3 id="einstellungen">Einstellungen-Menü</h3>
-        <figure class="plate"><img src="screenshots/09_einstellungen_menue.png" alt="Einstellungen-Menü"><figcaption class="fig-note">Abb. 9 &ndash; Einstellungen-Menü.</figcaption></figure>
+        <figure class="plate"><img src="screenshots/09_einstellungen_menue_nummern.png" alt="Einstellungen-Menü"><figcaption class="fig-note">Abb. 9 &ndash; Einstellungen-Menü.</figcaption></figure>
         <ol class="legend">
           <li><span class="legend-num admin">1</span><div><b>Ganze Scheibe</b><p>Öffnet den Ausschnitte-Editor zur Neukalibrierung dieses Ausschnitts.</p></div></li>
           <li><span class="legend-num admin">2</span><div><b>Innen Scheibe</b><p>Öffnet denselben Editor für den Detailzoom-Ausschnitt.</p></div></li>
