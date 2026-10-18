@@ -35,6 +35,8 @@ class FakeCamera:
         self.clock = clock
         self.t0 = clock()
         self.crop = None
+        # True: die Kamera liefert keine Bilder (get_frame gibt None zurueck).
+        self.blank = False
 
     @property
     def frame_id(self):
@@ -45,6 +47,8 @@ class FakeCamera:
         return np.dstack([np.full((120, 120), self.frame_id % 200, np.uint8), x, x])
 
     def get_frame(self, full=False):
+        if self.blank:
+            return None
         img = self.image()
         if self.crop is not None and not full:
             x0, y0, x1, y1 = self.crop
@@ -109,13 +113,16 @@ class Screen:
         self.window.post(event, values)
         return self
 
-    def run(self, seconds):
-        """Hauptschleife fuer `seconds` simulierte Sekunden."""
+    def run(self, seconds, each=None):
+        """Hauptschleife fuer `seconds` simulierte Sekunden; `each` wird nach
+        jedem Durchlauf aufgerufen."""
         end = self.clock.now + seconds
         while self.clock.now < end:
             while self.window.events:
                 self.screen.handle(*self.window.events.popleft())
             self.screen.draw()
+            if each:
+                each()
             self.clock.now += TICK
         return self
 

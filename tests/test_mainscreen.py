@@ -1,5 +1,7 @@
 """Ablauf des Hauptbildschirms in simulierter Zeit (siehe screen_harness):
 Timer, Replay, Blinken und Zoom ohne Tk und ohne Wartezeiten."""
+import re
+
 from screen_harness import Screen, gray
 
 import overlays
@@ -106,3 +108,128 @@ def test_timer_zeigt_countdown_und_ende(monkeypatch):
     assert colors[0] == 'red' and 'green' in colors
     assert [st.countdown for st in states if st.color == 'green'][:2] == [20, 19]
     assert timerlib.SINGLE_SHOW[timerlib.TIMER_20] == 20
+
+
+def timer_states(s, seconds):
+    """Alle Anzeigezustaende des Timers in der Reihenfolge ihres Auftretens."""
+    seen = []
+
+    def sample():
+        state = s.screen.last_timer_state
+        if state is not None and (not seen or seen[-1] != state):
+            seen.append(state)
+    s.run(seconds, each=sample)
+    return seen
+
+
+def test_serie_zeigt_durchgangszahl_und_countdown(monkeypatch):
+    s = Screen(monkeypatch)
+    s.send('-TIMER_5_3_7-')
+    seen = timer_states(s, 75)
+    # 7 s Vorbereitung ohne Nummer, dann fuenf Durchgaenge mit 3 s Gruen
+    # (Countdown 3, 2, 1) und je 7 s Pause; nach dem fuenften Gruen entfaellt
+    # die Pause, der Stopp zeigt weder Nummer noch Countdown.
+    assert seen[0] == timerlib.timer_state(timerlib.TIMER_5_3_7, 0)
+    assert seen[0].color == 'red' and seen[0].number is None and seen[0].countdown == 7
+    green = [(st.number, st.countdown) for st in seen if st.color == 'green']
+    assert [n for n, _ in green if _ == 3] == [1, 2, 3, 4, 5]
+    assert {c for _, c in green} == {1, 2, 3}
+    assert all(st.number is not None for st in seen if st.color == 'green')
+    assert seen[-1].color == 'red' and seen[-1].number is None and seen[-1].countdown is None
+    pause = [st for st in seen if st.color == 'red' and st.number == 1]
+    assert pause[0].countdown == 7 and pause[-1].countdown == 1
+
+
+def test_einzeltimer_ohne_durchgangszahl(monkeypatch):
+    s = Screen(monkeypatch)
+    s.send('-TIMER_20-')
+    seen = timer_states(s, 31)
+    green = [st for st in seen if st.color == 'green']
+    assert green and not any(st.number for st in green)
+    assert green[0].countdown == 20 and green[-1].countdown == 1
+
+
+def drawn_texts(monkeypatch):
+    texts = []
+    real = overlays.cv2.putText
+    monkeypatch.setattr(overlays.cv2, 'putText',
+                        lambda img, text, *a, **k: (texts.append(text), real(img, text, *a, **k))[1])
+    return texts
+
+
+def test_replay_zeigt_titel_trenntext_und_zaehler(monkeypatch):
+    s = Screen(monkeypatch)
+    s.send('-TIMER_5_3_7-').run(72).send('-REPLAY-')
+    texts = drawn_texts(monkeypatch)
+    s.run(25)
+    replay = texts[texts.index('5 x 3 Sek.'):]
+    assert 'Durchgang 2/5' in replay
+    counters = [t for t in replay if t.startswith('Durchgang ') and t.endswith(' s')]
+    assert re.fullmatch(r'Durchgang 1/5  0,\d s', counters[0])
+    assert re.fullmatch(r'Durchgang 5/5  \d,\d s', counters[-1])
+    # Der Zaehler beginnt fuer jeden Durchgang von vorn.
+    first_2 = next(t for t in counters if t.startswith('Durchgang 2/5'))
+    assert first_2.startswith('Durchgang 2/5  0,')
+
+
+def red(frame):
+    return tuple(frame[200, 150]) == (0, 0, 255)
+
+
+def test_replay_serie_mit_trennbild(monkeypatch):
+    s = Screen(monkeypatch)
+    s.send('-TIMER_5_3_7-').run(72).send('-REPLAY-')
+    start = len(s.window.draws)
+    s.run(25)
+    kinds = []
+    for d in s.window.draws[start:]:
+        if not is_replay(d):
+            continue
+        kind = 'rot' if red(d) else 'bild'
+        if not kinds or kinds[-1] != kind:
+            kinds.append(kind)
+    # Startbild, fuenf Durchgaenge mit Trennbildern dazwischen, Schlussbild.
+    assert kinds == ['rot', 'bild'] + ['rot', 'bild'] * 4 + ['rot']
+    assert not is_replay(s.window.draws[-1])
+
+
+def test_replay_kein_bild_bei_ausgefallener_kamera(monkeypatch):
+    s = Screen(monkeypatch)
+    # Im ersten Durchgang (7 bis 10 s, aufgenommen 1 s verzoegert) liefert die
+    # Kamera nichts, danach wieder Bilder.
+    s.cap.blank = True
+    s.send('-TIMER_5_3_7-').run(12)
+    s.cap.blank = False
+    s.run(60).send('-REPLAY-').run(1.5)
+    start = len(s.window.draws)
+    s.run(25)
+    shown = [d for d in s.window.draws[start:] if is_replay(d) and not red(d)]
+    # "kein Bild" ist schwarz, danach folgt das Kamerabild.
+    assert any(tuple(d[250, 150]) == (0, 0, 0) for d in shown)
+    assert any(tuple(d[250, 150]) != (0, 0, 0) for d in shown)
+
+
+def test_naechster_timer_ersetzt_die_aufnahme(monkeypatch):
+    s = Screen(monkeypatch)
+    s.send('-TIMER_10-').run(21)
+    assert s.window.controls['has_recording']
+    # Der zweite Timer wird vor der Gruenphase gestoppt: die neue, leere
+    # Aufnahme ersetzt die alte.
+    s.send('-TIMER_10-').run(2).send('-TIMER_STOP-').run(1)
+    assert s.mode == 'live' and not s.window.controls['has_recording']
+
+
+def test_tippen_im_timer_und_bei_video_aus_zoomt_nicht(monkeypatch):
+    s = Screen(monkeypatch)
+    s.send('-TIMER_10-').run(1).send('-VIDEO-', {'-VIDEO-': (50, 50)}).run(1)
+    assert s.screen.view.center is None
+    s.run(20).send('-TOGGLEVIDEO-').run(0.2).send('-VIDEO-', {'-VIDEO-': (50, 50)}).run(0.2)
+    assert s.mode == 'blank' and s.screen.view.center is None
+
+
+def test_blinken_referenz_nimmt_ein_neues_bezugsbild_auf(monkeypatch):
+    s = Screen(monkeypatch)
+    s.send('-BLINK_START-').run(0.5)
+    before = reference(s)
+    s.run(2).send('-BLINK_REF-').run(0.5)
+    assert reference(s) != before

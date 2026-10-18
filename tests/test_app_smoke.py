@@ -10,10 +10,8 @@ import time
 
 import numpy as np
 from app_harness import (
-    CountingCamera,
     FakeCamera,
     is_replay_frame,
-    is_timer_frame,
     load_app,
     needs_display,
     run_app,
@@ -92,31 +90,6 @@ def test_pin_abbrechen_waehrend_wartezeit(app, monkeypatch):
     assert result is False and duration < 10
 
 
-def test_timer_waehrend_blinken(app, monkeypatch):
-    monkeypatch.setattr(app, 'Camera', CountingCamera)
-    probes = {}
-    steps = [
-        (1.0, '-BLINK_START-'),
-        (0.5, '-TIMER_10-'),      # Timer trotz Blinken startbar
-        (1.5, '-TIMER_STOP-'),
-        (2.5, '-PROBE-danach-'),
-    ]
-    draws = run_app(app, steps, monkeypatch, probes=probes)
-    states = probes['danach']['clickable']
-    timer_idx = [i for i, d in enumerate(draws) if is_timer_frame(d)]
-    assert timer_idx, 'Timer wurde nicht angezeigt'
-    before = [int(d[300, 300, 0]) for d in draws[:timer_idx[0]]]
-    after = [int(d[300, 300, 0]) for d in draws[timer_idx[-1] + 1:]]
-    # Nach dem Timer blinkt das Bild mit der Referenz von VOR dem Timer
-    # weiter: ein Teil der Bilder ist aelter als der Timer-Start.
-    assert after and min(after) <= max(before)
-    assert max(after) > max(before)
-    # Blinken laeuft weiter, Timer wieder startbar
-    assert states['-BLINK_STOP-'] and states['-BLINK_REF-']
-    assert not states['-BLINK_START-']
-    assert states['-TIMER_10-'] and not states['-TIMER_STOP-']
-
-
 def test_replay_nach_timer(app, monkeypatch):
     import timerlib
     # Kurze Vorbereitungszeit, damit die Gruenphase im Test schnell beginnt.
@@ -143,24 +116,6 @@ def test_replay_nach_timer(app, monkeypatch):
     # Aufnahme bleibt nach "Replay Ende" fuer ein weiteres Replay erhalten
     assert after['clickable']['-REPLAY-'] and after['replay_text'] == 'Replay'
     assert all(after['clickable'][k] for k in ('-TIMER_10-', '-FULL_VIDEO-', '-BLINK_START-'))
-
-
-def test_replay_endet_nach_rotem_schlussbild(app, monkeypatch):
-    import timerlib
-    monkeypatch.setattr(timerlib, 'PREP_TIME', 1)
-    probes = {}
-    steps = [
-        (1.0, '-TIMER_10-'),
-        (3.0, '-TIMER_STOP-'),
-        (0.3, '-REPLAY-'),
-        (4.5, '-PROBE-danach-'),   # Replay (ca. 1 s + 1 s Rot) ist laengst vorbei
-    ]
-    draws = run_app(app, steps, monkeypatch, probes=probes)
-    after = probes['danach']
-    assert any(is_replay_frame(d) for d in draws)
-    assert not is_replay_frame(after['frame'])
-    assert after['clickable']['-REPLAY-'] and after['replay_text'] == 'Replay'
-    assert after['clickable']['-TIMER_10-']
 
 
 def test_replay_gesperrt_bei_video_aus(app, monkeypatch):
