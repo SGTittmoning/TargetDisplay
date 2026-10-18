@@ -41,13 +41,30 @@ def test_erster_tipp_vergroessert_um_die_tippstelle(view):
     assert int(out[30, 60, 0]) - int(out[30, 30, 0]) == pytest.approx(30 / 3.65, abs=1)
 
 
-@pytest.mark.parametrize('tap, moved', [((90, 50), (55, 50)), ((10, 50), (45, 50)),
-                                        ((50, 90), (50, 55)), ((50, 10), (50, 45)),
-                                        ((50, 50), (50, 50))])
-def test_weitere_tipps_am_rand_verschieben(view, tap, moved):
+@pytest.mark.parametrize('tap, direction', [((90, 50), (1, 0)), ((10, 50), (-1, 0)),
+                                            ((50, 90), (0, 1)), ((50, 10), (0, -1)),
+                                            ((50, 50), (0, 0))])
+def test_weitere_tipps_am_rand_verschieben_um_ein_viertel_des_sichtbaren_bildes(view, tap, direction):
     view.tap(50, 50)
+    # Sichtbar sind 100 / Faktor Prozent der Ansicht; ein Schritt ist ein Viertel davon.
+    step = 25 / view.factor()
     view.tap(*tap)
-    assert view.center == moved
+    assert view.center == pytest.approx((50 + direction[0] * step, 50 + direction[1] * step))
+
+
+def test_scrollweite_haengt_vom_zoom_ab_und_ist_immer_ein_viertel_des_sichtbaren():
+    eye = np.eye(3, dtype=np.float64)
+    view = sl.Viewport(eye, eye, SIZE)
+    view.tap(50, 50)
+    first = view.factor()
+    view.tap(95, 50)
+    assert view.center[0] - 50 == pytest.approx(25 / first)
+    view.zoom_in()
+    before = view.center[0]
+    view.tap(95, 50)
+    # Stufe 2 zeigt weniger Bild: der Schritt ist kleiner, bleibt aber ein Viertel.
+    assert view.center[0] - before == pytest.approx(25 / view.factor())
+    assert 25 / view.factor() < 25 / first
 
 
 def test_ausschnitt_bleibt_im_bild(view):

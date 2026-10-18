@@ -7,9 +7,9 @@ import numpy as np
 
 import transformlib as tl
 
-# Schrittweite (Prozent) und Randzonen (Prozent der Bildbreite/-hoehe) beim
-# Verschieben des manuellen Ausschnitts per Tippen.
-PAN_STEP = 5
+# Schrittweite (Anteil des sichtbaren Bildes) und Randzonen (Prozent der
+# Bildbreite/-hoehe) beim Verschieben des manuellen Ausschnitts per Tippen.
+PAN_SHARE = 0.25
 PAN_EDGE_LOW, PAN_EDGE_HIGH = 30, 70
 
 # Zoomfelder im Bild: Kantenlaenge und Rand relativ zur Bildbreite, Farben (BGR).
@@ -95,14 +95,17 @@ class Viewport:
             self._zoom_to(1, (x, y))
             return
         cx, cy = self.center
+        # Ein Schritt ist ein fester Anteil des sichtbaren Bildes: das Bild
+        # zeigt 100 / factor Prozent der Ansicht.
+        step = PAN_SHARE * 100 / self.factor()
         if x < PAN_EDGE_LOW:
-            cx -= PAN_STEP
+            cx -= step
         elif x > PAN_EDGE_HIGH:
-            cx += PAN_STEP
+            cx += step
         if y < PAN_EDGE_LOW:
-            cy -= PAN_STEP
+            cy -= step
         elif y > PAN_EDGE_HIGH:
-            cy += PAN_STEP
+            cy += step
         self._zoom_to(self.step, (cx, cy))
 
     def zoom_in(self):
