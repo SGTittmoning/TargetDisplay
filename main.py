@@ -103,10 +103,7 @@ def run_setup_wizard(cfg):
 
     section_full, section_detail = load_sections(cfg)
     while section_full is None or section_detail is None:
-        frame_or_back = wait_for_camera_frame(cap)
-        # Im Erfolgsfall ist frame_or_back ein numpy-Array; ein direkter
-        # Vergleich mit 'back' wuerde ValueError werfen.
-        if isinstance(frame_or_back, str) and frame_or_back == 'back':
+        if wait_for_camera_frame(cap) is None:
             # Zurueck zur Stand-Auswahl, z.B. weil die URL falsch war.
             active_stand = choose_stand()
             set_stand_name(active_stand['displayName'])

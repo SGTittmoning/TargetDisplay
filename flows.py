@@ -202,8 +202,8 @@ def wait_for_camera_frame(cap, max_wait_sec=STREAM_STARTUP_TIMEOUT_SEC):
     # im Hintergrund laufend neu zu verbinden; diese Seite bleibt dabei
     # bedienbar und kehrt zurueck, sobald ein Frame da ist. Nach
     # max_wait_sec erscheint ein Hinweis, "Erneut versuchen" startet die
-    # Wartezeit neu. Gibt den Frame zurueck, oder 'back' fuer die
-    # Stand-Auswahl.
+    # Wartezeit neu. Gibt den Frame zurueck, oder None fuer "zurueck zur
+    # Stand-Auswahl".
     show_page('-CAMWAITVIEW-')
 
     def start_waiting():
@@ -223,7 +223,7 @@ def wait_for_camera_frame(cap, max_wait_sec=STREAM_STARTUP_TIMEOUT_SEC):
             ui.window.refresh()
         event, _ = ui.window.read(timeout=300)
         if event in (WIN_CLOSED, '-CAMWAIT_BACK-'):
-            return 'back'
+            return None
         if event == '-CAMWAIT_RETRY-':
             deadline = start_waiting()
             timed_out = False

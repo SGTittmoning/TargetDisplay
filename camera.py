@@ -154,9 +154,12 @@ class Camera:
         _close_quietly(container)
 
     def get_frame(self, full=False):
-        # Nur die Referenz unter dem Lock holen, kopiert wird ausserhalb: der
-        # Lesethread ersetzt die Bilder nur, er veraendert sie nie, und muss
-        # so nicht auf das Kopieren warten.
+        # Die Kopie ist noetig: der zugeschnittene Frame ist nur eine Ansicht
+        # auf das volle Kamerabild, ohne Kopie hielte z.B. die Replay-Aufnahme
+        # je Bild das ganze 2560x1920-Bild fest, gezaehlt wuerde aber nur der
+        # Ausschnitt. Nur die Referenz wird unter dem Lock geholt, kopiert wird
+        # ausserhalb: der Lesethread ersetzt die Bilder nur, er veraendert sie
+        # nie, und muss so nicht auf das Kopieren warten.
         with self.lock:
             src = self.last_frame_full if full else self.last_frame
         return None if src is None else src.copy()

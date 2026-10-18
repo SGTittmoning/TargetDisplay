@@ -49,7 +49,7 @@ def test_kamera_warten_zurueck(win):
             return None
 
     win.post('-CAMWAIT_BACK-')
-    assert flows.wait_for_camera_frame(Cam(), max_wait_sec=5) == 'back'
+    assert flows.wait_for_camera_frame(Cam(), max_wait_sec=5) is None
 
 
 @pytest.mark.parametrize('outcome', [1, OSError('sudo fehlt')])

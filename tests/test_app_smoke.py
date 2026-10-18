@@ -222,7 +222,7 @@ def test_ersteinrichtung_stand_ausschnitte_pin(tmp_path, monkeypatch):
             self.stopped = True
 
     chosen = iter(WIZARD_STANDS)
-    frames = itertools.chain(['back'], itertools.repeat(np.zeros((700, 700, 3), np.uint8)))
+    frames = itertools.chain([None], itertools.repeat(np.zeros((700, 700, 3), np.uint8)))
     edits = iter([WIZARD_FULL, WIZARD_DETAIL])
 
     def stand_select(stands, forced):
