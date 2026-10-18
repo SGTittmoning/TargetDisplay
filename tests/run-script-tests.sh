@@ -359,6 +359,25 @@ check "apply, Paketquelle unlesbar: Boot wieder read-only" 1 "$([ "$(grep -c 're
 check "apply, Paketquelle unlesbar: Zustand aufgeraeumt" 0 "$([ -f "$BOOT/.targetdisplay-update.state" ] && echo 1 || echo 0)"
 check "apply: update mit --error-on=any" 1 "$(calls 'apt-get update --error-on=any')"
 
+# ============================================ update.sh Fehlerpfade
+echo "update.sh: Fehlerpfade"
+reset; OVERLAY=1 "$BIN/targetdisplay-update.sh" apply >/dev/null 2>&1; rc=$?
+check "apply ohne begin: Exit 1" 1 "$rc"
+check "apply ohne begin: kein apt-get" 0 "$(calls 'apt-get')"
+
+reset; echo kaputt > "$BOOT/.targetdisplay-update.state"
+OVERLAY=1 "$BIN/targetdisplay-update.sh" apply >/dev/null 2>&1; rc=$?
+check "apply mit unbekanntem Zustand: Exit 1" 1 "$rc"
+check "apply mit unbekanntem Zustand: Zustand bleibt" kaputt "$(cat "$BOOT/.targetdisplay-update.state")"
+
+reset; echo awaiting-reboot-1 > "$BOOT/.targetdisplay-update.state"
+OVERLAY=0 "$BIN/targetdisplay-update.sh" apply >/dev/null 2>&1; rc=$?
+check "apply bei noch aktivem Overlay: Exit 1" 1 "$rc"
+check "apply bei noch aktivem Overlay: kein apt-get" 0 "$(calls 'apt-get')"
+
+reset; "$BIN/targetdisplay-update.sh" unbekannt >/dev/null 2>&1; rc=$?
+check "unbekannter Befehl: Exit != 0" 1 "$([ "$rc" -ne 0 ] && echo 1 || echo 0)"
+
 echo
 echo "Ergebnis: $pass ok, $fail Fehler"
 [ "$fail" -eq 0 ]
