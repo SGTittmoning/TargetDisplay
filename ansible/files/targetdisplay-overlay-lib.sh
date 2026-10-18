@@ -74,6 +74,23 @@ enable_overlay_checked() {
   return 0
 }
 
+# Stellt den Normalzustand her: Boot-Partition dauerhaft read-only (fstab),
+# Overlay aktiviert samt geprueftem initramfs-Hook, Boot-Partition live
+# read-only. Nur bei live inaktivem Overlay aufrufen (raspi-config aendert
+# fstab sonst nur im RAM). Haengt nicht vom Ausgangszustand ab: auch nach
+# einem abgebrochenen Lauf ist das Ziel immer read-only. Rueckgabe wie
+# enable_overlay_checked.
+restore_readonly() {
+  local rc=0
+  echo "Setze Boot-Partition auf read-only (fstab)..."
+  raspi-config nonint enable_bootro
+  echo "Aktiviere OverlayFS wieder (wirkt erst nach Reboot)..."
+  mount -o remount,rw "$BOOT_DIR"
+  enable_overlay_checked || rc=$?
+  mount -o remount,ro "$BOOT_DIR"
+  return "$rc"
+}
+
 # Status von Overlay und Boot-Partition, dazu der Vorgangsstatus aus
 # STATE_FILE; $1 ist die Beschriftung samt Doppelpunkt und Einrueckung.
 print_overlay_status() {

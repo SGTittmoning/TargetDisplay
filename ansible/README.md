@@ -23,7 +23,13 @@ To test a feature branch (or a specific tag/commit) before it's merged, without 
 ansible-playbook -i inventory.yml install.yml --limit <host> -e targetdisplay_git_version=feature/mein-branch   # oder ein Tag, z.B. v0.12.3
 ```
 
-Omit it (or re-run without the flag) to go back to the default (`main`) on the next deploy.
+Omit it (or re-run without the flag) to go back to the default on the next deploy: the release tag `targetdisplay_release` in `vars/common.yml`. A merge to `main` therefore reaches the stands only with the next release.
+
+**Making a release:** in one PR, raise `VERSION` in `main.py` and `targetdisplay_release` in `vars/common.yml` (a test checks that they match) and add the release notes. After the merge, tag the merge commit and push the tag before deploying:
+
+```bash
+git tag -a v0.13.5 -m "TargetDisplay 0.13.5" <merge-commit> && git push origin v0.13.5
+```
 
 `targetdisplay_stands` is a **fleet-wide** list (name + camera URL per stand) deployed identically to every host in the group (a single host can add entries of its own via `targetdisplay_extra_stands`, e.g. a test stand on a test device) — it doesn't say which stand a *given* device shows. That's chosen once, on the device itself, the first time it boots (see "First-run setup wizard" below); there's no per-host camera/region/PIN variable to fill in here anymore. This makes the same install work for any number of stands, at this club or another, without touching the playbook.
 
@@ -33,7 +39,7 @@ Omit it (or re-run without the flag) to go back to the default (`main`) on the n
 - Creates a dedicated, unprivileged system user (`targetdisplay_service_user`, default `targetdisplay`) and launches the X11 session via a systemd service (`targetdisplay.service`, `startx` + `.xinitrc`) running as that user, not under the general-purpose admin account. Deliberately **no** `PAMName=login`: it moves the session into its own logind cgroup, which stops `systemctl stop/restart` from ever reaching the real process tree — device access instead relies solely on group membership (`video`/`render`/`input`)
 - Configures persistent journald logging (own drop-in overriding Raspberry Pi OS's default volatile-storage drop-in) so logs survive a reboot — needed to debug anything in the failure-escalation path below
 - Forces the display resolution to match the production stands (1280×800, `hdmi_mode=27` + `hdmi_ignore_edid`) regardless of which physical monitor is attached, via `targetdisplay_screen_width`/`_height`
-- Deploys the TargetDisplay app itself (`git pull` of the default branch, or `targetdisplay_git_version` if set — see above — + a `--system-site-packages` venv owned by the service user, dependencies from the app's `requirements.txt`), then overlays a custom logo if one is present (see "Custom logo" below). `targetdisplay.service` restarts automatically whenever any of these actually changed anything (checkout, venv, `config.yml`, logo, `.xinitrc`, or the unit file itself) — not just on a unit-file change as in earlier versions of this playbook, which used to leave an already-running process serving the old code after a code-only redeploy (e.g. switching `targetdisplay_git_version`) until a manual `systemctl restart`
+- Deploys the TargetDisplay app itself (checkout of the release tag `targetdisplay_release`, or `targetdisplay_git_version` if set — see above — + a `--system-site-packages` venv owned by the service user, dependencies from the app's `requirements.txt`), then overlays a custom logo if one is present (see "Custom logo" below). `targetdisplay.service` restarts automatically whenever any of these actually changed anything (checkout, venv, `config.yml`, logo, `.xinitrc`, or the unit file itself) — not just on a unit-file change as in earlier versions of this playbook, which used to leave an already-running process serving the old code after a code-only redeploy (e.g. switching `targetdisplay_git_version`) until a manual `systemctl restart`
 - Renders `config.yml` from a template using `my_settings_pin` (inventory variable) and `targetdisplay_screen_width`/`_height` (defaults 1280×800 in `vars/common.yml`, shared by `install.yml` and `update-app.yml`), plus the replay settings `targetdisplay_replay_latency_sec` (default 1.0) and `targetdisplay_replay_budget_mb` (default 600) — inventory or `-e`, see the configuration reference in the main README — camera URL, regions and stand name are deliberately **not** templated here, see "First-run setup wizard" below)
 - Renders `targetdisplay-stands.json` (the fleet-wide stand list) to the boot partition — see `tasks/stands.yml`
 - Installs a narrowly-scoped sudoers rule for the app's own PIN-gated in-app Settings/Restart buttons: the unprivileged service user may run exactly three scripts, one per action (`targetdisplay-save-sections.sh`, `targetdisplay-save-active-stand.sh`, `targetdisplay-save-pin.sh` — each writes just its own override file to the boot partition) plus `/usr/sbin/reboot`, nothing else — see `tasks/settings_sudo.yml`
@@ -98,8 +104,8 @@ Two different kinds of update, two different playbooks:
 
 | What | How | Touches git? |
 |---|---|---|
-| **OS packages** (`apt full-upgrade`, autoremove, clean) | `maintain.yml` (via `targetdisplay-update.sh`, handles the read-only dance and the reboots itself) | no |
-| **App code** (a new commit on `main`, or another ref) | `update-app.yml` — checkout (`force: yes`), venv, `config.yml`, logo, time sync, boot logo, restart when anything changed; lifts and restores the read-only state itself, checks the overlayroot hook in the initramfs before locking and verifies afterwards that `/` is really mounted as `overlay`. Pin a ref with `-e targetdisplay_git_version=<branch\|tag\|commit>` | yes |
+| **OS packages** (`apt full-upgrade`, autoremove, clean) | `maintain.yml` (via `targetdisplay-update.sh`, handles the read-only dance and the reboots itself, one stand at a time, checks overlay, read-only boot and service at the end) | no |
+| **App code** (a new release tag, see `targetdisplay_release`, or another ref) | `update-app.yml` — checkout (`force: yes`), venv, `config.yml`, logo, time sync, boot logo, restart when anything changed; lifts and restores the read-only state itself, checks the overlayroot hook in the initramfs before locking and verifies afterwards that `/` is really mounted as `overlay`. Pin a ref with `-e targetdisplay_git_version=<branch\|tag\|commit>` | yes |
 | **Everything** (packages, hardening, scripts, units, app) | `install.yml` — refuses to run while the overlay is active (see below) | yes |
 
 `maintain.yml` does **not** deploy app code. To roll out a new app version:

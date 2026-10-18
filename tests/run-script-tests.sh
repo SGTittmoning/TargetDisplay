@@ -57,6 +57,7 @@ cat > "$STUBS/apt-get" <<'STUB'
 #!/bin/bash
 echo "apt-get $*" >> "$STUB_LOG"
 [ "$1" = update ] && [ "${STUB_APT_UPDATE_FAIL:-0}" = 1 ] && exit 100
+[ "$1" = full-upgrade ] && [ "${STUB_APT_UPGRADE_FAIL:-0}" = 1 ] && exit 100
 exit 0
 STUB
 cat > "$STUBS/mount" <<'STUB'
@@ -97,7 +98,7 @@ done
 
 export STUB_LOG="$WORK/stub.log"
 export PATH="$STUBS:$PATH"
-reset() { : > "$STUB_LOG"; rm -rf "$BOOT"; mkdir -p "$BOOT"; unset STUB_APT_UPDATE_FAIL BOOTRO OVERLAY FAIL_MOUNT_RW FAIL_MV STUB_INACTIVE STUB_FAILED STUB_NRESTARTS STUB_ACTIVE_ENTER_US STUB_HOOK STUB_HOOK_STAYS_MISSING; rm -f "$STUB_LOG.rebuilt"; }
+reset() { : > "$STUB_LOG"; rm -rf "$BOOT"; mkdir -p "$BOOT"; unset STUB_APT_UPDATE_FAIL STUB_APT_UPGRADE_FAIL BOOTRO OVERLAY FAIL_MOUNT_RW FAIL_MV STUB_INACTIVE STUB_FAILED STUB_NRESTARTS STUB_ACTIVE_ENTER_US STUB_HOOK STUB_HOOK_STAYS_MISSING; rm -f "$STUB_LOG.rebuilt"; }
 calls() { grep -c "$1" "$STUB_LOG" 2>/dev/null || true; }
 lineof() { grep -n -m1 "$1" "$STUB_LOG" 2>/dev/null | cut -d: -f1; }
 
@@ -358,6 +359,21 @@ check "apply, Paketquelle unlesbar: Overlay wieder aktiviert" 1 "$(calls 'enable
 check "apply, Paketquelle unlesbar: Boot wieder read-only" 1 "$([ "$(grep -c 'remount,ro' "$STUB_LOG")" -ge 1 ] && echo 1 || echo 0)"
 check "apply, Paketquelle unlesbar: Zustand aufgeraeumt" 0 "$([ -f "$BOOT/.targetdisplay-update.state" ] && echo 1 || echo 0)"
 check "apply: update mit --error-on=any" 1 "$(calls 'apt-get update --error-on=any')"
+
+# ============================================ update.sh Abbruch und Wiederholung
+echo "update.sh: apply nach abgebrochenem Upgrade"
+reset; touch "$BOOT/initramfs8"; echo awaiting-apply-no-reboot > "$BOOT/.targetdisplay-update.state"
+STUB_APT_UPGRADE_FAIL=1 OVERLAY=1 BOOTRO=0 "$BIN/targetdisplay-update.sh" apply >/dev/null 2>&1; rc=$?
+check "Upgrade scheitert: Exit != 0" 1 "$([ "$rc" -ne 0 ] && echo 1 || echo 0)"
+check "Upgrade scheitert: Zustand bleibt fuer die Wiederholung" 1 "$([ -f "$BOOT/.targetdisplay-update.state" ] && echo 1 || echo 0)"
+# Zweiter Lauf: Boot-RO ist inzwischen per fstab aus (BOOTRO=1), das Ziel
+# bleibt trotzdem read-only.
+: > "$STUB_LOG"
+OVERLAY=1 BOOTRO=1 "$BIN/targetdisplay-update.sh" apply >/dev/null 2>&1; rc=$?
+check "Wiederholung: Exit 0" 0 "$rc"
+check "Wiederholung: Boot-RO wieder gesetzt" 1 "$(calls 'enable_bootro')"
+check "Wiederholung: Overlay aktiviert" 1 "$(calls 'enable_overlayfs')"
+check "Wiederholung: zuletzt live read-only" "remount,ro" "$(grep -o 'remount,r[ow]' "$STUB_LOG" | tail -1)"
 
 # ============================================ update.sh Fehlerpfade
 echo "update.sh: Fehlerpfade"

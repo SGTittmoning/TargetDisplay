@@ -22,7 +22,8 @@
 #                                       liefert (get_overlay_now allein
 #                                       beweist es nicht).
 #   targetdisplay_git_version=<ref>     App-Stand (Branch/Tag/Commit, Standard
-#                                       main).
+#                                       das Release targetdisplay_release aus
+#                                       vars/common.yml).
 #   targetdisplay_boot_splash=false     Boot-Logo (Plymouth) nicht einrichten
 #                                       (Standard: an); weitere Einstellungen
 #                                       _boot_splash_background/_max_percent.

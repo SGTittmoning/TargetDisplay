@@ -258,7 +258,7 @@ Zwei verschiedene Dinge, zwei verschiedene Playbooks:
 | Was | Wie | Git-Zugriff? |
 |---|---|---|
 | **Betriebssystem** (`apt full-upgrade`) | `maintain.yml` (erledigt den read-only-Tanz und die Reboots selbst) | nein |
-| **App-Code** (neuer Commit auf `main` oder anderer Ref) | `update-app.yml` — `git` mit `force: yes`, venv, `config.yml`, Logo, Dienst-Neustart bei Änderung; hebt den Schreibschutz selbst auf und setzt ihn wieder. Ref festlegen mit `-e targetdisplay_git_version=<branch\|tag\|commit>` | ja |
+| **App-Code** (neues Release laut `targetdisplay_release` in `ansible/vars/common.yml`, oder ein anderer Ref per `-e targetdisplay_git_version=…`) | `update-app.yml` — `git` mit `force: yes`, venv, `config.yml`, Logo, Dienst-Neustart bei Änderung; hebt den Schreibschutz selbst auf und setzt ihn wieder. Ref festlegen mit `-e targetdisplay_git_version=<branch\|tag\|commit>` | ja |
 | **Alles** (Pakete, Härtung, Skripte, Units, App) | `install.yml` — bricht bei aktivem Overlay ab (siehe unten) | ja |
 
 `maintain.yml` spielt **keinen** App-Code ein. Ein App-Update läuft so:

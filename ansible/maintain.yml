@@ -8,9 +8,15 @@
 #
 # Aufruf:
 #   ansible-playbook -i inventory.yml maintain.yml --limit <host>
+#
+# Es wird immer nur EIN Host gleichzeitig bearbeitet (serial: 1) und beim
+# ersten Fehler abgebrochen - ein fehlerhafter Lauf trifft so hoechstens
+# einen Stand.
 
 - hosts: targetdisplay
   become: yes
+  serial: 1
+  max_fail_percentage: 0
 
   tasks:
 
@@ -53,16 +59,42 @@
       reboot:
         msg: "Finaler Reboot nach Update - OverlayFS/Boot-RO wieder aktiv"
 
-    - name: targetdisplay.service laeuft wieder?
+    - name: Endzustand pruefen (Overlay)
+      command: raspi-config nonint get_overlay_now
+      register: maintain_overlay_end
+      changed_when: false
+
+    # get_overlay_now liest nur die Kernel-Kommandozeile. Ob das Root-
+    # Dateisystem wirklich ein Overlay ist, zeigt erst der Mount-Typ.
+    - name: Endzustand pruefen (Root-Dateisystem tatsaechlich Overlay)
+      command: findmnt -n -o FSTYPE /
+      register: maintain_root_fstype
+      changed_when: false
+
+    - name: Endzustand pruefen (Boot-RO)
+      command: raspi-config nonint get_bootro_now
+      register: maintain_bootro_end
+      changed_when: false
+
+    - name: Endzustand pruefen (Dienst)
       command: systemctl is-active targetdisplay.service
-      register: targetdisplay_service_status
+      register: maintain_service_end
       changed_when: false
       failed_when: false
 
-    - name: Warnung falls targetdisplay.service nach dem Update nicht aktiv ist
-      debug:
-        msg: "WARNUNG: targetdisplay.service ist nach dem Update nicht aktiv (Status: {{ targetdisplay_service_status.stdout }})"
-      when: targetdisplay_service_status.stdout != 'active'
+    - name: Ergebnis
+      assert:
+        that:
+          - maintain_service_end.stdout | trim == 'active'
+          - maintain_overlay_end.stdout | trim == '0'
+          - maintain_root_fstype.stdout | trim == 'overlay'
+          - maintain_bootro_end.stdout | trim == '0'
+        success_msg: "Wartung fertig. Dienst aktiv, Overlay und Boot-RO aktiv."
+        fail_msg: >-
+          Endzustand nicht wie erwartet: Dienst={{ maintain_service_end.stdout | trim }},
+          Overlay={{ maintain_overlay_end.stdout | trim }} (0=aktiv),
+          Boot-RO={{ maintain_bootro_end.stdout | trim }} (0=aktiv),
+          Root-Dateisystem={{ maintain_root_fstype.stdout | trim }} (erwartet: overlay).
 
     - name: Fehler, falls nicht alle Paketquellen gelesen werden konnten
       fail:
