@@ -178,6 +178,17 @@ def test_ganze_scheibe_hebt_den_ausschnitt_auf(gradient, monkeypatch):
     assert not probes['ganz']['clickable']['-RESETZOOM-']
 
 
+def test_tippen_im_timer_und_bei_video_aus_zoomt_nicht(gradient, monkeypatch, short_timers):
+    probes = {}
+    run_app(gradient, [(1.0, '-PROBE-start-'),
+                       (0.1, '-TIMER_10-'), (0.3, tap(50, 50)), (4.0, '-PROBE-nach-timer-'),
+                       (0.1, '-TOGGLEVIDEO-'), (0.2, tap(50, 50)), (0.2, '-TOGGLEVIDEO-'),
+                       (0.4, '-PROBE-nach-video-aus-')], monkeypatch, probes=probes)
+    for key in ('nach-timer', 'nach-video-aus'):
+        assert np.array_equal(probes[key]['frame'], probes['start']['frame'])
+        assert not probes[key]['clickable']['-RESETZOOM-']
+
+
 def test_ausschnitt_wandert_nicht_beliebig_weit(gradient, monkeypatch):
     probes = {}
     steps = [(1.0, tap(50, 50))] + [(0.05, tap(99, 50))] * 30 + [(0.4, '-PROBE-rand-')]
