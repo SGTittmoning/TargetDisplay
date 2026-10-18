@@ -14,6 +14,7 @@ import numpy as np
 import pytest
 from app_harness import (
     ROOT,
+    CountingCamera,
     FakeCamera,
     is_replay_frame,
     is_timer_frame,
@@ -106,6 +107,28 @@ def test_sperren_waehrend_des_blinkens(gradient, monkeypatch):
     # Zoom und Timer bleiben bedienbar, Video aus nicht.
     assert only(probes['blinken'], *ZOOM, '-BLINK_REF-', '-BLINK_STOP-', *TIMERS)
     assert only(probes['danach'], *ZOOM, '-BLINK_START-', *TIMERS, '-TOGGLEVIDEO-')
+
+
+def gray(frame):
+    return int(frame[300, 300, 0])
+
+
+def test_blinken_referenz_nimmt_ein_neues_bezugsbild_auf(app, monkeypatch):
+    # Die Kamera liefert jedes Bild in einem anderen, steigenden Grauwert.
+    # Ein Livebild erscheint nur einmal, die Referenz beim Blinken immer
+    # wieder: der haeufigste Grauwert ist die Referenz. Nach "Referenz" muss
+    # sie heller (neuer) sein als die von "Start".
+    monkeypatch.setattr(app, 'Camera', CountingCamera)
+    probes = {}
+    draws = run_app(app, [(1.0, '-BLINK_START-'), (2.5, '-PROBE-vorher-'), (0.0, '-BLINK_REF-'),
+                          (2.5, '-PROBE-nachher-')], monkeypatch, probes=probes)
+    split = probes['vorher']['draws']
+    before = [gray(d) for d in draws[:split]]
+    after = [gray(d) for d in draws[split:probes['nachher']['draws']]]
+    ref_before = max(set(before), key=before.count)
+    ref_after = max(set(after), key=after.count)
+    assert before.count(ref_before) > 1 and after.count(ref_after) > 1
+    assert ref_after > ref_before
 
 
 def test_sperren_bei_video_aus(gradient, monkeypatch):
