@@ -34,6 +34,37 @@ def test_replay_endet_von_selbst_zurueck_im_livebild(monkeypatch):
     assert s.mode == 'live' and s.window.controls['has_recording']
 
 
+def test_blinken_wechselt_jede_sekunde(monkeypatch):
+    s = Screen(monkeypatch)
+    s.send('-BLINK_START-').run(0.2)
+    ref = reference(s)
+    start = len(s.window.draws)
+    s.run(4)
+    shows_ref = [gray(d) == ref for d in s.window.draws[start:]]
+    changes = sum(1 for a, b in zip(shows_ref, shows_ref[1:]) if a != b)
+    # In 4 s viermal zwischen Referenz und Livebild gewechselt (+-1 am Rand).
+    assert 3 <= changes <= 5
+
+
+def test_blink_referenz_bleibt_ueber_timer_und_replay(monkeypatch):
+    s = Screen(monkeypatch)
+    s.send('-BLINK_START-').run(0.2)
+    ref = reference(s)
+    s.send('-TIMER_10-').run(21).send('-REPLAY-').run(1).send('-REPLAY_END-').run(3)
+    after = [gray(d) for d in s.window.draws[-18:]]
+    assert after.count(ref) >= 3
+
+
+def test_blinken_auch_bei_innen_scheibe(monkeypatch):
+    s = Screen(monkeypatch)
+    s.send('-DETAIL_VIDEO-').send('-BLINK_START-').run(0.2)
+    ref = reference(s)
+    start = len(s.window.draws)
+    s.run(3)
+    values = [gray(d) for d in s.window.draws[start:]]
+    assert values.count(ref) >= 3 and max(values) > ref
+
+
 def replay_frames(s, seconds):
     start = len(s.window.draws)
     s.run(seconds)
