@@ -1,26 +1,7 @@
 ---
-# Startet die X11-Session (matchbox-window-manager + play_it/App) beim Boot,
-# fuer den dedizierten "{{ targetdisplay_service_user }}"-User statt eines
-# nodm-Autologins. Ersetzt "nodm liest ~/.xsession automatisch" durch einen
-# expliziten systemd-Service, der "startx <script>" direkt ausfuehrt -
-# gleicher X-Session-Inhalt (matchbox + play_it), nur der Start-Mechanismus
-# ist neu.
-
-# Migration von der alten nodm-basierten Installation: nodm sauber stoppen/
-# deaktivieren/entfernen, falls von einem frueheren Lauf noch vorhanden -
-# sonst konkurriert es mit targetdisplay.service um dieselbe TTY/X-Session.
-- name: nodm-Dienst stoppen und deaktivieren (falls von frueherem Lauf vorhanden)
-  systemd:
-    name: nodm
-    state: stopped
-    enabled: no
-  failed_when: false
-
-- name: nodm-Paket entfernen (falls von frueherem Lauf vorhanden)
-  apt:
-    name: nodm
-    state: absent
-    purge: yes
+# Startet die X11-Session (matchbox-window-manager + play_it/App) beim Boot
+# fuer den dedizierten "{{ targetdisplay_service_user }}"-User: ein
+# systemd-Service fuehrt "startx <script>" direkt aus.
 
 - name: .xinitrc aus Template rendern
   template:
@@ -45,11 +26,9 @@
     daemon_reload: yes
   when: targetdisplay_service_unit is changed
 
-# getty@tty1 wuerde sonst mit unserem Service um dieselbe TTY konkurrieren -
-# Conflicts= in der Unit sorgt zwar dafuer, dass ein laufender getty@tty1
-# gestoppt wird sobald targetdisplay.service startet, aber nur wenn getty@tty1
-# nicht als eigenstaendig aktiviertes Ziel erneut hochkommt. Deshalb hier
-# zusaetzlich sauber deaktivieren.
+# getty@tty1 konkurriert sonst um dieselbe TTY. Conflicts= in der Unit
+# stoppt einen laufenden getty@tty1, verhindert aber nicht, dass er als
+# aktiviertes Ziel wieder hochkommt; deshalb zusaetzlich deaktivieren.
 - name: getty@tty1 deaktivieren (Konflikt um dieselbe TTY vermeiden)
   systemd:
     name: getty@tty1.service
@@ -57,15 +36,9 @@
     state: stopped
   failed_when: false
 
-# Neustart erfolgt, wenn IRGENDEINER der App-Deploy-Schritte (Checkout,
-# venv, config.yml, Logo) ODER die Unit-Datei/.xinitrc sich geaendert hat -
-# nicht nur bei einer geaenderten Unit-Datei. Ein reiner App-Code-/
-# Config-Update (z.B. Wechsel auf einen anderen Branch/Commit via
-# targetdisplay_git_version, oder eine geaenderte config.yml/venv/Logo) OHNE
-# Unit-Aenderung wuerde sonst nur mit "started" durchlaufen (kein Neustart
-# bei bereits laufendem Service), und der laufende Prozess wuerde weiterhin
-# den ALTEN Code/State zeigen, obwohl Checkout/venv/config.yml/Logo auf der
-# Platte bereits aktuell sind.
+# Neustart, sobald sich einer der App-Deploy-Schritte (Checkout, venv,
+# config.yml, Logo) oder Unit/.xinitrc geaendert hat. Mit "started" allein
+# liefe ein bereits laufender Dienst mit dem alten Code weiter.
 - name: targetdisplay.service aktivieren und (neu)starten
   systemd:
     name: targetdisplay.service
