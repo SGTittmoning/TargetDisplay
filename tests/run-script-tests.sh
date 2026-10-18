@@ -229,6 +229,15 @@ check "bereits ueber Grenze: kein remount (kein Schreibzugriff)" 0 "$(calls 'rem
 check "bereits ueber Grenze: kein Reboot" 0 "$(calls '^reboot')"
 check "bereits ueber Grenze: Grund weiter im Log" 1 "$(calls 'logger.*Grenze von 5')"
 
+reset; printf 'x\x00' > "$COUNT"; "$BIN/targetdisplay-reboot-guard.sh"; rc=$?
+check "beschaedigter Zaehler: Exit 0" 0 "$rc"
+check "beschaedigter Zaehler: zaehlt ab 0, steht auf 1" 1 "$(cat "$COUNT")"
+check "beschaedigter Zaehler: Reboot ausgeloest" 1 "$(calls '^reboot')"
+check "beschaedigter Zaehler: Hinweis im Log" 1 "$(calls 'logger.*unlesbar')"
+
+reset; : > "$COUNT"; "$BIN/targetdisplay-reboot-guard.sh"
+check "leerer Zaehler: Reboot ausgeloest" 1 "$(calls '^reboot')"
+
 # ===================================================== retry.sh
 echo "retry.sh"
 reset; STUB_FAILED=0 "$BIN/targetdisplay-retry.sh"; rc=$?
