@@ -67,3 +67,34 @@ def test_keine_stand_daten_in_der_vorlage():
     cfg = render()
     for key in ('video.url', 'video.section_full', 'video.section_detail', 'standName'):
         assert cfg.get_property_with_default(key, None) is None
+
+
+def render_stands(**variables):
+    import json
+    env = jinja2.Environment(undefined=jinja2.StrictUndefined)
+    env.filters['to_json'] = json.dumps
+    with open(os.path.join(ANSIBLE, 'templates', 'stands.json.j2'), encoding='utf-8') as f:
+        return json.loads(env.from_string(f.read()).render(**variables))
+
+
+STANDS = [{'id': 'stand1', 'displayName': 'Stand "1"', 'url': 'rtmp://a/b'},
+          {'id': 'stand2', 'displayName': 'Stand 2', 'url': 'rtmp://c/d'}]
+
+
+def test_stand_liste_wird_gueltiges_json():
+    # Auch Anfuehrungszeichen im Namen bleiben gueltiges JSON.
+    assert render_stands(targetdisplay_stands=STANDS) == {'stands': STANDS}
+
+
+def test_zusatzstaende_eines_hosts_kommen_hinten_dazu():
+    extra = [{'id': 'teststand', 'displayName': 'Teststand', 'url': 'rtmp://e/f'}]
+    stands = render_stands(targetdisplay_stands=STANDS, targetdisplay_extra_stands=extra)['stands']
+    assert [s['id'] for s in stands] == ['stand1', 'stand2', 'teststand']
+
+
+def test_gerenderte_liste_liest_die_app(tmp_path, monkeypatch):
+    import json
+    path = tmp_path / 'stands.json'
+    path.write_text(json.dumps(render_stands(targetdisplay_stands=STANDS)))
+    monkeypatch.setattr(settings_store, 'STANDS_FILE', str(path))
+    assert settings_store.load_stands() == STANDS

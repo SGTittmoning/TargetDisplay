@@ -88,7 +88,12 @@ cmd_apply() {
 
   echo ""
   echo "=== apt update / full-upgrade ==="
-  apt-get update
+  # Scheitert eine Paketquelle (z.B. Uhrzeit falsch, Netz weg), meldet
+  # apt-get update das sonst nur als Warnung. Das Update laeuft trotzdem zu
+  # Ende, damit Overlay und Schreibschutz wiederhergestellt werden; apply
+  # endet dann mit Exit 3.
+  UPDATE_INCOMPLETE=0
+  apt-get update --error-on=any || UPDATE_INCOMPLETE=1
   DEBIAN_FRONTEND=noninteractive apt-get full-upgrade -y
 
   echo ""
@@ -122,6 +127,11 @@ cmd_apply() {
   echo "Fertig. Bitte jetzt final rebooten, damit OverlayFS/Boot-RO wieder"
   echo "aktiv werden:"
   echo "  sudo reboot"
+  if [ "$UPDATE_INCOMPLETE" -eq 1 ]; then
+    echo "" >&2
+    echo "WARNUNG: apt-get update konnte nicht alle Paketquellen lesen - die Updates sind evtl. unvollstaendig." >&2
+    exit 3
+  fi
 }
 
 case "${1:-}" in

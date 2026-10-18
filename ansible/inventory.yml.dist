@@ -33,6 +33,14 @@ targetdisplay:
   hosts:
     stand1.example.lan:
       ansible_host: 192.0.2.21
+    # Ein Testgeraet kann zusaetzliche Staende bekommen, die nur in seiner
+    # Auswahl erscheinen (z.B. ein Dummy-Stream):
+    # test.example.lan:
+    #   ansible_host: 192.0.2.99
+    #   targetdisplay_extra_stands:
+    #     - id: teststand
+    #       displayName: "Teststand"
+    #       url: "rtmp://192.0.2.10:1935/live/test"
       ansible_user: pi
       # Optional - fehlt sie, startet das Geraet mit dem eingebauten
       # Standard-PIN "1234" und erzwingt eine PIN-Aenderung im

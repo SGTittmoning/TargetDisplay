@@ -1,7 +1,6 @@
 import sys
 import threading
 import time
-from threading import Lock
 
 import av
 
@@ -45,8 +44,8 @@ def _close_quietly(container):
 
 
 class Camera:
-    def __init__(self, rtsp_link, reconnect_delay=2, crop_region=None):
-        self.rtsp_link = rtsp_link
+    def __init__(self, stream_url, reconnect_delay=2, crop_region=None):
+        self.stream_url = stream_url
         self.reconnect_delay = reconnect_delay
         self.crop_region = crop_region
         self.last_frame = None
@@ -56,11 +55,11 @@ class Camera:
         self.frame_id = 0
         self.last_frame_time = time.monotonic()
         self.start_time = time.monotonic()
-        self.lock = Lock()
+        self.lock = threading.Lock()
         self._stop_event = threading.Event()
         self._container = None
 
-        self._thread = threading.Thread(target=self._buffer_loop, name="rtsp_read_thread", daemon=True)
+        self._thread = threading.Thread(target=self._buffer_loop, name="camera_read_thread", daemon=True)
         self._thread.start()
 
     def stop(self):
@@ -89,7 +88,7 @@ class Camera:
         # options={"rtmp_live": "live"} bewusst weggelassen: fuehrt mit der auf
         # Stand 1 installierten ffmpeg-Version (4.3.9+rpt1) zu einem Segfault
         # in av.open() -- vermutlich ein Options-Dict-Bug in PyAV 10.0.0.
-        container = av.open(self.rtsp_link, timeout=(OPEN_TIMEOUT_SEC, READ_TIMEOUT_SEC))
+        container = av.open(self.stream_url, timeout=(OPEN_TIMEOUT_SEC, READ_TIMEOUT_SEC))
         vstream = container.streams.video[0]
         # SLICE-Threading spart auf dem Pi 4 rund 10-13 % CPU-Zeit pro Frame.
         vstream.codec_context.thread_type = "SLICE"

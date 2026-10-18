@@ -46,3 +46,15 @@ def test_kurze_pause_setzt_nicht_zurueck():
     limiter.register_failure()
     clock.now += 30
     assert limiter.register_failure() == 4
+
+
+def test_ruhephase_genau_an_der_grenze():
+    # Genau IDLE_RESET_SEC nach dem letzten Fehlversuch zaehlt noch weiter,
+    # erst danach beginnt die Wartezeit wieder bei 1 s.
+    clock = FakeClock()
+    limiter = PinLimiter(clock)
+    limiter.register_failure()
+    clock.now += pinlock.IDLE_RESET_SEC
+    assert limiter.register_failure() == 4
+    clock.now += pinlock.IDLE_RESET_SEC + 0.001
+    assert limiter.register_failure() == 1

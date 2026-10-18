@@ -118,7 +118,9 @@ Drei Dinge müssen rein:
    Ersteinrichtungs-Assistenten gewählt (siehe `ansible/README.md`,
    Abschnitt "First-run setup wizard"). Ein neuer Stand kommt also nur
    einmal hier rein und ist danach auf jedem Gerät der Flotte wählbar,
-   ohne erneuten Playbook-Lauf pro Gerät.
+   ohne erneuten Playbook-Lauf pro Gerät. Zusätzliche Stände nur für ein
+   Gerät (z. B. einen Teststand auf dem Testgerät) trägt man als
+   Host-Variable `targetdisplay_extra_stands` ein.
 
 3. **`targetdisplay_git_repo`** — die Repo-URL, aus der die App selbst
    ausgecheckt wird. Das Repo ist öffentlich, die URL braucht keine

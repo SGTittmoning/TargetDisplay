@@ -65,7 +65,7 @@ For unattended kiosk operation on a Raspberry Pi, `play_it` is the launcher scri
 | `video.section_detail` | Four corner points for the detail/zoomed-in perspective transform. Optional, see below |
 | `video.size` | Internal processing resolution (`x`, `y`) before display scaling |
 | `replay.latency_sec` | Delay of the camera stream in seconds (0–3, default 1.0). The replay recording window is shifted by this value so the last shots of a green phase are not cut off. Measure it per stand with `sudo tools/latenz_messung.sh` (reads the clock overlay of the camera image; requires NTP-synced camera and Pi). Optional |
-| `replay.budget_mb` | RAM limit for one replay recording in MB (default 600). Above it, only every second (fourth, ...) frame is kept; the recording still covers the whole green phase. Optional |
+| `replay.budget_mb` | RAM limit for one replay recording in MB (default 600, capped at 40 % of the device's RAM). Above it, only every second (fourth, ...) frame is kept; the recording still covers the whole green phase. Optional |
 
 There are two ways to get a stand's name/camera/regions into the app — pick one:
 

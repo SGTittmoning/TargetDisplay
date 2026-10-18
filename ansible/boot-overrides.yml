@@ -47,7 +47,7 @@
           - stand is defined
           - stand is match('^[A-Za-z0-9_-]+$')
           - active_stand.id is defined
-          - targetdisplay_stands is not defined or active_stand.id in (targetdisplay_stands | map(attribute='id') | list)
+          - targetdisplay_stands is not defined or active_stand.id in ((targetdisplay_stands + (targetdisplay_extra_stands | default([]))) | map(attribute='id') | list)
           - sections.section_full | length == 4
           - sections.section_detail | length == 4
           - (sections.section_full + sections.section_detail) | map('length') | unique | list == [2]
