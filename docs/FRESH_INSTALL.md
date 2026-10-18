@@ -297,7 +297,8 @@ auf, neue gemeinsame `targetdisplay-overlay-lib.sh` für `-writable.sh` und
 `-update.sh`; 0.13.3: gemeinsame `targetdisplay-boot-lib.sh`, der Guard
 verträgt eine beschädigte Zählerdatei; 0.13.4: Sandbox für
 `targetdisplay.service`, `targetdisplay-update.sh` meldet unlesbare
-Paketquellen), muss einmal `install.yml` laufen. Bei aktivem Overlay bricht dieses im
+Paketquellen; 0.13.5: `-update.sh`/`-writable.sh` setzen die Boot-Partition
+nach Abbruch wieder auf nur lesbar), muss einmal `install.yml` laufen. Bei aktivem Overlay bricht dieses im
 Vorab-Check ab (Schreibvorgänge gingen nur in den flüchtigen tmpfs-Layer), der
 Ablauf ist dann:
 
