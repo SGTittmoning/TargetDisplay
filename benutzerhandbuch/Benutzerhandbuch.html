@@ -122,6 +122,7 @@ section.chapter:first-of-type{ border-top:none; margin-top:44px; }
 }
 h2{ font-size:28px; font-size:clamp(24px,3vw,32px); margin:0; }
 h3{ font-size:19px; margin:34px 0 10px; }
+h4{ font-family:"Barlow Condensed",sans-serif; font-size:16px; letter-spacing:.04em; text-transform:uppercase; color:var(--muted); margin:22px 0 6px; break-after:avoid; page-break-after:avoid; }
 
 /* ---------- Figure plates ---------- */
 figure.plate{
@@ -179,6 +180,7 @@ table.locks{ border-collapse:collapse; width:100%; font-size:14px; margin:12px 0
 table.locks th,table.locks td{ border:1px solid var(--line); padding:5px 8px; text-align:center; }
 table.locks thead th{ background:var(--paper-raised-2); font-family:"Barlow Condensed",sans-serif; }
 table.locks tbody th{ text-align:left; background:var(--paper-raised); }
+.help td{ text-align:left; vertical-align:top; }
 .table-note{ font-size:13px; color:var(--muted); margin:0 0 16px; }
 .quick{ margin-top:36px; background:var(--paper-raised); border:1px solid var(--line); border-radius:3px; padding:6px 24px 14px; }
 .quick li{ margin-bottom:6px; }
@@ -349,6 +351,7 @@ footer{
       <li class="sub"><a href="#editor">Ausschnitte-Editor (Kalibrierung)</a></li>
       <li class="sub"><a href="#stand-wechseln">Stand wechseln</a></li>
       <li class="sub"><a href="#pin-aendern">PIN ändern</a></li>
+      <li class="sub"><a href="#geraetewerte">Gerätewerte</a></li>
       <li class="sub"><a href="#neustart">Gerät neu starten</a></li>
       <li><a href="#assistent">A&nbsp;&nbsp;Kurzübersicht Ersteinrichtungs-Assistent</a></li>
       <li><a href="#bei-problemen">Bei Problemen</a></li>
@@ -375,6 +378,7 @@ footer{
         <li class="toc-sub"><a href="#editor">Ausschnitte-Editor</a></li>
         <li class="toc-sub"><a href="#stand-wechseln">Stand wechseln</a></li>
         <li class="toc-sub"><a href="#pin-aendern">PIN ändern</a></li>
+        <li class="toc-sub"><a href="#geraetewerte">Gerätewerte</a></li>
         <li class="toc-sub"><a href="#neustart">Neu starten</a></li>
         <li><a href="#assistent"><span class="toc-num">A</span>Ersteinrichtung</a></li>
         <li><a href="#bei-problemen"><span class="toc-num">&mdash;</span>Bei Problemen</a></li>
@@ -428,8 +432,8 @@ footer{
         <ol class="legend">
           <li><span class="legend-num zoom">1</span><div><b>Ganze Scheibe</b><p>Zeigt die komplette Zielscheibe in der Übersicht &ndash; die Standardansicht.</p></div></li>
           <li><span class="legend-num zoom">2</span><div><b>Innen Scheibe</b><p>Vergrößert auf den inneren Bereich der Scheibe mit den hohen Ringen (eigener, separat kalibrierter Ausschnitt).</p></div></li>
-          <li><span class="legend-num zoom">3</span><div><b>Reset</b><p>Setzt Zoomstufe und eine manuelle Verschiebung (siehe Punkt&nbsp;4) auf &bdquo;Ganze Scheibe&ldquo; zurück. Nur aktiv, wenn es etwas zurückzusetzen gibt.</p></div></li>
-          <li><span class="legend-num zoom">4</span><div><b>Tippen auf das Kamerabild</b><p>Der erste Tipp vergrößert das Bild dreifach, die getippte Stelle rückt in die Mitte. Jeder weitere Tipp in den Randbereich (links, rechts, oben oder unten) verschiebt den Ausschnitt ein Stück in diese Richtung; ein Tipp in die Bildmitte ändert nichts. Über &bdquo;Reset&ldquo; (Punkt&nbsp;3) kommt man zur ganzen Ansicht zurück. Während eines Timers und bei &bdquo;Video aus&ldquo; hat ein Tipp keine Wirkung.</p></div></li>
+          <li><span class="legend-num zoom">3</span><div><b>Reset</b><p>Setzt Zoomstufe und eine manuelle Verschiebung (Zoom, Punkt&nbsp;4) auf &bdquo;Ganze Scheibe&ldquo; zurück. Nur aktiv, wenn es etwas zurückzusetzen gibt.</p></div></li>
+          <li><span class="legend-num zoom">4</span><div><b>Tippen auf das Kamerabild</b><p>Der erste Tipp vergrößert das Bild dreifach, die getippte Stelle rückt in die Mitte. Jeder weitere Tipp in den Randbereich (links, rechts, oben oder unten) verschiebt den Ausschnitt ein Stück in diese Richtung; ein Tipp in die Bildmitte ändert nichts. Über &bdquo;Reset&ldquo; (Zoom, Punkt&nbsp;3) kommt man zur ganzen Ansicht zurück. Während eines Timers und bei &bdquo;Video aus&ldquo; hat ein Tipp keine Wirkung.</p></div></li>
         </ol>
         </div>
 
@@ -457,16 +461,17 @@ footer{
         <p class="group-label"><span class="swatch" style="background:var(--muted)"></span>Fußbereich</p>
         <ol class="legend">
           <li><span class="legend-num">1</span><div><b>Datum/Uhrzeit</b><p>Zeigt Uhrzeit groß, Datum darüber. Rein informativ. Direkt nach dem Einschalten kann die Uhrzeit kurz falsch sein, bis das Gerät die Zeit aus dem Netzwerk hat; sie korrigiert sich von selbst.</p></div></li>
-          <li><span class="legend-num">2</span><div><b>Version und Gerätewerte</b><p>Unten links, kleine graue Schrift: die installierte Version. Ein Tippen darauf blendet Bildwiederholrate und Bildzähler sowie Auslastung von Prozessor und Arbeitsspeicher, Temperatur (ab 70&nbsp;°C gelb, ab 80&nbsp;°C rot) und Systemlast ein; erneutes Tippen blendet sie wieder aus. Für die Fehlersuche, ohne Bedeutung im Normalbetrieb.</p></div></li>
+          <li><span class="legend-num">2</span><div><b>Version und Gerätewerte</b><p>Unten links, kleine graue Schrift: die installierte Version. Ein Tippen darauf blendet zusätzliche Gerätewerte für die Standaufsicht ein, erneutes Tippen blendet sie wieder aus (siehe Kapitel 2, &bdquo;Gerätewerte&ldquo;). Im Normalbetrieb ohne Bedeutung.</p></div></li>
         </ol>
         </div>
 
         <div class="grp">
         <h3 id="zoom-detail">Zoom im Detail</h3>
-        <p><b>Ganze Scheibe</b> und <b>Innen Scheibe</b> schließen sich in der Wirkung gegenseitig aus &ndash; immer ist genau eine Stufe tatsächlich aktiv. Das sieht man den Buttons farblich aber nicht an: Beide bleiben im Live-Bild und im Replay kräftig blau, da sich jederzeit erneut zwischen ihnen wechseln lässt. Ein Tipp ins Bild vergrößert die gewählte Stufe zusätzlich dreifach; ein erneuter Druck auf <b>Ganze Scheibe</b> oder <b>Innen Scheibe</b> hebt diese Vergrößerung wieder auf. <b>Reset</b> bringt beides in einem Schritt zurück &ndash; und ist der einzige der drei Buttons, dessen Farbe den Zustand tatsächlich widerspiegelt (siehe Abb. 2).</p>
+        <p><b>Ganze Scheibe</b> und <b>Innen Scheibe</b> wählen die Ansicht. Beide Knöpfe bleiben blau, auch der gerade gültige. Ob <b>Innen Scheibe</b> oder ein vergrößerter Ausschnitt aktiv ist, zeigt der <b>Reset</b>-Knopf: Er ist nur dann farbig, wenn es etwas zurückzusetzen gibt (siehe Abb. 2).</p>
+        <p>Ein Tipp ins Bild vergrößert die gewählte Ansicht dreifach (Zoom, Punkt&nbsp;4). Ein Tipp auf <b>Ganze Scheibe</b> oder <b>Innen Scheibe</b> nimmt diese Vergrößerung wieder zurück, <b>Reset</b> stellt Ansicht und Vergrößerung in einem Schritt zurück.</p>
         <figure class="plate">
           <img src="screenshots/02_hauptbildschirm_innen_scheibe.png" alt="Zoomstufe Innen Scheibe aktiv">
-          <figcaption class="fig-note">Abb. 2 &ndash; Innen Scheibe ist aktiv (Ganze Scheibe bleibt ebenfalls blau) &ndash; erkennbar am jetzt nutzbaren Reset (blau statt blass).</figcaption>
+          <figcaption class="fig-note">Abb. 2 &ndash; Innen Scheibe ist aktiv (Ganze Scheibe bleibt ebenfalls blau) &ndash; erkennbar am farbigen Reset-Knopf.</figcaption>
         </figure>
         </div>
 
@@ -495,18 +500,25 @@ footer{
         <p>Während jedes Timers zeichnet das Gerät die grünen Phasen (Sichtzeiten) im Hintergrund auf: bei <b>5&nbsp;x&nbsp;3&nbsp;Sek.</b> die fünf Durchgänge, bei <b>20&nbsp;Sek.</b> und <b>10&nbsp;Sek.</b> die eine Sichtzeit. Die Aufnahme wird nicht dauerhaft gespeichert.</p>
         <figure class="plate">
           <img src="screenshots/06_replay.png" alt="Replay mit violettem Rahmen">
-          <figcaption class="fig-note">Abb. 6 &ndash; Replay in der Zoomstufe Innen Scheibe: violetter Rahmen, &bdquo;REPLAY&ldquo; und Zähler in Zehntelsekunden. Der Knopf zeigt jetzt Replay&nbsp;Ende.</figcaption>
+          <figcaption class="fig-note">Abb. 6 &ndash; Replay in der Zoomstufe Innen Scheibe: violetter Rahmen, &bdquo;REPLAY&ldquo; und Zähler in Zehntelsekunden. Der Knopf heißt Replay&nbsp;Ende.</figcaption>
         </figure>
         </div>
+        <h4>Ablauf</h4>
         <ul>
           <li><b>Replay</b> spielt die Aufnahme in Echtzeit ab, beliebig oft. Zu Beginn erscheint eine Sekunde lang ein rotes Startbild mit dem Timer-Modus (z.&nbsp;B. &bdquo;5&nbsp;x&nbsp;3&nbsp;Sek.&ldquo;). Am Ende erscheint eine Sekunde lang ein rotes Schlussbild, danach kehrt die Anzeige von selbst zum Live-Bild zurück.</li>
           <li>Während des Replays heißt der Knopf <b>Replay&nbsp;Ende</b>. Er kehrt sofort zum Live-Bild zurück, ohne das Ende abzuwarten. Die Aufnahme bleibt erhalten und lässt sich später erneut abspielen.</li>
-          <li>Das Replay ist deutlich gekennzeichnet: violetter Rahmen, &bdquo;REPLAY&ldquo; oben links und oben rechts ein Zähler in Zehntelsekunden, der in jeder Sichtzeit bei 0,0 beginnt (z.&nbsp;B. &bdquo;7,3&nbsp;s&ldquo;, bei 5&nbsp;x&nbsp;3 &bdquo;Durchgang 2/5&nbsp;&nbsp;1,4&nbsp;s&ldquo;).</li>
           <li>Bei <b>5&nbsp;x&nbsp;3&nbsp;Sek.</b> werden die roten Phasen übersprungen. Zwischen zwei Durchgängen erscheint für eine Sekunde ein rotes Trennbild &bdquo;Durchgang 2/5&ldquo; usw.</li>
+        </ul>
+        <h4>Anzeige und Zoom</h4>
+        <ul>
+          <li>Das Replay ist deutlich gekennzeichnet: violetter Rahmen, &bdquo;REPLAY&ldquo; oben links und oben rechts ein Zähler in Zehntelsekunden, der in jeder Sichtzeit bei 0,0 beginnt (z.&nbsp;B. &bdquo;7,3&nbsp;s&ldquo;, bei 5&nbsp;x&nbsp;3 &bdquo;Durchgang 2/5&nbsp;&nbsp;1,4&nbsp;s&ldquo;).</li>
           <li>Alle Zoomfunktionen (Ganze Scheibe, Innen Scheibe, Tippen ins Bild, Reset) wirken im Replay wie im Live-Bild.</li>
-          <li>Blinken, Timer und Video aus sind während des Replays gesperrt. Ein aktives Blinken läuft nach <b>Replay&nbsp;Ende</b> mit derselben Referenz weiter.</li>
+        </ul>
+        <h4>Aufnahme und Sperren</h4>
+        <ul>
           <li>Die Aufnahme wird erst beim Start des nächsten Timers verworfen und durch die neue ersetzt. Ein Neustart der Anzeige oder des Geräts löscht sie ebenfalls.</li>
           <li>Wird ein Timer mit <b>Timer&nbsp;Stop</b> vorzeitig beendet, lässt sich das bis dahin Aufgezeichnete abspielen. Endet er schon in der roten Vorbereitung, gibt es nichts abzuspielen; die vorige Aufnahme ist dann ebenfalls verworfen.</li>
+          <li>Blinken, Timer und Video aus sind während des Replays gesperrt. Ein aktives Blinken läuft nach <b>Replay&nbsp;Ende</b> mit derselben Referenz weiter.</li>
           <li><b>Replay</b> ist gesperrt, solange keine Aufnahme vorliegt, während eines Timers und bei ausgeblendetem Video.</li>
         </ul>
 
@@ -548,7 +560,7 @@ footer{
           PIN-geschützt
         </span>
         <div class="chapter-head"><span class="chapter-num">02</span><h2>Administrativer Bereich</h2></div>
-        <p><b>Dieser Abschnitt richtet sich an Standaufsichten</b>, nicht an normale Vereinsmitglieder. Alle Funktionen sind über das Zahnrad-Symbol (Kopfzeile, Punkt&nbsp;3) erreichbar und durch eine numerische PIN geschützt.</p>
+        <p><b>Dieser Abschnitt richtet sich an Standaufsichten</b>, nicht an Vereinsmitglieder ohne Aufgabe als Standaufsicht. Alle Funktionen sind über das Zahnrad-Symbol (Kopfzeile, Punkt&nbsp;3) erreichbar und durch eine numerische PIN geschützt.</p>
 
         <div class="callout"><p><b>PIN vergessen?</b> Die Standaufsicht kann die PIN nicht selbst zurücksetzen. Bitte den Verantwortlichen für die Geräte verständigen (Kontakt unter &bdquo;Bei Problemen&ldquo;); er stellt die PIN wieder her.</p></div>
 
@@ -580,7 +592,7 @@ footer{
         <div class="grp">
         <h3 id="editor">Ausschnitte-Editor (Kalibrierung)</h3>
         <p>Hier werden die vier Eckpunkte festgelegt, die den schrägen Kamerablick in ein gerades Top-down-Bild umrechnen &ndash; getrennt für &bdquo;Ganze Scheibe&ldquo; und &bdquo;Innen Scheibe&ldquo;. Nötig bei verschobener Kamera/Scheibe oder bei der Ersteinrichtung eines neuen Standes.</p>
-        <figure class="plate"><img src="screenshots/10_ausschnitte_editor_lupe.png" alt="Ausschnitte-Editor mit Lupe"><figcaption class="fig-note">Abb. 10 &ndash; Ausschnitte-Editor, Lupe beim Ziehen eines Eckpunkts eingeblendet.</figcaption></figure>
+        <figure class="plate"><img src="screenshots/10_ausschnitte_editor_lupe.png" alt="Ausschnitte-Editor mit Lupe"><figcaption class="fig-note">Abb. 10 &ndash; Ausschnitte-Editor: Beim Ziehen von Punkt&nbsp;1 zeigt die Lupe unten rechts den vergrößerten Bereich um den Punkt.</figcaption></figure>
         </div>
         <ol class="legend">
           <li><span class="legend-num admin">1</span><div><b>Titel</b><p>Zeigt an, welcher Ausschnitt bearbeitet wird.</p></div></li>
@@ -618,6 +630,17 @@ footer{
         </div>
 
         <div class="grp">
+        <h3 id="geraetewerte">Gerätewerte</h3>
+        <p>Ein Tippen auf die Version unten links blendet eine zweite Zeile mit Werten zur Fehlersuche ein; erneutes Tippen blendet sie wieder aus. Alles andere bleibt bedienbar.</p>
+        <ul>
+          <li><b>FPS und Frame:</b> Bildwiederholrate und Zähler der angezeigten Bilder. Bleibt die Rate dauerhaft weit unter der Rate der Kamera, ist das Gerät überlastet oder die Verbindung schlecht.</li>
+          <li><b>CPU und RAM:</b> Auslastung von Prozessor und Arbeitsspeicher in Prozent.</li>
+          <li><b>Temperatur:</b> ab 70&nbsp;°C gelb, ab 80&nbsp;°C rot. Bei Rot drosselt das Gerät sich selbst; Belüftung und Aufstellort prüfen.</li>
+          <li><b>Last:</b> Systemlast der letzten 1, 5 und 15 Minuten.</li>
+        </ul>
+        </div>
+
+        <div class="grp">
         <h3 id="neustart">Gerät neu starten</h3>
         <p>Über &bdquo;Neu starten&ldquo; im Einstellungen-Menü lässt sich das ganze Gerät gezielt neu starten, z.&nbsp;B. wenn die Kamera-Verbindung dauerhaft hängt.</p>
         <figure class="plate"><img src="screenshots/13_neustart_bestaetigen.png" alt="Neustart bestätigen"><figcaption class="fig-note">Abb. 13 &ndash; Neustart-Bestätigung.</figcaption></figure>
@@ -631,6 +654,7 @@ footer{
       <!-- ================= ANHANG ================= -->
       <section class="appendix" id="assistent">
         <div class="chapter-head"><span class="chapter-num">A</span><h2>Kurzübersicht Ersteinrichtungs-Assistent</h2></div>
+        <div class="callout"><p><b>Nur bei der Einrichtung:</b> Dieser Abschnitt betrifft nur neue oder zurückgesetzte Geräte und wird im Alltag nicht gebraucht.</p></div>
         <p>Ein fabrikneues bzw. zurückgesetztes Gerät zeigt beim allerersten Start automatisch einen geführten Assistenten, bevor der normale Hauptbildschirm erreichbar ist. Er läuft in dieser Reihenfolge ab und lässt sich nicht abbrechen; ein Schritt, dessen Einstellung schon vorhanden ist, wird übersprungen:</p>
         <ol>
           <li><b>Stand auswählen</b> &ndash; identisch zum Dialog &bdquo;Stand wechseln&ldquo;, nur ohne Abbrechen-Button.</li>
@@ -643,7 +667,18 @@ footer{
 
       <section class="chapter" id="bei-problemen">
         <div class="chapter-head"><h2>Bei Problemen</h2></div>
-        <p>Fällt das Kamerabild aus, versucht das Gerät selbst, die Verbindung wiederherzustellen, und startet dafür bei Bedarf neu. Kommt das Bild nicht zurück, bitte die Standaufsicht verständigen: Sie kann das Gerät über das Einstellungen-Menü neu starten (Abschnitt &bdquo;Gerät neu starten&ldquo;).</p>
+        <table class="locks help">
+          <thead><tr><th>Was zu sehen ist</th><th>Was zu tun ist</th></tr></thead>
+          <tbody>
+            <tr><td>Das Kamerabild fehlt oder steht still.</td><td>Etwas warten: Das Gerät baut die Verbindung selbst neu auf und startet bei Bedarf neu. Kommt das Bild nicht zurück, die Standaufsicht verständigen. Sie kann das Gerät über das Einstellungen-Menü neu starten (&bdquo;Gerät neu starten&ldquo;).</td></tr>
+            <tr><td>Statt des Kamerabilds ist das Vereinswappen zu sehen.</td><td>&bdquo;Video aus&ldquo; ist aktiv. Das Auge-Symbol oben rechts antippen.</td></tr>
+            <tr><td>Ein Knopf ist blass und reagiert nicht.</td><td>Er ist im aktuellen Zustand gesperrt, siehe &bdquo;Was wann bedienbar ist&ldquo;. <b>Replay</b> ist außerdem gesperrt, solange noch kein Timer gelaufen ist.</td></tr>
+            <tr><td>Die Uhrzeit stimmt direkt nach dem Einschalten nicht.</td><td>Nichts tun. Sie korrigiert sich von selbst, sobald das Gerät die Zeit aus dem Netzwerk hat.</td></tr>
+            <tr><td>Das Bild ist verschoben oder die Scheibe erscheint schief.</td><td>Die Standaufsicht kalibriert den Ausschnitt neu (&bdquo;Ausschnitte-Editor&ldquo;).</td></tr>
+            <tr><td>Bei der PIN erscheint &bdquo;falsch&ldquo; und eine Wartezeit.</td><td>Die Wartezeit abwarten und die PIN erneut eingeben. Bei vergessener PIN den Verantwortlichen für die Geräte verständigen.</td></tr>
+            <tr><td>Die Anzeige startet nach dem Speichern von selbst neu.</td><td>Das ist gewollt. Nach kurzer Zeit erscheint wieder der Hauptbildschirm.</td></tr>
+          </tbody>
+        </table>
         <p>Lässt sich ein Problem so nicht beheben, wenden Sie sich bitte an:</p>
         <hr class="writeline">
         <hr class="writeline">
