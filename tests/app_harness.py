@@ -153,6 +153,8 @@ def probe(window, draws):
         'time': window['-TIME-'].widget.cget('text'),
         'stand': window['-STANDNAME-'].widget.cget('text'),
         'video_icon': str(window['-TOGGLEVIDEO-'].widget.cget('image')),
+        'fps_visible': window['-FPS-'].widget.winfo_manager() != '',
+        'info': ' | '.join(window[k].widget.cget('text') for k in ('-USAGE-', '-TEMP-', '-LOAD-')),
     }
 
 
