@@ -9,12 +9,9 @@
 # Minuten). Ist die Obergrenze erreicht, wird der Dienst NICHT deaktiviert,
 # sondern von targetdisplay-retry.timer alle 10 Minuten neu gestartet, solange
 # er auf failed steht - die Staende laufen unbeaufsichtigt, eine dauerhafte
-# Abschaltung waere dort nicht behebbar. Nach demselben Muster wie im
-# oeffentlichen CamDisplay-Repo (https://github.com/SGTittmoning/CamDisplay),
-# dort bereits gegen echte Pi-4-Hardware verifiziert.
+# Abschaltung waere dort nicht behebbar.
 #
-# Die Skripte selbst werden schon in tasks/maintenance_scripts.yml nach
-# /root/bin kopiert (gemeinsam mit den anderen Wartungsskripten).
+# Die Skripte selbst kopiert tasks/maintenance_scripts.yml nach /root/bin.
 
 - name: targetdisplay-reboot.service aus Template rendern
   template:

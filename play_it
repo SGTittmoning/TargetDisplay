@@ -11,8 +11,8 @@ cd "$(dirname "$(readlink -f "$0")")" || exit 1
 # ueberschriebenen Datei nur den letzten.
 echo "Starting up TargetDisplay..."
 
-# Bewusst nur EIN Versuch hier, keine eigene Retry-Schleife mehr - das
-# Zaehlen/Eskalieren passiert komplett auf systemd-Ebene
+# Nur ein Versuch, keine eigene Retry-Schleife: Zaehlen und Eskalieren
+# passiert auf systemd-Ebene
 # (targetdisplay.service: Restart=always + StartLimitBurst, siehe
 # templates/targetdisplay.service.j2). Ein Ende von main.py beendet play_it
 # (letzter Befehl in .xinitrc) -> die X11-Session endet -> systemd startet den

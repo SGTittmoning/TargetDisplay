@@ -10,16 +10,11 @@ GREEN = (0, 255, 0)
 
 
 def blend_logo_centered(canvas, logo_rgba, margin_ratio=0.05):
-    # skaliert ein BGRA-Logo unter Beibehaltung des Seitenverhaeltnisses so
+    # Skaliert ein BGRA-Logo unter Beibehaltung des Seitenverhaeltnisses so
     # gross wie moeglich (minus Rand) und zeichnet es alpha-transparent
-    # zentriert auf den Canvas
+    # zentriert auf den Canvas.
     if logo_rgba.ndim == 2 or logo_rgba.shape[2] == 1:
-        # cv2.imread(..., IMREAD_UNCHANGED) liefert bei einem reinen
-        # Graustufenbild (kein Alpha-, kein Farbkanal) ein 2D-Array ohne
-        # dritte Dimension - logo_rgba.shape[2] weiter unten wuerde dann mit
-        # IndexError abstuerzen. Ein eigenes Vereinslogo koennte durchaus so
-        # exportiert sein; das mitgelieferte Platzhalter-Logo ist RGBA und
-        # daher nicht betroffen.
+        # Ein reines Graustufen-Logo liefert cv2.imread() ohne Farbkanaele.
         logo_rgba = cv2.cvtColor(logo_rgba, cv2.COLOR_GRAY2BGR)
     canvas_h, canvas_w = canvas.shape[:2]
     margin = int(min(canvas_w, canvas_h) * margin_ratio)

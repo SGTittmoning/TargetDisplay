@@ -637,7 +637,7 @@ def set_icon_buttons(keys, enabled):
                 c.config(bg=cfg['bg'])
 
 
-def apply_controls(mode, blink=False, zoom_level='full', zoom_center=(), has_recording=False):
+def apply_controls(mode, blink=False, zoom_level='full', zoom_center=None, has_recording=False):
     """Setzt alle Buttons des Hauptbildschirms passend zum Zustand.
 
     mode: 'live' (Kamerabild), 'blank' (Video aus), 'timer' oder 'replay'.
@@ -649,7 +649,7 @@ def apply_controls(mode, blink=False, zoom_level='full', zoom_center=(), has_rec
     set_icon_buttons(('-FULL_VIDEO-', '-DETAIL_VIDEO-'), zoom)
     # Reset nur, wenn der Zoom vom Standard abweicht (Innen Scheibe oder
     # manueller Ausschnitt).
-    set_icon_buttons(('-RESETZOOM-',), zoom and (zoom_level != 'full' or bool(zoom_center)))
+    set_icon_buttons(('-RESETZOOM-',), zoom and (zoom_level != 'full' or zoom_center is not None))
     # Blinken nur im Livebild; laeuft es, sind Referenz und Stop bedienbar
     # statt Start. Die Timer bleiben auch beim Blinken startbar.
     set_icon_buttons(('-BLINK_START-',), live and not blink)

@@ -2,13 +2,13 @@
 # Flottenweite Stand-Liste (targetdisplay_stands) auf die Boot-Partition
 # rendern - identisch fuer jeden Host dieser Gruppe, welcher Stand ein
 # konkretes Geraet zeigt, wird erst am Geraet selbst im
-# Ersteinrichtungs-Assistenten ausgewaehlt (main.py). Liegt bewusst auf
+# Ersteinrichtungs-Assistenten ausgewaehlt. Liegt bewusst auf
 # /boot/firmware statt in config.yml, aus demselben Grund wie
 # targetdisplay-sections.json: live per remount beschreibbar, kein
 # Root-Overlay-Reboot-Tanz noetig.
 #
 # Ansible selbst laeuft hier mit "become: yes" (siehe install.yml), braucht
-# also kein Sudo-Skript wie main.py fuer denselben Pfad - der Schreibzugriff
+# also kein Sudo-Skript wie die App fuer denselben Pfad - der Schreibzugriff
 # durch die unprivilegierte App zur Laufzeit (Stand-Auswahl im Assistenten)
 # ist eigens in tasks/settings_sudo.yml/targetdisplay-save-active-stand.sh
 # abgesichert.
@@ -17,19 +17,23 @@
   register: targetdisplay_bootro_now
   changed_when: false
 
-- name: Boot-Partition kurzzeitig beschreibbar machen falls read-only
-  command: mount -o remount,rw /boot/firmware
-  when: targetdisplay_bootro_now.stdout | trim == '0'
+# always: auch wenn das Rendern scheitert, wird die Partition wieder
+# read-only.
+- name: targetdisplay-stands.json auf die Boot-Partition schreiben
+  block:
+    - name: Boot-Partition kurzzeitig beschreibbar machen falls read-only
+      command: mount -o remount,rw /boot/firmware
+      when: targetdisplay_bootro_now.stdout | trim == '0'
 
-- name: targetdisplay-stands.json rendern
-  template:
-    src: stands.json.j2
-    dest: /boot/firmware/targetdisplay-stands.json
-    owner: root
-    group: root
-    mode: "0644"
-  register: targetdisplay_stands_rendered
-
-- name: Boot-Partition wieder read-only setzen falls sie es vorher war
-  command: mount -o remount,ro /boot/firmware
-  when: targetdisplay_bootro_now.stdout | trim == '0'
+    - name: targetdisplay-stands.json rendern
+      template:
+        src: stands.json.j2
+        dest: /boot/firmware/targetdisplay-stands.json
+        owner: root
+        group: root
+        mode: "0644"
+      register: targetdisplay_stands_rendered
+  always:
+    - name: Boot-Partition wieder read-only setzen falls sie es vorher war
+      command: mount -o remount,ro /boot/firmware
+      when: targetdisplay_bootro_now.stdout | trim == '0'

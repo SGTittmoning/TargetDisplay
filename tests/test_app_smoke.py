@@ -249,8 +249,8 @@ def test_ersteinrichtung_stand_ausschnitte_pin(tmp_path, monkeypatch):
             json.dump({'section_full': full, 'section_detail': detail}, f)
         return True
 
-    def change_pin(current, forced):
-        log.append(('pin', current, forced))
+    def change_pin(forced):
+        log.append(('pin', forced))
         return '2580'
 
     monkeypatch.setattr(main, 'Camera', Cam)
@@ -275,7 +275,7 @@ def test_ersteinrichtung_stand_ausschnitte_pin(tmp_path, monkeypatch):
         ('warten', 'rtmp://zwei'),
         ('editor', 'Innen Scheibe', WIZARD_FULL, False, False),
         ('ausschnitte gespeichert', WIZARD_FULL, WIZARD_DETAIL),
-        ('pin', '1234', True),
+        ('pin', True),
     ]
     # Die Verbindung zum verworfenen Stand wurde beendet.
     assert [(c.url, c.stopped) for c in cameras] == [('rtmp://eins', True), ('rtmp://zwei', False)]
@@ -342,7 +342,7 @@ def test_ersteinrichtung_wiederholt_schritte_nach_speicherfehler(tmp_path, monke
             json.dump({'section_full': full, 'section_detail': detail}, f)
         return True
 
-    def change_pin(current, forced):
+    def change_pin(forced):
         log.append('pin')
         # None: Speichern fehlgeschlagen (Meldung kommt aus flows).
         return None if fails_once('pin') else '2580'

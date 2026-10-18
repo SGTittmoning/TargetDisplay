@@ -1,7 +1,6 @@
 ---
 # Manuelle Wartungsskripte fuer den Fall, dass gerade kein Ansible-Zugriff
-# moeglich ist (z.B. vor Ort ohne Laptop/VPN). Nach demselben Muster wie im
-# oeffentlichen CamDisplay-Repo: https://github.com/SGTittmoning/CamDisplay
+# moeglich ist (z.B. vor Ort ohne Laptop/VPN).
 
 - name: /root/bin anlegen
   file:
@@ -19,6 +18,7 @@
     group: root
     mode: '0700'
   loop:
+    - targetdisplay-boot-lib.sh
     - targetdisplay-overlay-lib.sh
     - targetdisplay-update.sh
     - targetdisplay-writable.sh

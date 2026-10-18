@@ -123,7 +123,7 @@ def run_setup_wizard(cfg):
 
     settings_pin = load_settings_pin(cfg)
     while settings_pin == DEFAULT_PIN:
-        new_pin = change_pin_flow(settings_pin, forced=True)
+        new_pin = change_pin_flow(forced=True)
         if new_pin is not None:
             settings_pin = new_pin
     return stands, cap, section_full, section_detail, settings_pin
@@ -146,18 +146,20 @@ class MainScreen:
         self.replay_latency, self.replay_budget = replay_settings
         self.blank_logo = blank_logo
 
-        self.display_video = True
-        self.display_timer = False
+        # 'live' (Kamerabild), 'blank' (Video aus), 'timer' oder 'replay'.
+        self.mode = 'live'
         self.video_resumed_at = time.monotonic()
         self.zoom_level = 'full'
-        self.zoom_center = []
+        # Mitte des Tipp-Zooms in Prozent der Bildgroesse, None ohne Tipp-Zoom.
+        self.zoom_center = None
         self.blink = False
-        self.blink_ref = []
+        # Rohes Referenzbild beim Blinken, None bis zum naechsten Livebild.
+        self.blink_ref = None
         self.last_frame_id = -1
         self.frame_count = 1
         self.frame_timestamps = deque()
         self.timer_type = None
-        self.timer_start = time.monotonic()
+        self.timer_started_at = time.monotonic()
         self.last_timer_state = None
         # Aufnahme der Gruenphasen der letzten Timer-Serie (replay.py). Bleibt
         # nach "Replay Ende" erhalten und wird erst beim Start der naechsten
@@ -165,8 +167,7 @@ class MainScreen:
         self.recording = None
         self.replay_type = None
         self.last_rec_frame_id = -1
-        self.replay_active = False
-        self.replay_start = time.monotonic()
+        self.replay_started_at = time.monotonic()
         self.last_replay_key = None
         self.last_date_str = None
         self.last_time_str = None
@@ -198,8 +199,9 @@ class MainScreen:
             '-RESETZOOM-': self.zoom_full,
             '-DETAIL_VIDEO-': self.zoom_detail,
             '-VIDEO-': self.tap_video,
+            # Start und Referenz nehmen beide ein neues Referenzbild auf.
             '-BLINK_START-': self.blink_start,
-            '-BLINK_REF-': self.blink_reference,
+            '-BLINK_REF-': self.blink_start,
             '-BLINK_STOP-': self.blink_stop,
             '-TIMER_STOP-': self.timer_stop,
             '-REPLAY-': self.replay_start_clicked,
@@ -216,35 +218,23 @@ class MainScreen:
         # manuelle Zoom. Gemeinsam fuer Livebild, Blinken und Replay.
         matrix = self.matrix_detail if self.zoom_level == 'detail' else self.matrix_full
         out = cv2.warpPerspective(raw, matrix, self.video_size)
-        if self.zoom_center != []:
+        if self.zoom_center is not None:
             out = tl.crop(out, VIDEO_ZOOM_FACTOR, self.zoom_center)
         return out
 
     def has_recording(self):
         return self.recording is not None and self.recording.has_frames()
 
-    def mode(self):
-        if self.replay_active:
-            return 'replay'
-        if self.display_timer:
-            return 'timer'
-        if not self.display_video:
-            return 'blank'
-        return 'live'
-
     def update_controls(self):
-        apply_controls(self.mode(), blink=self.blink, zoom_level=self.zoom_level,
+        apply_controls(self.mode, blink=self.blink, zoom_level=self.zoom_level,
                        zoom_center=self.zoom_center, has_recording=self.has_recording())
 
     # -- Stream-Ueberwachung -----------------------------------------------
 
     def check_stream(self):
-        # Nur pruefen, solange das Kamerabild angezeigt wird: Timer-Serien,
-        # der Blank-Screen und das Replay brauchen die Kamera nicht, ein
-        # Stream-Ausfall darf sie nicht durch einen Prozess-Neustart
-        # unterbrechen. camera.py verbindet sich im Hintergrund selbst neu.
-        if not (stale_check_due(self.display_video and not self.replay_active, self.display_timer,
-                                time.monotonic(), self.video_resumed_at, STREAM_STALE_TIMEOUT_SEC)
+        # Nur im Livebild pruefen (siehe stale_check_due). camera.py verbindet
+        # sich im Hintergrund selbst neu.
+        if not (stale_check_due(self.mode, time.monotonic(), self.video_resumed_at, STREAM_STALE_TIMEOUT_SEC)
                 and self.cap.is_stale(STREAM_STALE_TIMEOUT_SEC, STREAM_STARTUP_TIMEOUT_SEC)):
             return
         # snapshot() liefert die Werte aus einem einzigen Lock-Zugriff, sie
@@ -271,39 +261,40 @@ class MainScreen:
             self.update_controls()
 
     def toggle_video(self, event, values):
-        self.display_video = not self.display_video
-        if self.display_video:
+        if self.mode == 'blank':
             # frame_count/frame_timestamps laufen weiter, die FPS-Anzeige
             # pausiert nur (wie beim Timer).
+            self.mode = 'live'
             self.video_resumed_at = time.monotonic()
-        else:
+        elif self.mode == 'live':
+            self.mode = 'blank'
             self.window.draw_image(blank_frame(self.video_size, self.blank_logo))
             # FPS-Anzeige nur leeren, die Zaehler bleiben (siehe oben).
             self.window_fps.update('')
 
     def open_settings(self, event, values):
         if check_pin(self.settings_pin):
-            if run_settings_flow(self.cap, self.section_full, self.section_detail, self.stands, self.settings_pin):
+            if run_settings_flow(self.cap, self.section_full, self.section_detail, self.stands):
                 # Gespeichert: Prozess beenden (Exit 0), systemd startet
                 # ihn mit den neuen Werten neu.
                 sys.exit(0)
 
     def zoom_full(self, event, values):
         self.zoom_level = 'full'
-        self.zoom_center = []
+        self.zoom_center = None
 
     def zoom_detail(self, event, values):
         self.zoom_level = 'detail'
-        self.zoom_center = []
+        self.zoom_center = None
 
     def tap_video(self, event, values):
         # Zoomen nur, solange ein Bild zu sehen ist: im Timer und bei
         # "Video aus" bliebe ein Tipp sonst unbemerkt bis zum naechsten
         # Livebild stehen.
-        if self.mode() not in ('live', 'replay'):
+        if self.mode not in ('live', 'replay'):
             return
         x, y = values['-VIDEO-']
-        if self.zoom_center == []:
+        if self.zoom_center is None:
             # Erster Tipp: Mittelpunkt des Ausschnitts.
             center = (x, y)
         else:
@@ -321,17 +312,14 @@ class MainScreen:
         self.zoom_center = clamp_zoom_center(center)
 
     def blink_start(self, event, values):
-        # Zoom bleibt bedienbar, er wirkt auf Referenz und Livebild gleich.
-        # Die Timer bleiben startbar (siehe timer_start_clicked).
-        self.blink_ref = []
-        self.blink = True
-
-    def blink_reference(self, event, values):
-        self.blink_ref = []
+        # Das naechste Livebild wird zur Referenz. Zoom bleibt bedienbar, er
+        # wirkt auf Referenz und Livebild gleich. Die Timer bleiben startbar
+        # (siehe timer_start_clicked).
+        self.blink_ref = None
         self.blink = True
 
     def blink_stop(self, event, values):
-        self.blink_ref = []
+        self.blink_ref = None
         self.blink = False
 
     def timer_start_clicked(self, event, values):
@@ -340,10 +328,9 @@ class MainScreen:
         # Ein laufendes Blinken pausiert nur: blink und blink_ref bleiben
         # unveraendert, nach dem Timer blinkt das Bild mit der Referenz von
         # vor der Serie weiter und zeigt so die Treffer der Serie.
-        self.display_timer = True
-        self.display_video = False
+        self.mode = 'timer'
         self.timer_type = event
-        self.timer_start = time.monotonic()
+        self.timer_started_at = time.monotonic()
         self.last_timer_state = None
         # Die Aufnahme der vorigen Serie zuerst freigeben, dann die neue
         # anlegen - sonst lagen kurzzeitig beide im RAM.
@@ -353,8 +340,7 @@ class MainScreen:
         self.last_rec_frame_id, _, _ = self.cap.snapshot()
 
     def timer_stop(self, event, values):
-        self.display_timer = False
-        self.display_video = True
+        self.mode = 'live'
         self.video_resumed_at = time.monotonic()
         if self.recording is not None:
             print(f"Replay-Aufnahme: {self.recording.frame_count()} Bilder, "
@@ -365,42 +351,42 @@ class MainScreen:
         # Button "-REPLAY_END-". Blinken pausiert (Zustand und Referenz
         # bleiben). Die Sperren stehen in ui.apply_controls(); die Pruefung
         # hier faengt zusaetzlich ein Ereignis ab, das trotz Sperre ankommt.
-        if self.has_recording() and self.display_video and not self.display_timer:
-            self.replay_active = True
-            self.replay_start = time.monotonic()
+        if self.has_recording() and self.mode == 'live':
+            self.mode = 'replay'
+            self.replay_started_at = time.monotonic()
             self.last_replay_key = None
 
     def replay_end(self, event, values):
         # Zurueck zum Livebild. Die Aufnahme bleibt fuer ein weiteres Replay
         # erhalten.
-        self.replay_active = False
+        self.mode = 'live'
         self.video_resumed_at = time.monotonic()
         self.last_frame_id = -1
 
     # -- Bildanzeige -------------------------------------------------------
 
     def draw(self):
-        if self.replay_active:
+        if self.mode == 'replay':
             self.draw_replay()
-        elif self.display_video:
+        elif self.mode == 'live':
             self.draw_live()
-        elif self.display_timer:
+        elif self.mode == 'timer':
             self.draw_timer()
 
     def draw_replay(self):
-        view = self.recording.view(time.monotonic() - self.replay_start)
+        view = self.recording.view(time.monotonic() - self.replay_started_at)
         if view is None:
             # Nach dem roten Schlussbild endet das Replay von selbst, wie mit
-            # "Replay Ende". replay_active sofort zuruecksetzen, damit das
-            # Ereignis nur einmal gesendet wird.
-            self.replay_active = False
+            # "Replay Ende". Den Modus sofort verlassen, damit das Ereignis nur
+            # einmal gesendet wird.
+            self.mode = 'live'
             self.window.post('-REPLAY_END-')
             return
         segments = len(self.recording.windows)
         counter = replay.counter_text(view, segments)
         # Neu zeichnen nur, wenn sich Bild, Zaehler (Zehntelsekunden) oder
         # Zoom aendern.
-        replay_key = (view.key, counter, self.zoom_level, tuple(self.zoom_center))
+        replay_key = (view.key, counter, self.zoom_level, self.zoom_center)
         if replay_key == self.last_replay_key:
             return
         self.last_replay_key = replay_key
@@ -429,7 +415,7 @@ class MainScreen:
         # neuen Perspektive. Neu aufgenommen wird sie nur mit Start oder
         # Referenz, nie automatisch - sonst ginge der Vergleich alter und
         # neuer Treffer verloren.
-        if self.blink and len(self.blink_ref) == 0:
+        if self.blink and self.blink_ref is None:
             self.blink_ref = frame
         if self.blink and int(time.monotonic() / BLINK_SWITCH_SEC) % 2 == 1:
             self.window.draw_image(self.render(self.blink_ref))
@@ -449,7 +435,7 @@ class MainScreen:
             self.window_fps.update(f'FPS: {round(fps, 1)} - Frame {self.frame_count}')
 
     def draw_timer(self):
-        elapsed = time.monotonic() - self.timer_start
+        elapsed = time.monotonic() - self.timer_started_at
         # Aufnahme: jedes neue Kamerabild geht an die Aufnahme, die nur
         # behaelt, was in eine Gruenphase faellt.
         if not self.recording.is_complete(elapsed):

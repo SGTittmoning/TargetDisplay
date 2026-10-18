@@ -27,6 +27,5 @@ select = [
 max-complexity = 15
 
 [lint.per-file-ignores]
-# edit_section_points() und das Messwerkzeug liegen ueber der Grenze.
-"flows.py" = ["C901"]
+# Das Messwerkzeug liegt ueber der Grenze.
 "tools/*" = ["C901"]

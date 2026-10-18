@@ -65,7 +65,7 @@ def test_fehlgeschlagener_neustart_meldet_sich(win, monkeypatch, outcome):
     monkeypatch.setattr(flows.subprocess, 'run', fake_run)
     for event in ('-MENU_RESTART-', '-CONFIRM_YES-', '-MENU_BACK-'):
         win.post(event)
-    assert flows.run_settings_flow(None, None, None, [], '4711') is False
+    assert flows.run_settings_flow(None, None, None, []) is False
     assert messages == ['Neustart fehlgeschlagen.']
 
 
@@ -76,7 +76,7 @@ def test_neustart_ohne_fehler_ohne_meldung(win, monkeypatch):
                         lambda cmd, **kw: calls.append(cmd) or subprocess.CompletedProcess(cmd, 0))
     for event in ('-MENU_RESTART-', '-CONFIRM_YES-', '-MENU_BACK-'):
         win.post(event)
-    flows.run_settings_flow(None, None, None, [], '4711')
+    flows.run_settings_flow(None, None, None, [])
     assert calls == [['/usr/bin/sudo', '/usr/sbin/reboot']]
     assert messages == []
 
@@ -189,6 +189,29 @@ def test_pin_abbrechen_in_der_wartezeit_beendet_sofort(win, monkeypatch, limiter
     assert rest == ['-UNGELESEN-']
 
 
+def recorded_pages(monkeypatch):
+    pages = []
+    real_show = flows.show_page
+    monkeypatch.setattr(flows, 'show_page', lambda key: (pages.append(key), real_show(key))[1])
+    return pages
+
+
+def test_richtige_pin_wechselt_nicht_zum_hauptbildschirm(win, monkeypatch, limiter):
+    # Danach zeigt der Aufrufer das Menue; ein Zwischenschritt ueber den
+    # Hauptbildschirm liesse ihn kurz aufblitzen.
+    pages = recorded_pages(monkeypatch)
+    script(win, monkeypatch, ['4', '7', '1', '1', '-PIN_OK-'])
+    assert flows.check_pin('4711') is True
+    assert pages == ['-PINVIEW-']
+
+
+def test_abbrechen_bei_der_pin_fuehrt_zum_hauptbildschirm(win, monkeypatch, limiter):
+    pages = recorded_pages(monkeypatch)
+    script(win, monkeypatch, ['-PIN_CANCEL-'])
+    assert flows.check_pin('4711') is False
+    assert pages == ['-PINVIEW-', '-MAINVIEW-']
+
+
 def test_pin_falsch_zeigt_hinweis(win, monkeypatch, limiter):
     monkeypatch.setattr(limiter, 'register_failure', lambda: 1.0)
     texts = []
@@ -222,45 +245,39 @@ def saved_pins(monkeypatch):
 
 
 def test_pin_aendern(win, monkeypatch, limiter, saved_pins):
-    script(win, monkeypatch, ['4', '7', '1', '1', '-PIN_OK-',          # aktuelle PIN
-                              '2', '5', '8', '0', '-PIN_OK-',          # neue PIN
+    script(win, monkeypatch, ['2', '5', '8', '0', '-PIN_OK-',          # neue PIN
                               '2', '5', '8', '0', '-PIN_OK-'])         # Wiederholung
-    assert flows.change_pin_flow('4711', forced=False) == '2580'
+    assert flows.change_pin_flow(forced=False) == '2580'
     assert saved_pins == ['2580']
 
 
 def test_pin_aendern_ungleiche_wiederholung_fragt_neu(win, monkeypatch, limiter, saved_pins):
-    # Nach "PINs stimmen nicht ueberein" geht es mit der neuen PIN weiter,
-    # die aktuelle PIN wird nicht erneut abgefragt.
-    script(win, monkeypatch, ['4', '7', '1', '1', '-PIN_OK-',
-                              '2', '5', '8', '0', '-PIN_OK-',
+    # Nach "PINs stimmen nicht ueberein" geht es mit der neuen PIN weiter.
+    script(win, monkeypatch, ['2', '5', '8', '0', '-PIN_OK-',
                               '9', '9', '9', '9', '-PIN_OK-',
                               '3', '6', '9', '0', '-PIN_OK-',
                               '3', '6', '9', '0', '-PIN_OK-'])
-    assert flows.change_pin_flow('4711', forced=False) == '3690'
+    assert flows.change_pin_flow(forced=False) == '3690'
     assert saved_pins == ['3690']
-    assert limiter.successes == 1
 
 
 def test_pin_aendern_meldet_ungleiche_wiederholung(win, monkeypatch, limiter, saved_pins):
     titles = []
     monkeypatch.setattr(flows.time, 'sleep', lambda s: titles.append(win['-PIN_TITLE-'].widget.cget('text')))
-    script(win, monkeypatch, ['4', '7', '1', '1', '-PIN_OK-',
-                              '2', '5', '8', '0', '-PIN_OK-',
+    script(win, monkeypatch, ['2', '5', '8', '0', '-PIN_OK-',
                               '9', '9', '9', '9', '-PIN_OK-',
                               '-PIN_CANCEL-'])
-    assert flows.change_pin_flow('4711', forced=False) is None
+    assert flows.change_pin_flow(forced=False) is None
     assert titles == ['PINs stimmen nicht überein']
 
 
 @pytest.mark.parametrize('steps', [
     ['-PIN_CANCEL-'],
-    ['4', '7', '1', '1', '-PIN_OK-', '-PIN_CANCEL-'],
-    ['4', '7', '1', '1', '-PIN_OK-', '2', '5', '8', '0', '-PIN_OK-', '-PIN_CANCEL-'],
+    ['2', '5', '8', '0', '-PIN_OK-', '-PIN_CANCEL-'],
 ])
 def test_pin_aendern_abbrechen_in_jedem_schritt(win, monkeypatch, limiter, saved_pins, steps):
     script(win, monkeypatch, steps)
-    assert flows.change_pin_flow('4711', forced=False) is None
+    assert flows.change_pin_flow(forced=False) is None
     assert saved_pins == []
 
 
@@ -268,10 +285,9 @@ def test_pin_aendern_speicherfehler(win, monkeypatch, limiter):
     messages = []
     monkeypatch.setattr(flows, 'save_pin', lambda pin: False)
     monkeypatch.setattr(flows, 'popup', messages.append)
-    script(win, monkeypatch, ['4', '7', '1', '1', '-PIN_OK-',
-                              '2', '5', '8', '0', '-PIN_OK-',
+    script(win, monkeypatch, ['2', '5', '8', '0', '-PIN_OK-',
                               '2', '5', '8', '0', '-PIN_OK-'])
-    assert flows.change_pin_flow('4711', forced=False) is None
+    assert flows.change_pin_flow(forced=False) is None
     assert messages == ['PIN konnte nicht gespeichert werden.']
 
 
@@ -280,7 +296,7 @@ def test_pin_pflicht_ohne_abbrechen_danach_wieder_mit(win, monkeypatch, saved_pi
     script(win, monkeypatch, [lambda: seen.append(visible(win, '-PIN_CANCEL-')),
                               '2', '5', '8', '0', '-PIN_OK-',
                               '2', '5', '8', '0', '-PIN_OK-'])
-    assert flows.change_pin_flow('1234', forced=True) == '2580'
+    assert flows.change_pin_flow(forced=True) == '2580'
     assert seen == [False]
     win.root.update_idletasks()
     assert visible(win, '-PIN_CANCEL-')
@@ -295,7 +311,7 @@ def test_standard_pin_als_neue_pin_abgelehnt(win, monkeypatch, saved_pins):
                               lambda: time.sleep(1.6), '-VERWORFEN-',
                               '2', '5', '8', '0', '-PIN_OK-',
                               '2', '5', '8', '0', '-PIN_OK-'])
-    assert flows.change_pin_flow('1234', forced=True) == '2580'
+    assert flows.change_pin_flow(forced=True) == '2580'
     assert texts == ['zu einfach']
     assert saved_pins == ['2580']
 
@@ -543,14 +559,14 @@ DETAIL = [[400, 200], [600, 200], [400, 400], [600, 400]]
 
 def test_menue_zurueck(win, monkeypatch, saved):
     script(win, monkeypatch, ['-MENU_BACK-'])
-    assert flows.run_settings_flow(FrameCam(), POINTS, DETAIL, STANDS, '4711') is False
+    assert flows.run_settings_flow(FrameCam(), POINTS, DETAIL, STANDS) is False
 
 
 @pytest.mark.parametrize('event, which', [('-MENU_FULL-', 0), ('-MENU_DETAIL-', 1)])
 def test_menue_ausschnitt_speichern(win, monkeypatch, saved, event, which):
     script(win, monkeypatch, [event] + drag(tuple(POINTS[0]) if which == 0 else tuple(DETAIL[0]),
                                             (190, 95) if which == 0 else (390, 190)) + ['-EDIT_SAVE-'])
-    assert flows.run_settings_flow(FrameCam(), POINTS, DETAIL, STANDS, '4711') is True
+    assert flows.run_settings_flow(FrameCam(), POINTS, DETAIL, STANDS) is True
     full, detail = saved['sections'][0]
     changed, kept = (full, detail) if which == 0 else (detail, full)
     assert np.allclose(changed[0], (190, 95) if which == 0 else (390, 190))
@@ -559,20 +575,20 @@ def test_menue_ausschnitt_speichern(win, monkeypatch, saved, event, which):
 
 def test_menue_ausschnitt_abbrechen_zurueck_ins_menue(win, monkeypatch, saved):
     script(win, monkeypatch, ['-MENU_FULL-', '-EDIT_CANCEL-', '-MENU_BACK-'])
-    assert flows.run_settings_flow(FrameCam(), POINTS, DETAIL, STANDS, '4711') is False
+    assert flows.run_settings_flow(FrameCam(), POINTS, DETAIL, STANDS) is False
     assert saved['sections'] == []
 
 
 def test_menue_ausschnitt_speicherfehler_bleibt_im_menue(win, monkeypatch, saved):
     monkeypatch.setattr(flows, 'save_sections_override', lambda full, detail: False)
     script(win, monkeypatch, ['-MENU_FULL-', '-EDIT_SAVE-', '-MENU_BACK-'])
-    assert flows.run_settings_flow(FrameCam(), POINTS, DETAIL, STANDS, '4711') is False
+    assert flows.run_settings_flow(FrameCam(), POINTS, DETAIL, STANDS) is False
     assert saved['popup'] == ['Speichern fehlgeschlagen - Änderung wurde NICHT übernommen.']
 
 
 def test_menue_stand_wechseln(win, monkeypatch, saved):
     script(win, monkeypatch, ['-MENU_STAND-', select(win, 1), '-STAND_SELECT-'])
-    assert flows.run_settings_flow(FrameCam(), POINTS, DETAIL, STANDS, '4711') is True
+    assert flows.run_settings_flow(FrameCam(), POINTS, DETAIL, STANDS) is True
     assert saved['stand'] == ['stand2']
 
 
@@ -581,17 +597,21 @@ def test_menue_stand_abbrechen_und_speicherfehler(win, monkeypatch, saved):
     script(win, monkeypatch, ['-MENU_STAND-', '-STAND_BACK-',
                               '-MENU_STAND-', select(win, 0), '-STAND_SELECT-',
                               '-MENU_BACK-'])
-    assert flows.run_settings_flow(FrameCam(), POINTS, DETAIL, STANDS, '4711') is False
+    assert flows.run_settings_flow(FrameCam(), POINTS, DETAIL, STANDS) is False
     assert saved['popup'] == ['Stand konnte nicht gespeichert werden.']
 
 
-def test_menue_pin_aendern(win, monkeypatch, saved, limiter, saved_pins):
+def test_menue_pin_aendern_ohne_erneute_pin_abfrage(win, monkeypatch, saved, limiter, saved_pins):
+    titles = []
     script(win, monkeypatch, ['-MENU_PIN-',
-                              '4', '7', '1', '1', '-PIN_OK-',
+                              lambda: titles.append(win['-PIN_TITLE-'].widget.cget('text')),
                               '2', '5', '8', '0', '-PIN_OK-',
                               '2', '5', '8', '0', '-PIN_OK-'])
-    assert flows.run_settings_flow(FrameCam(), POINTS, DETAIL, STANDS, '4711') is True
+    assert flows.run_settings_flow(FrameCam(), POINTS, DETAIL, STANDS) is True
     assert saved_pins == ['2580']
+    # Das Menue liegt schon hinter der PIN: es geht direkt mit der neuen los.
+    assert titles == ['Neuen PIN eingeben (4-6 Ziffern)']
+    assert limiter.successes == 0
 
 
 def test_menue_pin_aendern_abbrechen_zurueck_ins_menue(win, monkeypatch, saved, limiter, saved_pins):
@@ -599,10 +619,9 @@ def test_menue_pin_aendern_abbrechen_zurueck_ins_menue(win, monkeypatch, saved, 
     real_show = flows.show_page
     monkeypatch.setattr(flows, 'show_page', lambda key: (pages.append(key), real_show(key))[1])
     script(win, monkeypatch, ['-MENU_PIN-',
-                              '4', '7', '1', '1', '-PIN_OK-',
                               '-PIN_CANCEL-',
                               '-MENU_BACK-'])
-    assert flows.run_settings_flow(FrameCam(), POINTS, DETAIL, STANDS, '4711') is False
+    assert flows.run_settings_flow(FrameCam(), POINTS, DETAIL, STANDS) is False
     assert saved_pins == []
     # Nach dem Abbrechen wieder das Menue, erst "Zurueck" fuehrt hinaus.
     assert pages[-2:] == ['-MENUVIEW-', '-MAINVIEW-']
@@ -612,7 +631,7 @@ def test_menue_neustart_abbrechen(win, monkeypatch, saved):
     calls = []
     monkeypatch.setattr(flows.subprocess, 'run', lambda *a, **k: calls.append(a))
     script(win, monkeypatch, ['-MENU_RESTART-', '-CONFIRM_NO-', '-MENU_BACK-'])
-    assert flows.run_settings_flow(FrameCam(), POINTS, DETAIL, STANDS, '4711') is False
+    assert flows.run_settings_flow(FrameCam(), POINTS, DETAIL, STANDS) is False
     assert calls == []
 
 

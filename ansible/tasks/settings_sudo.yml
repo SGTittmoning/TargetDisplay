@@ -11,8 +11,7 @@
 # die eine Aktion ausloesen, fuer die er den Aufruf gerade auch
 # tatsaechlich verwendet. Keine Shell, kein Passwort, keine weiteren
 # Befehle - bewusst so eng wie moeglich, da main.py als dieser User laeuft
-# und im Browser/Prozess-Kontext eines Kiosk-Geraets kompromittiert werden
-# koennte.
+# und ein kompromittierter App-Prozess sonst mehr ausloesen koennte.
 #
 # "visudo -cf %s" validiert die Syntax VOR dem Einspielen - eine defekte
 # sudoers-Datei koennte sonst sudo systemweit lahmlegen.
@@ -20,10 +19,10 @@
   copy:
     dest: /etc/sudoers.d/targetdisplay-settings
     content: |
-      targetdisplay ALL=(root) NOPASSWD: /root/bin/targetdisplay-save-sections.sh
-      targetdisplay ALL=(root) NOPASSWD: /root/bin/targetdisplay-save-active-stand.sh
-      targetdisplay ALL=(root) NOPASSWD: /root/bin/targetdisplay-save-pin.sh
-      targetdisplay ALL=(root) NOPASSWD: /usr/sbin/reboot
+      {{ targetdisplay_service_user }} ALL=(root) NOPASSWD: /root/bin/targetdisplay-save-sections.sh
+      {{ targetdisplay_service_user }} ALL=(root) NOPASSWD: /root/bin/targetdisplay-save-active-stand.sh
+      {{ targetdisplay_service_user }} ALL=(root) NOPASSWD: /root/bin/targetdisplay-save-pin.sh
+      {{ targetdisplay_service_user }} ALL=(root) NOPASSWD: /usr/sbin/reboot
     owner: root
     group: root
     mode: "0440"
