@@ -183,6 +183,28 @@ def test_tippen_zoomt_verschiebt_und_reset_stellt_zurueck(gradient, monkeypatch)
     assert not reset['clickable']['-RESETZOOM-']
 
 
+def test_tippen_oben_und_unten_verschiebt_senkrecht(gradient, monkeypatch):
+    # Kanal 1 = y-Verlauf: nach unten verschoben wird er groesser.
+    probes = {}
+    run_app(gradient, [(1.0, tap(50, 50)), (0.4, '-PROBE-zoom-'),
+                       (0.1, tap(50, 90)), (0.4, '-PROBE-unten-'),
+                       (0.1, tap(50, 10)), (0.1, tap(50, 10)), (0.4, '-PROBE-oben-')],
+            monkeypatch, probes=probes)
+    green = {k: int(probes[k]['frame'][300, 300, 1]) for k in ('zoom', 'unten', 'oben')}
+    assert green['unten'] > green['zoom'] > green['oben']
+    # Waagerecht bleibt alles gleich (Kanal 0 = x-Verlauf).
+    assert len({int(probes[k]['frame'][300, 300, 0]) for k in ('zoom', 'unten', 'oben')}) == 1
+
+
+def test_innen_scheibe_hebt_den_tipp_zoom_auf(gradient, monkeypatch):
+    probes = {}
+    run_app(gradient, [(1.0, '-DETAIL_VIDEO-'), (0.4, '-PROBE-innen-'),
+                       (0.1, tap(20, 20)), (0.4, '-PROBE-zoom-'),
+                       (0.1, '-DETAIL_VIDEO-'), (0.4, '-PROBE-wieder-')], monkeypatch, probes=probes)
+    assert not np.array_equal(probes['zoom']['frame'], probes['innen']['frame'])
+    assert np.array_equal(probes['wieder']['frame'], probes['innen']['frame'])
+
+
 def test_reset_setzt_auch_innen_scheibe_zurueck(gradient, monkeypatch):
     probes = {}
     run_app(gradient, [(1.0, '-PROBE-start-'), (0.1, '-DETAIL_VIDEO-'), (0.4, '-PROBE-innen-'),
