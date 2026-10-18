@@ -318,3 +318,42 @@ def test_maximum_passt_zur_innen_scheibe_von_stand_1():
     magnification = main.MainScreen.detail_magnification(full, detail)
     assert magnification == pytest.approx(2.11, abs=0.01)
     assert magnification * 3 == pytest.approx(transformlib.VIDEO_ZOOM_MAX, abs=0.1)
+
+
+def field_center(s, name):
+    x0, y0, x1, y1 = s.screen.view._control_rects()[name]
+    return (x0 + x1) / 2 * 100 / 300, (y0 + y1) / 2 * 100 / 300
+
+
+def test_zoomfelder_reagieren_im_replay_nicht_auf_roten_bildern(monkeypatch):
+    s = Screen(monkeypatch)
+    s.send('-TIMER_5_3_7-').run(72).send('-REPLAY-')
+    # Startbild: rot, die Felder sind nicht zu sehen.
+    s.run(0.3)
+    assert s.screen.replay_kind == 'start'
+    s.send('-VIDEO-', {'-VIDEO-': field_center(s, 'in')}).run(0.1)
+    assert s.screen.view.step == 0
+    # Ein Tipp woanders zoomt wie bisher und gilt fuer die folgenden Bilder.
+    s.send('-VIDEO-', {'-VIDEO-': (50, 50)}).run(0.1)
+    assert s.screen.view.step == 1
+    s.send('-VIDEO-', {'-VIDEO-': field_center(s, 'in')}).run(0.1)
+    assert s.screen.view.step == 1
+    # Auf einem Aufnahmebild wirken die Felder.
+    s.run(1.5)
+    assert s.screen.replay_kind == 'frame'
+    s.send('-VIDEO-', {'-VIDEO-': field_center(s, 'in')}).run(0.1)
+    assert s.screen.view.step == 2
+
+
+def test_zoomfelder_reagieren_im_replay_nicht_beim_trennbild(monkeypatch):
+    s = Screen(monkeypatch)
+    s.send('-TIMER_5_3_7-').run(72).send('-REPLAY-').run(1.5)
+    s.send('-VIDEO-', {'-VIDEO-': (50, 50)}).run(0.1)
+    for _ in range(200):
+        if s.screen.replay_kind == 'separator':
+            break
+        s.run(0.05)
+    assert s.screen.replay_kind == 'separator'
+    step = s.screen.view.step
+    s.send('-VIDEO-', {'-VIDEO-': field_center(s, 'in')}).run(0.1)
+    assert s.screen.view.step == step

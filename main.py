@@ -183,6 +183,8 @@ class MainScreen:
         self.last_rec_frame_id = -1
         self.replay_started_at = self.clock()
         self.last_replay_key = None
+        # Art des gerade gezeigten Replay-Bilds ('frame', 'start', 'separator', 'end').
+        self.replay_kind = None
         self.last_date_str = None
         self.last_time_str = None
         # FPS und Systemwerte im Fussbereich, ein-/ausgeblendet per Tipp.
@@ -334,6 +336,10 @@ class MainScreen:
             return
         x, y = values['-VIDEO-']
         hit = self.view.hit(x, y)
+        # Die roten Replay-Bilder (Start, Trennung, Ende) laufen nicht durch den
+        # Zoom und zeigen die Felder nicht: ein Tipp dorthin bewirkt nichts.
+        if hit and self.mode == 'replay' and self.replay_kind != 'frame':
+            return
         if hit == 'in':
             self.view.zoom_in()
         elif hit == 'out':
@@ -388,6 +394,9 @@ class MainScreen:
             self.mode = 'replay'
             self.replay_started_at = self.clock()
             self.last_replay_key = None
+            self.replay_kind = None
+        # Art des gerade gezeigten Replay-Bilds ('frame', 'start', 'separator', 'end').
+        self.replay_kind = None
 
     def replay_end(self, event, values):
         # Zurueck zum Livebild. Die Aufnahme bleibt fuer ein weiteres Replay
@@ -416,6 +425,7 @@ class MainScreen:
             self.replay_end(None, None)
             self.update_controls()
             return
+        self.replay_kind = view.kind
         segments = len(self.recording.windows)
         counter = replay.counter_text(view, segments)
         # Neu zeichnen nur, wenn sich Bild, Zaehler (Zehntelsekunden) oder
