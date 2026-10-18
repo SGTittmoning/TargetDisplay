@@ -42,7 +42,7 @@ from settings_store import (
     save_sections_override,
 )
 from transformlib import VIDEO_ZOOM_FACTOR, clamp_zoom_center
-from ui import WIN_CLOSED, apply_controls, set_stand_name, show_info, show_page
+from ui import WIN_CLOSED, apply_controls, popup, set_stand_name, show_info, show_page
 from watchdog import stale_check_due
 
 # Takt der Hauptschleife (Neuzeichnen, Timer, Uhr). Tasteneingaben wecken
@@ -86,8 +86,11 @@ def run_setup_wizard(cfg):
         while True:
             stands = load_stands()
             chosen = run_stand_select(stands, forced=True)
-            if chosen is not None and save_active_stand(chosen['id']):
+            if chosen is None:
+                continue
+            if save_active_stand(chosen['id']):
                 return chosen
+            popup('Stand konnte nicht gespeichert werden.')
 
     active_stand = load_active_stand(stands, cfg)
     if active_stand is None:
@@ -119,7 +122,8 @@ def run_setup_wizard(cfg):
         result = edit_section_points(SECTION_LABELS[which], cap, None, other_points=other,
                                      allow_cancel=False, will_restart=False)
         if result is not None:
-            save_sections_override(*with_section(which, result, section_full, section_detail))
+            if not save_sections_override(*with_section(which, result, section_full, section_detail)):
+                popup('Speichern fehlgeschlagen - Ausschnitt wurde NICHT übernommen.')
             section_full, section_detail = load_sections(cfg)
 
     settings_pin = load_settings_pin(cfg)
@@ -279,6 +283,11 @@ class MainScreen:
             self.window_fps.update('')
 
     def open_settings(self, event, values):
+        # Die Sperren in ui.apply_controls verhindern das Ereignis im Timer und
+        # im Replay; die Pruefung hier faengt eines ab, das trotzdem ankommt
+        # (wie bei allen Handlern, die nur in bestimmten Modi gelten).
+        if self.mode not in ('live', 'blank'):
+            return
         if check_pin(self.settings_pin):
             if run_settings_flow(self.cap, self.section_full, self.section_detail, self.stands):
                 # Gespeichert: Prozess beenden (Exit 0), systemd startet
@@ -351,6 +360,8 @@ class MainScreen:
         # Ein laufendes Blinken pausiert nur: blink und blink_ref bleiben
         # unveraendert, nach dem Timer blinkt das Bild mit der Referenz von
         # vor der Serie weiter und zeigt so die Treffer der Serie.
+        if self.mode != 'live':
+            return
         self.mode = 'timer'
         self.timer_type = event
         self.timer_started_at = time.monotonic()
@@ -363,6 +374,8 @@ class MainScreen:
         self.last_rec_frame_id, _, _ = self.cap.snapshot()
 
     def timer_stop(self, event, values):
+        if self.mode != 'timer':
+            return
         self.mode = 'live'
         self.video_resumed_at = time.monotonic()
         if self.recording is not None:
@@ -382,6 +395,8 @@ class MainScreen:
     def replay_end(self, event, values):
         # Zurueck zum Livebild. Die Aufnahme bleibt fuer ein weiteres Replay
         # erhalten.
+        if self.mode != 'replay':
+            return
         self.mode = 'live'
         self.video_resumed_at = time.monotonic()
         self.last_frame_id = -1
@@ -400,10 +415,9 @@ class MainScreen:
         view = self.recording.view(time.monotonic() - self.replay_started_at)
         if view is None:
             # Nach dem roten Schlussbild endet das Replay von selbst, wie mit
-            # "Replay Ende". Den Modus sofort verlassen, damit das Ereignis nur
-            # einmal gesendet wird.
-            self.mode = 'live'
-            self.window.post('-REPLAY_END-')
+            # "Replay Ende".
+            self.replay_end(None, None)
+            self.update_controls()
             return
         segments = len(self.recording.windows)
         counter = replay.counter_text(view, segments)
@@ -476,7 +490,10 @@ class MainScreen:
             self.window.draw_image(timer_frame(self.video_size, state))
             self.window_fps.update('')
         if state.finished:
-            self.window.post('-TIMER_STOP-')
+            # Ende wie mit "Timer Stop", direkt statt ueber die Ereignis-Queue:
+            # so wird es genau einmal ausgefuehrt.
+            self.timer_stop(None, None)
+            self.update_controls()
 
     # -- Uhr ---------------------------------------------------------------
 

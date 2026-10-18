@@ -69,10 +69,15 @@ def test_active_stand_unbekannte_id_gilt_als_nicht_ausgewaehlt(files):
     assert store.load_active_stand(store.load_stands(), FakeCfg()) is None
 
 
+QUAD_A = [[0, 0], [100, 0], [100, 100], [0, 100]]
+QUAD_B = [[10, 10], [90, 10], [90, 90], [10, 90]]
+QUAD_C = [[20, 20], [80, 20], [80, 80], [20, 80]]
+
+
 def test_sections_override_hat_vorrang(files):
-    cfg = FakeCfg({'video.section_full': [[0, 0]], 'video.section_detail': [[1, 1]]})
-    files['SECTIONS_OVERRIDE_FILE'].write_text('{"section_full": [[5, 5]]}')
-    assert store.load_sections(cfg) == ([[5, 5]], [[1, 1]])
+    cfg = FakeCfg({'video.section_full': QUAD_A, 'video.section_detail': QUAD_B})
+    files['SECTIONS_OVERRIDE_FILE'].write_text(json.dumps({'section_full': QUAD_C}))
+    assert store.load_sections(cfg) == (QUAD_C, QUAD_B)
 
 
 def test_sections_ohne_datei_und_config(files):
@@ -188,5 +193,27 @@ def test_ausschnitte_speichern_als_ganze_pixel(monkeypatch):
 
 
 def test_ausschnitte_mit_null_gelten_als_fehlend(files):
-    files['SECTIONS_OVERRIDE_FILE'].write_text('{"section_full": [[1, 2]], "section_detail": null}')
-    assert store.load_sections(FakeCfg()) == ([[1, 2]], None)
+    files['SECTIONS_OVERRIDE_FILE'].write_text(json.dumps({'section_full': QUAD_A, 'section_detail': None}))
+    assert store.load_sections(FakeCfg()) == (QUAD_A, None)
+
+
+# Gueltiges JSON in falscher Form: beim Start scheiterte sonst die Entzerrung.
+@pytest.mark.parametrize('section', [
+    [[0, 0], [100, 0], [100, 100]],              # drei Punkte
+    [],                                          # leer
+    'abc',                                       # Text
+    [['a', 'b'], [1, 2], [3, 4], [5, 6]],         # keine Zahlen
+    [[0, 0], [100, 100], [100, 0], [0, 100]] * 2,  # acht Punkte
+    [[0, 0], [1, 0], [1, 1], [0, 1]],            # zu klein
+    [[0, 0], [100, 0], [0, 100], [100, 100], 5],  # gemischt
+    42,                                          # Zahl
+])
+def test_ausschnitt_in_falscher_form_gilt_als_nicht_eingerichtet(files, capsys, section):
+    files['SECTIONS_OVERRIDE_FILE'].write_text(json.dumps({'section_full': section, 'section_detail': QUAD_B}))
+    assert store.load_sections(FakeCfg()) == (None, QUAD_B)
+    assert 'ungueltig' in capsys.readouterr().err
+
+
+def test_ungueltiger_ausschnitt_aus_der_config(files):
+    cfg = FakeCfg({'video.section_full': [[1, 2]], 'video.section_detail': QUAD_B})
+    assert store.load_sections(cfg) == (None, QUAD_B)

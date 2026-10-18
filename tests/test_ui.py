@@ -1,6 +1,7 @@
 import pytest
 from app_harness import needs_display, open_window
 
+import flows
 import ui
 
 pytestmark = needs_display
@@ -55,7 +56,7 @@ def test_klick_auf_die_ganze_flaeche_loest_aus(win, part):
 
 ALL = ('-FULL_VIDEO-', '-DETAIL_VIDEO-', '-RESETZOOM-', '-BLINK_START-', '-BLINK_REF-',
        '-BLINK_STOP-', '-TIMER_5_3_7-', '-TIMER_20-', '-TIMER_10-', '-TIMER_STOP-',
-       '-REPLAY-', '-TOGGLEVIDEO-')
+       '-REPLAY-', '-TOGGLEVIDEO-', '-SETTINGS-')
 ZOOM = ('-FULL_VIDEO-', '-DETAIL_VIDEO-')
 TIMERS = ('-TIMER_5_3_7-', '-TIMER_20-', '-TIMER_10-')
 
@@ -74,12 +75,12 @@ def clicked(win):
 
 
 @pytest.mark.parametrize('state, expected', [
-    (dict(mode='live'), {*ZOOM, '-BLINK_START-', *TIMERS, '-TOGGLEVIDEO-'}),
-    (dict(mode='live', has_recording=True), {*ZOOM, '-BLINK_START-', *TIMERS, '-REPLAY-', '-TOGGLEVIDEO-'}),
-    (dict(mode='live', zoom_level='detail'), {*ZOOM, '-RESETZOOM-', '-BLINK_START-', *TIMERS, '-TOGGLEVIDEO-'}),
-    (dict(mode='live', zoom_center=(40, 50)), {*ZOOM, '-RESETZOOM-', '-BLINK_START-', *TIMERS, '-TOGGLEVIDEO-'}),
-    (dict(mode='live', blink=True), {*ZOOM, '-BLINK_REF-', '-BLINK_STOP-', *TIMERS}),
-    (dict(mode='blank', has_recording=True, zoom_level='detail'), {'-TOGGLEVIDEO-'}),
+    (dict(mode='live'), {*ZOOM, '-BLINK_START-', *TIMERS, '-TOGGLEVIDEO-', '-SETTINGS-'}),
+    (dict(mode='live', has_recording=True), {*ZOOM, '-BLINK_START-', *TIMERS, '-REPLAY-', '-TOGGLEVIDEO-', '-SETTINGS-'}),
+    (dict(mode='live', zoom_level='detail'), {*ZOOM, '-RESETZOOM-', '-BLINK_START-', *TIMERS, '-TOGGLEVIDEO-', '-SETTINGS-'}),
+    (dict(mode='live', zoom_center=(40, 50)), {*ZOOM, '-RESETZOOM-', '-BLINK_START-', *TIMERS, '-TOGGLEVIDEO-', '-SETTINGS-'}),
+    (dict(mode='live', blink=True), {*ZOOM, '-BLINK_REF-', '-BLINK_STOP-', *TIMERS, '-SETTINGS-'}),
+    (dict(mode='blank', has_recording=True, zoom_level='detail'), {'-TOGGLEVIDEO-', '-SETTINGS-'}),
     (dict(mode='timer', blink=True, zoom_level='detail'), {'-TIMER_STOP-'}),
     (dict(mode='replay', blink=True, zoom_level='detail'), {*ZOOM, '-RESETZOOM-', '-REPLAY-'}),
 ])
@@ -135,3 +136,17 @@ def test_infozeile_ein_und_aus(win):
     win.root.update()
     assert win['-FPS-'].widget.winfo_manager() == ''
     assert [win[k].widget.cget('text') for k in ('-USAGE-', '-TEMP-', '-LOAD-')] == ['', '', '']
+
+
+def test_auswaehlen_erst_mit_markiertem_stand(win):
+    win.post('-STAND_BACK-')
+    flows.run_stand_select([{'id': 'a', 'displayName': 'Stand A', 'url': 'x'},
+                            {'id': 'b', 'displayName': 'Stand B', 'url': 'y'}], forced=False)
+    button, listbox = win['-STAND_SELECT-'].widget, win['-STAND_LIST-'].widget
+    assert str(button.cget('state')) == 'disabled'
+    assert button.cget('bg') == ui.ACCENT_ZOOM_MUTED_BG
+    listbox.selection_set(1)
+    listbox.event_generate('<<ListboxSelect>>')
+    win.root.update()
+    assert str(button.cget('state')) == 'normal'
+    assert button.cget('bg') == ui.ACCENT_ZOOM

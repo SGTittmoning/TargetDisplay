@@ -291,6 +291,12 @@ class Window:
             name = name + '…'
         self.widgets['-STANDNAME-'].update(name)
 
+    def set_stand_select_enabled(self, enabled):
+        # Gesperrt blass wie die gesperrten Farbknoepfe, nicht nur graue Schrift.
+        self.widgets['-STAND_SELECT-'].widget.config(
+            state=tk.NORMAL if enabled else tk.DISABLED,
+            bg=ACCENT_ZOOM if enabled else ACCENT_ZOOM_MUTED_BG)
+
     def show_page(self, key):
         self.pages[key].tkraise()
         self.root.update()
@@ -598,6 +604,8 @@ class Window:
                                command=lambda: self.post('-STAND_SELECT-'))
         select_btn.pack(side='left', padx=10)
         self._reg('-STAND_SELECT-', select_btn)
+        # Auswaehlen erst bedienbar, wenn ein Stand markiert ist.
+        listbox.bind('<<ListboxSelect>>', lambda e: self.set_stand_select_enabled(bool(listbox.curselection())))
         # Heisst "Abbrechen" wie in den anderen Unterdialogen. Nur beim freiwilligen
         # Stand-Wechsel sichtbar, im Assistenten versteckt.
         back_btn = tk.Button(btnrow, text='Abbrechen', width=20, height=2,
@@ -680,6 +688,9 @@ def apply_controls(mode, blink=False, zoom_level='full', zoom_center=None, has_r
     _replay_button(available=(live and has_recording) or replay, active=replay)
     # Video aus: im Livebild (nicht beim Blinken), Video ein: bei Video aus.
     _video_toggle(enabled=(live and not blink) or mode == 'blank', video_on=mode != 'blank')
+    # Einstellungen nur im Livebild und bei Video aus: das PIN-Feld laege sonst
+    # ueber dem laufenden Timer bzw. Replay.
+    _settings_button(enabled=live or mode == 'blank')
 
 
 def _replay_button(available, active):
@@ -691,6 +702,12 @@ def _replay_button(available, active):
     st['icon_off'] = window._icon('exit_timer_muted' if active else 'play_timer_muted')
     st['command_on'] = (lambda: window.post('-REPLAY_END-')) if active else (lambda: window.post('-REPLAY-'))
     set_icon_buttons(('-REPLAY-',), available)
+
+
+def _settings_button(enabled):
+    # Gesperrt wie _video_toggle ueber ein command, das nichts tut.
+    window['-SETTINGS-'].widget.config(
+        command=(lambda: window.post('-SETTINGS-')) if enabled else (lambda: None))
 
 
 def _video_toggle(enabled, video_on):

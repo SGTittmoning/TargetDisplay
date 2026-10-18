@@ -27,6 +27,8 @@ pytestmark = needs_display
 ZOOM = ('-FULL_VIDEO-', '-DETAIL_VIDEO-')
 BLINK = ('-BLINK_START-', '-BLINK_REF-', '-BLINK_STOP-')
 TIMERS = ('-TIMER_5_3_7-', '-TIMER_20-', '-TIMER_10-')
+# Einstellungen: nur im Livebild und bei Video aus bedienbar.
+SETTINGS = '-SETTINGS-'
 
 
 class GradientCamera(FakeCamera):
@@ -91,7 +93,7 @@ def has_number(frame):
 def test_ausgangszustand(gradient, monkeypatch):
     probes = {}
     run_app(gradient, [(1.0, '-PROBE-start-')], monkeypatch, probes=probes)
-    assert only(probes['start'], *ZOOM, '-BLINK_START-', *TIMERS, '-TOGGLEVIDEO-')
+    assert only(probes['start'], *ZOOM, '-BLINK_START-', *TIMERS, '-TOGGLEVIDEO-', SETTINGS)
 
 
 def test_sperren_waehrend_des_timers(gradient, monkeypatch, short_timers):
@@ -105,8 +107,8 @@ def test_sperren_waehrend_des_blinkens(gradient, monkeypatch):
     run_app(gradient, [(1.0, '-BLINK_START-'), (0.3, '-PROBE-blinken-'),
                        (0.3, '-BLINK_STOP-'), (0.3, '-PROBE-danach-')], monkeypatch, probes=probes)
     # Zoom und Timer bleiben bedienbar, Video aus nicht.
-    assert only(probes['blinken'], *ZOOM, '-BLINK_REF-', '-BLINK_STOP-', *TIMERS)
-    assert only(probes['danach'], *ZOOM, '-BLINK_START-', *TIMERS, '-TOGGLEVIDEO-')
+    assert only(probes['blinken'], *ZOOM, '-BLINK_REF-', '-BLINK_STOP-', *TIMERS, SETTINGS)
+    assert only(probes['danach'], *ZOOM, '-BLINK_START-', *TIMERS, '-TOGGLEVIDEO-', SETTINGS)
 
 
 def gray(frame):
@@ -135,8 +137,8 @@ def test_sperren_bei_video_aus(gradient, monkeypatch):
     probes = {}
     run_app(gradient, [(1.0, '-TOGGLEVIDEO-'), (0.3, '-PROBE-aus-'),
                        (0.3, '-TOGGLEVIDEO-'), (0.3, '-PROBE-ein-')], monkeypatch, probes=probes)
-    assert only(probes['aus'], '-TOGGLEVIDEO-')
-    assert only(probes['ein'], *ZOOM, '-BLINK_START-', *TIMERS, '-TOGGLEVIDEO-')
+    assert only(probes['aus'], '-TOGGLEVIDEO-', SETTINGS)
+    assert only(probes['ein'], *ZOOM, '-BLINK_START-', *TIMERS, '-TOGGLEVIDEO-', SETTINGS)
 
 
 def test_sperren_waehrend_des_replays(gradient, monkeypatch, short_timers):
@@ -145,11 +147,27 @@ def test_sperren_waehrend_des_replays(gradient, monkeypatch, short_timers):
     run_app(gradient, [(1.0, '-TIMER_10-'), (4.5, '-PROBE-aufnahme-'),
                        (0.2, '-REPLAY-'), (0.3, '-PROBE-replay-'),
                        (0.2, '-REPLAY_END-'), (0.3, '-PROBE-ende-')], monkeypatch, probes=probes)
-    assert only(probes['aufnahme'], *ZOOM, '-BLINK_START-', *TIMERS, '-REPLAY-', '-TOGGLEVIDEO-')
+    assert only(probes['aufnahme'], *ZOOM, '-BLINK_START-', *TIMERS, '-REPLAY-', '-TOGGLEVIDEO-', SETTINGS)
     # Im Replay: Zoom bedienbar, Replay Ende, sonst nichts.
     assert only(probes['replay'], *ZOOM, '-REPLAY-')
     assert probes['replay']['replay_text'] == 'Replay Ende'
-    assert only(probes['ende'], *ZOOM, '-BLINK_START-', *TIMERS, '-REPLAY-', '-TOGGLEVIDEO-')
+    assert only(probes['ende'], *ZOOM, '-BLINK_START-', *TIMERS, '-REPLAY-', '-TOGGLEVIDEO-', SETTINGS)
+
+
+def test_einstellungen_im_timer_und_replay_ohne_wirkung(gradient, monkeypatch, short_timers):
+    # Das gesperrte Zahnrad sendet nichts; kommt das Ereignis trotzdem an,
+    # oeffnet sich das PIN-Feld nicht ueber Timer oder Replay.
+    asked = []
+    monkeypatch.setattr(gradient, 'check_pin', lambda pin: asked.append(pin) or False)
+    probes = {}
+    draws = run_app(gradient, [(1.0, '-TIMER_10-'), (0.3, '-SETTINGS-'), (0.5, '-PROBE-timer-'),
+                               (3.0, '-REPLAY-'), (0.3, '-SETTINGS-'), (0.5, '-PROBE-replay-'),
+                               (3.0, '-SETTINGS-')], monkeypatch, probes=probes)
+    # Erst das letzte Ereignis (wieder im Livebild) fragt nach der PIN.
+    assert len(asked) == 1
+    # Der Timer lief sichtbar weiter: nach dem Tipp kamen weitere Timerbilder.
+    assert probes['replay']['draws'] > probes['timer']['draws']
+    assert any(is_replay_frame(d) for d in draws)
 
 
 def test_blinken_laeuft_nach_replay_weiter(gradient, monkeypatch, short_timers):
@@ -158,7 +176,7 @@ def test_blinken_laeuft_nach_replay_weiter(gradient, monkeypatch, short_timers):
                        (0.3, '-PROBE-replay-'), (0.2, '-REPLAY_END-'), (0.3, '-PROBE-ende-')],
             monkeypatch, probes=probes)
     assert only(probes['replay'], *ZOOM, '-REPLAY-')
-    assert only(probes['ende'], *ZOOM, '-BLINK_REF-', '-BLINK_STOP-', *TIMERS, '-REPLAY-')
+    assert only(probes['ende'], *ZOOM, '-BLINK_REF-', '-BLINK_STOP-', *TIMERS, '-REPLAY-', SETTINGS)
 
 
 # ------------------------------------------------------------- Zoom (T4)
@@ -252,7 +270,7 @@ def test_timer_endet_von_selbst(gradient, monkeypatch, short_timers):
     assert any(is_green(d) for d in draws)
     after = probes['danach']
     assert not is_timer_frame(after['frame'])
-    assert only(after, *ZOOM, '-BLINK_START-', *TIMERS, '-REPLAY-', '-TOGGLEVIDEO-')
+    assert only(after, *ZOOM, '-BLINK_START-', *TIMERS, '-REPLAY-', '-TOGGLEVIDEO-', SETTINGS)
     assert after['fps'].startswith('FPS')
 
 

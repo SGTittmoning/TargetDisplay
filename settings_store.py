@@ -11,6 +11,8 @@ import os
 import subprocess
 import sys
 
+import transformlib
+
 # Ausschnitte, die ueber die Einstellungen geaendert werden. Sie liegen
 # auf der Boot-Partition statt in config.yml: das Root-Dateisystem laeuft
 # mit Overlay, eine Aenderung dort waere nach einem Neustart weg. Existiert
@@ -55,7 +57,22 @@ def load_sections(cfg):
             # Eine kaputte Datei (z.B. Stromausfall beim Schreiben) gilt als "noch
             # nicht eingerichtet"; der Assistent fragt den Schritt erneut ab.
             print(f"Konnte Sections-Override nicht lesen ({e}), nutze config.yml-Werte.", file=sys.stderr)
-    return section_full, section_detail
+    return _valid_section(section_full, 'section_full'), _valid_section(section_detail, 'section_detail')
+
+
+def _valid_section(points, name):
+    # Ein Ausschnitt muss ein brauchbares Viereck aus vier Zahlenpaaren sein,
+    # sonst scheitert die Entzerrung beim Start. Alles andere gilt als
+    # "nicht eingerichtet", der Assistent fragt den Ausschnitt neu ab.
+    if points is None:
+        return None
+    try:
+        if transformlib.is_valid_quad(points):
+            return points
+    except (TypeError, ValueError):
+        pass
+    print(f"Ausschnitt {name} ungueltig ({points!r:.80}), gilt als nicht eingerichtet.", file=sys.stderr)
+    return None
 
 
 def _run_save_script(script_name, payload):
