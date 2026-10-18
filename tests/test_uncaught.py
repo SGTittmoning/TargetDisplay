@@ -3,6 +3,8 @@ import subprocess
 import sys
 import textwrap
 
+import pytest
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
@@ -56,3 +58,39 @@ def test_import_von_main_hat_keine_nebenwirkungen(tmp_path):
     ''')
     assert result.returncode == 0, result.stderr
     assert result.stderr == ''
+
+
+# Dieselben Handler im eigenen Prozess: nur so erfasst die Abdeckung sie.
+
+def test_handler_sigterm_im_prozess(capsys):
+    import process_handlers
+    with pytest.raises(SystemExit) as stop:
+        process_handlers.handle_sigterm(15, None)
+    assert stop.value.code == 0
+    assert 'SIGTERM empfangen' in capsys.readouterr().err
+
+
+def test_handler_unbehandelte_exception_im_prozess(monkeypatch, capsys):
+    import process_handlers
+    codes = []
+    monkeypatch.setattr(process_handlers.os, '_exit', codes.append)
+    try:
+        raise ValueError('kaputt')
+    except ValueError:
+        process_handlers.handle_uncaught(*sys.exc_info())
+    assert codes == [3]
+    assert 'ValueError: kaputt' in capsys.readouterr().err
+
+
+def test_install_setzt_beide_handler(monkeypatch):
+    import signal
+
+    import process_handlers
+    monkeypatch.setattr(sys, 'excepthook', sys.excepthook)
+    old = signal.getsignal(signal.SIGTERM)
+    try:
+        process_handlers.install()
+        assert signal.getsignal(signal.SIGTERM) is process_handlers.handle_sigterm
+        assert sys.excepthook is process_handlers.handle_uncaught
+    finally:
+        signal.signal(signal.SIGTERM, old)
