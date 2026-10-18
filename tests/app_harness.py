@@ -147,7 +147,7 @@ def probe(window, draws):
         'clickable': {k: clickable(window, k) for k in MAIN_BUTTONS},
         'frame': draws[-1] if draws else None,
         'draws': len(draws),
-        'replay_text': window._btn_style['-REPLAY-']['label'].cget('text'),
+        'replay_text': window.accent_buttons['-REPLAY-'].text,
         'fps': window['-FPS-'].widget.cget('text'),
         'date': window['-DATE-'].widget.cget('text'),
         'time': window['-TIME-'].widget.cget('text'),

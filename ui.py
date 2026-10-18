@@ -42,7 +42,7 @@ GROUP_GAP = 20
 
 # Helles Farbschema. Jede Funktionsgruppe (Zoom/Blinken/Timer) hat eine
 # eigene Akzentfarbe und dazu eine blasse "Muted"-Variante fuer gesperrte
-# Buttons (siehe _make_accent_button(), set_icon_buttons()).
+# Buttons (siehe AccentButton).
 BG = '#f4f6f5'
 FG_DARK = '#1c2024'
 FG_MUTED = '#9aa7b3'
@@ -122,6 +122,68 @@ class Elem:
                 w.pack_forget()
 
 
+class AccentButton:
+    """Farbcodierter Button: Icon und Text auf einer farbigen Flaeche.
+
+    Er bleibt immer state=NORMAL; gesperrt wird optisch (blasse Farben und
+    Icon) und durch ein command, das nichts tut. Tk zeichnet bei
+    state=DISABLED ueber ein Bild ein Schachbrettmuster, das sich nicht
+    abschalten laesst.
+    """
+
+    def __init__(self, parent, text, colors, icon_on, icon_off, command):
+        self.colors = colors
+        self.icon_on, self.icon_off = icon_on, icon_off
+        self.command = command
+        self.enabled = None
+        # Icon und Text als zwei Widgets statt compound='top': Tk setzt dort
+        # einen grossen, festen Abstand zwischen Bild und Text, zweizeilige Texte
+        # sassen sichtbar zu hoch. Ohne feste Hoehe: eine feste Frame-Hoehe
+        # fordert Tk bei jedem Farbwechsel kurz erneut an, das ganze Bedienfeld
+        # springt dann.
+        self.frame = tk.Frame(parent)
+        # inner zentriert Icon und Text vertikal: pack_equal() streckt alle
+        # Buttons einer Reihe auf die Hoehe des hoechsten (zweizeilig "Ganze
+        # Scheibe").
+        self.inner = tk.Frame(self.frame)
+        self.inner.pack(expand=True)
+        self.button = tk.Button(self.inner, bd=0, relief='flat', highlightthickness=0)
+        self.button.pack(side='top', pady=(6, 6))
+        self.label = tk.Label(self.inner, text=text, font=('Helvetica', 15, 'bold'),
+                              wraplength=140, justify='center')
+        self.label.pack(side='top', pady=(0, 8))
+        # Die ganze farbige Flaeche reagiert auf Beruehrung, nicht nur Icon und
+        # Text. invoke() ruft das aktuelle command auf, gesperrt also das, das
+        # nichts tut.
+        for w in (self.frame, self.inner, self.label):
+            w.bind('<Button-1>', lambda e: self.button.invoke())
+
+    @property
+    def text(self):
+        return self.label.cget('text')
+
+    def set_variant(self, text, icon_on, icon_off, command):
+        """Anderer Text, andere Icons und anderes Ereignis (Replay / Replay Ende)."""
+        self.label.config(text=text)
+        self.icon_on, self.icon_off, self.command = icon_on, icon_off, command
+        self._apply()
+
+    def set_enabled(self, enabled):
+        self.enabled = enabled
+        self._apply()
+
+    def _apply(self):
+        bg = self.colors.accent if self.enabled else self.colors.muted_bg
+        fg = 'white' if self.enabled else self.colors.muted_fg
+        self.button.config(bg=bg, activebackground=bg, fg=fg, activeforeground=fg,
+                           image=self.icon_on if self.enabled else self.icon_off,
+                           command=self.command if self.enabled else (lambda: None))
+        # Label und beide Frames in derselben Farbe wie der Button.
+        self.label.config(bg=bg, fg=fg)
+        for c in (self.inner, self.frame):
+            c.config(bg=bg)
+
+
 class Window:
     # Ein Tk-Root mit mehreren "Seiten" (Geschwister-Frames, siehe _PAGE_KEYS),
     # umgeschaltet per tkraise() (siehe show_page). Buttons legen ihr Ereignis
@@ -157,7 +219,7 @@ class Window:
         self.root.protocol('WM_DELETE_WINDOW', lambda: self.post(WIN_CLOSED))
 
         self.icons = {}
-        self._btn_style = {}
+        self.accent_buttons = {}
 
         self.container = tk.Frame(self.root, bg=BG)
         self.container.pack(fill='both', expand=True)
@@ -201,55 +263,14 @@ class Window:
         return img
 
     def _make_accent_button(self, parent, key, text, colors, icon, start_enabled=True):
-        # Baustein fuer alle farbcodierten Buttons (Zoom/Blinken/Timer, Timer Stop,
-        # Replay). Er bleibt immer state=NORMAL; gesperrt wird optisch (Muted-Farben
-        # und -Icon) und durch ein command, das nichts tut. Tk zeichnet bei
-        # state=DISABLED ueber ein Bild ein Schachbrettmuster, das sich nicht
-        # abschalten laesst.
-        icon_on = self._icon(f'{icon}_white')
-        icon_off = self._icon(f'{icon}_{colors.muted_icon}')
-        accent_bg, accent_fg = colors.accent, 'white'
-        muted_bg, muted_fg = colors.muted_bg, colors.muted_fg
-        icon = icon_on if start_enabled else icon_off
-        bg = accent_bg if start_enabled else muted_bg
-        fg = accent_fg if start_enabled else muted_fg
-        def real_command():
-            self.post(key)
-        command = real_command if start_enabled else (lambda: None)
-
-        # Icon und Text als zwei Widgets statt compound='top': Tk setzt dort einen
-        # grossen, festen Abstand zwischen Bild und Text, zweizeilige Texte sassen
-        # sichtbar zu hoch. _btn_style haelt das Label, damit set_icon_buttons()
-        # dessen Farben mit umschaltet.
-        # Ohne feste Hoehe: die Hoehe ergibt sich aus dem Inhalt. Eine feste
-        # Frame-Hoehe fordert Tk bei jedem Farbwechsel (set_icon_buttons) kurz
-        # erneut an, das ganze Bedienfeld springt dann.
-        frame = tk.Frame(parent, bg=bg)
-        # inner zentriert Icon und Text vertikal: pack_equal() streckt alle
-        # Buttons einer Reihe auf die Hoehe des hoechsten (zweizeilig "Ganze
-        # Scheibe").
-        inner = tk.Frame(frame, bg=bg)
-        inner.pack(expand=True)
-        b = tk.Button(inner, image=icon, bg=bg, activebackground=bg,
-                      bd=0, relief='flat', highlightthickness=0,
-                      command=command)
-        b.pack(side='top', pady=(6, 6))
-        label = tk.Label(inner, text=text, bg=bg, fg=fg, font=('Helvetica', 15, 'bold'),
-                          wraplength=140, justify='center')
-        label.pack(side='top', pady=(0, 8))
-        # Die ganze farbige Flaeche reagiert auf Beruehrung, nicht nur Icon und
-        # Text. invoke() ruft das aktuelle command auf, im gesperrten Zustand also
-        # das, das nichts tut.
-        for w in (frame, inner, label):
-            w.bind('<Button-1>', lambda e: b.invoke())
-
-        self._btn_style[key] = dict(icon_on=icon_on, icon_off=icon_off, label=label,
-                                     containers=(inner, frame),
-                                     bg_on=accent_bg, fg_on=accent_fg,
-                                     bg_off=muted_bg, fg_off=muted_fg,
-                                     command_on=real_command)
-        self._reg(key, b)
-        return frame
+        # Farbcodierter Button (Zoom/Blinken/Timer, Timer Stop, Replay), siehe
+        # AccentButton. Liefert den aeusseren Frame zum Anordnen.
+        button = AccentButton(parent, text, colors, self._icon(f'{icon}_white'),
+                              self._icon(f'{icon}_{colors.muted_icon}'), lambda: self.post(key))
+        button.set_enabled(start_enabled)
+        self.accent_buttons[key] = button
+        self._reg(key, button.button)
+        return button.frame
 
     def __getitem__(self, key):
         return self.widgets[key]
@@ -300,6 +321,60 @@ class Window:
     def show_page(self, key):
         self.pages[key].tkraise()
         self.root.update()
+
+    def show_info(self, visible, usage='', temperature='', level='ok', load=''):
+        """Blendet FPS und Systemwerte im Fussbereich ein oder aus."""
+        self.widgets['-FPS-'].update(visible=visible)
+        self.widgets['-USAGE-'].update(usage if visible else '')
+        self.widgets['-TEMP-'].update(temperature if visible else '', text_color=TEMP_COLORS[level])
+        self.widgets['-LOAD-'].update(load if visible else '')
+
+    def apply_controls(self, mode, blink=False, zoom_level='full', zoom_center=None, has_recording=False):
+        """Setzt alle Buttons des Hauptbildschirms passend zum Zustand.
+
+        mode: 'live' (Kamerabild), 'blank' (Video aus), 'timer' oder 'replay'.
+        Alle Sperren stehen hier an einer Stelle; main.py ruft das nach jedem
+        Bedienereignis auf.
+        """
+        live, replay = mode == 'live', mode == 'replay'
+        zoom = live or replay
+
+        def enable(keys, enabled):
+            for key in keys:
+                self.accent_buttons[key].set_enabled(enabled)
+
+        enable(('-FULL_VIDEO-', '-DETAIL_VIDEO-'), zoom)
+        # Reset nur, wenn der Zoom vom Standard abweicht (Innen Scheibe oder
+        # manueller Ausschnitt).
+        enable(('-RESETZOOM-',), zoom and (zoom_level != 'full' or zoom_center is not None))
+        # Blinken nur im Livebild; laeuft es, sind Referenz und Stop bedienbar
+        # statt Start. Die Timer bleiben auch beim Blinken startbar.
+        enable(('-BLINK_START-',), live and not blink)
+        enable(('-BLINK_REF-', '-BLINK_STOP-'), live and blink)
+        enable(timerlib.TIMER_KEYS, live)
+        enable(('-TIMER_STOP-',), mode == 'timer')
+        # Ein Button fuer beides: ausser im Replay "Replay", im Replay "Replay
+        # Ende" (zurueck zum Livebild).
+        replay_event = '-REPLAY_END-' if replay else '-REPLAY-'
+        self.accent_buttons['-REPLAY-'].set_variant(
+            'Replay Ende' if replay else 'Replay',
+            self._icon('exit_white' if replay else 'play_white'),
+            self._icon('exit_timer_muted' if replay else 'play_timer_muted'),
+            lambda: self.post(replay_event))
+        enable(('-REPLAY-',), (live and has_recording) or replay)
+        # Header-Icons: gesperrt nicht ueber state=DISABLED (Bild-Buttons, siehe
+        # AccentButton), sondern ueber ein command, das nichts tut. Das
+        # Augen-Symbol zeigt, was ein Tipp bewirkt (Schraegstrich: Video aus).
+        # Video aus: im Livebild (nicht beim Blinken), Video ein: bei Video aus.
+        video_enabled = (live and not blink) or mode == 'blank'
+        self.widgets['-TOGGLEVIDEO-'].widget.config(
+            image=self._icon('eye_slash_neutral' if mode != 'blank' else 'eye_neutral'),
+            command=(lambda: self.post('-TOGGLEVIDEO-')) if video_enabled else (lambda: None))
+        # Einstellungen nur im Livebild und bei Video aus: das PIN-Feld laege
+        # sonst ueber dem laufenden Timer bzw. Replay.
+        settings_enabled = live or mode == 'blank'
+        self.widgets['-SETTINGS-'].widget.config(
+            command=(lambda: self.post('-SETTINGS-')) if settings_enabled else (lambda: None))
 
     def close(self):
         self.root.destroy()
@@ -639,82 +714,8 @@ def set_stand_name(name):
 
 
 def show_info(visible, usage='', temperature='', level='ok', load=''):
-    """Blendet FPS und Systemwerte im Fussbereich ein oder aus."""
-    window['-FPS-'].update(visible=visible)
-    window['-USAGE-'].update(usage if visible else '')
-    window['-TEMP-'].update(temperature if visible else '', text_color=TEMP_COLORS[level])
-    window['-LOAD-'].update(load if visible else '')
-
-
-def set_icon_buttons(keys, enabled):
-    # Sperrt oder gibt farbcodierte Buttons frei, ueber Farben, Icon und ein
-    # command, das nichts tut (siehe _make_accent_button()).
-    for k in keys:
-        st = window._btn_style[k]
-        w = window[k].widget
-        cfg = dict(bg=st['bg_on'] if enabled else st['bg_off'],
-                   fg=st['fg_on'] if enabled else st['fg_off'],
-                   command=(st['command_on'] if enabled else (lambda: None)))
-        cfg['activebackground'] = cfg['bg']
-        cfg['activeforeground'] = cfg['fg']
-        cfg['image'] = st['icon_on'] if enabled else st['icon_off']
-        w.config(**cfg)
-        # Label und beide Frames bekommen dieselbe Hintergrundfarbe wie der
-        # Button, sonst blieben sie auf der alten Farbe.
-        st['label'].config(bg=cfg['bg'], fg=cfg['fg'])
-        for c in st['containers']:
-            c.config(bg=cfg['bg'])
+    window.show_info(visible, usage, temperature, level, load)
 
 
 def apply_controls(mode, blink=False, zoom_level='full', zoom_center=None, has_recording=False):
-    """Setzt alle Buttons des Hauptbildschirms passend zum Zustand.
-
-    mode: 'live' (Kamerabild), 'blank' (Video aus), 'timer' oder 'replay'.
-    Alle Sperren stehen hier an einer Stelle; main.py ruft das nach jedem
-    Bedienereignis auf.
-    """
-    live, replay = mode == 'live', mode == 'replay'
-    zoom = live or replay
-    set_icon_buttons(('-FULL_VIDEO-', '-DETAIL_VIDEO-'), zoom)
-    # Reset nur, wenn der Zoom vom Standard abweicht (Innen Scheibe oder
-    # manueller Ausschnitt).
-    set_icon_buttons(('-RESETZOOM-',), zoom and (zoom_level != 'full' or zoom_center is not None))
-    # Blinken nur im Livebild; laeuft es, sind Referenz und Stop bedienbar
-    # statt Start. Die Timer bleiben auch beim Blinken startbar.
-    set_icon_buttons(('-BLINK_START-',), live and not blink)
-    set_icon_buttons(('-BLINK_REF-', '-BLINK_STOP-'), live and blink)
-    set_icon_buttons(timerlib.TIMER_KEYS, live)
-    set_icon_buttons(('-TIMER_STOP-',), mode == 'timer')
-    _replay_button(available=(live and has_recording) or replay, active=replay)
-    # Video aus: im Livebild (nicht beim Blinken), Video ein: bei Video aus.
-    _video_toggle(enabled=(live and not blink) or mode == 'blank', video_on=mode != 'blank')
-    # Einstellungen nur im Livebild und bei Video aus: das PIN-Feld laege sonst
-    # ueber dem laufenden Timer bzw. Replay.
-    _settings_button(enabled=live or mode == 'blank')
-
-
-def _replay_button(available, active):
-    # Ein Button fuer beides: ausser im Replay "Replay" (startet es), im
-    # Replay "Replay Ende" (zurueck zum Livebild).
-    st = window._btn_style['-REPLAY-']
-    st['label'].config(text='Replay Ende' if active else 'Replay')
-    st['icon_on'] = window._icon('exit_white' if active else 'play_white')
-    st['icon_off'] = window._icon('exit_timer_muted' if active else 'play_timer_muted')
-    st['command_on'] = (lambda: window.post('-REPLAY_END-')) if active else (lambda: window.post('-REPLAY-'))
-    set_icon_buttons(('-REPLAY-',), available)
-
-
-def _settings_button(enabled):
-    # Gesperrt wie _video_toggle ueber ein command, das nichts tut.
-    window['-SETTINGS-'].widget.config(
-        command=(lambda: window.post('-SETTINGS-')) if enabled else (lambda: None))
-
-
-def _video_toggle(enabled, video_on):
-    # Das Symbol zeigt, was ein Klick bewirkt: Auge mit Schraegstrich bei
-    # laufendem Video. Gesperrt nicht ueber state=DISABLED (der Button hat ein
-    # Bild, siehe _make_accent_button()), sondern ueber ein command, das
-    # nichts tut.
-    window['-TOGGLEVIDEO-'].widget.config(
-        image=window._icon('eye_slash_neutral' if video_on else 'eye_neutral'),
-        command=(lambda: window.post('-TOGGLEVIDEO-')) if enabled else (lambda: None))
+    window.apply_controls(mode, blink, zoom_level, zoom_center, has_recording)
