@@ -101,44 +101,34 @@ class Viewport:
         return out
 
     def _control_rects(self):
-        """Felder "-", Anzeige und "+" unten rechts im Bild (Pixel)."""
+        """Felder "-" und "+" unten rechts im Bild (Pixel)."""
         width, height = self.video_size
         side = max(int(width * CONTROL_SIZE_RATIO), 24)
         margin = max(int(width * CONTROL_MARGIN_RATIO), 6)
         y0 = height - margin - side
         x_plus = width - margin - side
-        x_label = x_plus - side
-        x_minus = x_label - side
-        return {name: (x, y0, x + side, y0 + side)
-                for name, x in (('out', x_minus), ('label', x_label), ('in', x_plus))}
+        x_minus = x_plus - side
+        return {name: (x, y0, x + side, y0 + side) for name, x in (('out', x_minus), ('in', x_plus))}
 
     def hit(self, x, y):
         """'in' oder 'out', wenn der Tipp bei (x, y) (Prozent) eines der beiden
         Felder trifft, sonst None."""
         px, py = x * self.video_size[0] / 100, y * self.video_size[1] / 100
         for name, (x0, y0, x1, y1) in self._control_rects().items():
-            if name != 'label' and x0 <= px < x1 and y0 <= py < y1:
+            if x0 <= px < x1 and y0 <= py < y1:
                 return name
         return None
 
     def render_with_controls(self, raw):
-        """render() mit den Zoomfeldern im Bild."""
+        """render() mit den Zoomfeldern im Bild: "-" ohne Tipp-Zoom und "+"
+        beim Maximum sind blass."""
         out = self.render(raw)
-        rects = self._control_rects()
-        for name, (x0, y0, x1, y1) in rects.items():
+        for name, (x0, y0, x1, y1) in self._control_rects().items():
             enabled = not ((name == 'out' and self.step == 0) or (name == 'in' and self.step == 2))
             roi = out[y0:y1, x0:x1]
-            alpha = CONTROL_ALPHA if enabled or name == 'label' else CONTROL_ALPHA_MUTED
+            alpha = CONTROL_ALPHA if enabled else CONTROL_ALPHA_MUTED
             out[y0:y1, x0:x1] = (roi * (1 - alpha) + np.array(CONTROL_BG, np.float32) * alpha).astype(np.uint8)
             cx, cy, arm = (x0 + x1) // 2, (y0 + y1) // 2, (x1 - x0) // 4
-            if name == 'label':
-                if self.step:
-                    text = f'{self.absolute_factor():g}x'.replace('.', ',')
-                    scale = (x1 - x0) / 60
-                    (tw, th), _ = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, scale, 2)
-                    cv2.putText(out, text, (cx - tw // 2, cy + th // 2), cv2.FONT_HERSHEY_SIMPLEX, scale,
-                                CONTROL_FG, 2, cv2.LINE_AA)
-                continue
             fg = CONTROL_FG if enabled else CONTROL_FG_MUTED
             cv2.line(out, (cx - arm, cy), (cx + arm, cy), fg, 3, cv2.LINE_AA)
             if name == 'in':

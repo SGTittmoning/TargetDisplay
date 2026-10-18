@@ -155,30 +155,33 @@ def test_zoomfelder_treffer_nur_auf_plus_und_minus():
     view = sl.Viewport(eye, eye, (600, 400))
     rects = view._control_rects()
     pct = lambda x, y: (x * 100 / 600, y * 100 / 400)  # noqa: E731
-    x0, y0, x1, y1 = rects['in']
-    assert view.hit(*pct((x0 + x1) / 2, (y0 + y1) / 2)) == 'in'
+    for name in ('in', 'out'):
+        x0, y0, x1, y1 = rects[name]
+        assert view.hit(*pct((x0 + x1) / 2, (y0 + y1) / 2)) == name
     x0, y0, x1, y1 = rects['out']
-    assert view.hit(*pct((x0 + x1) / 2, (y0 + y1) / 2)) == 'out'
-    x0, y0, x1, y1 = rects['label']
-    assert view.hit(*pct((x0 + x1) / 2, (y0 + y1) / 2)) is None
-    assert view.hit(50, 50) is None
     assert view.hit(*pct(x0 - 2, y0 - 2)) is None
+    assert view.hit(50, 50) is None
 
 
-def test_zoomfelder_liegen_im_bild_und_zeigen_die_stufe():
+def test_zoomfelder_liegen_im_bild_und_zeigen_den_zustand():
     eye = np.eye(3, dtype=np.float64)
     view = sl.Viewport(eye, eye, (600, 400))
-    plain = view.render(np.zeros((400, 600, 3), np.uint8))
-    shown = view.render_with_controls(np.zeros((400, 600, 3), np.uint8))
-    for x0, y0, x1, y1 in view._control_rects().values():
+    blank = lambda: np.full((400, 600, 3), 100, np.uint8)  # noqa: E731
+    plain = view.render(blank())
+    rects = view._control_rects()
+    for x0, y0, x1, y1 in rects.values():
         assert 0 <= x0 < x1 <= 600 and 0 <= y0 < y1 <= 400
     # Nur die Felder unterscheiden sich vom reinen Bild.
-    diff = np.argwhere((shown != plain).any(axis=2))
-    xs0 = min(r[0] for r in view._control_rects().values())
-    assert diff[:, 1].min() >= xs0
-    # Mit Tipp-Zoom steht die Stufe im Feld in der Mitte (mehr Pixel gezeichnet).
-    view.tap(50, 50)
-    with_text = view.render_with_controls(np.zeros((400, 600, 3), np.uint8))
-    x0, y0, x1, y1 = view._control_rects()['label']
-    assert (with_text[y0:y1, x0:x1] > 200).any()
-    assert not (shown[y0:y1, x0:x1] > 200).any()
+    changed = np.argwhere((view.render_with_controls(blank()) != plain).any(axis=2))
+    assert changed[:, 1].min() >= rects['out'][0] and changed[:, 0].min() >= rects['out'][1]
+
+    def brightness(name):
+        x0, y0, x1, y1 = rects[name]
+        return view.render_with_controls(blank())[y0:y1, x0:x1].max()
+    # Ohne Tipp-Zoom ist "-" blass, "+" kraeftig; beim Maximum umgekehrt.
+    assert brightness('out') < brightness('in')
+    view.zoom_in()
+    view.zoom_in()
+    assert brightness('in') < brightness('out')
+    view.zoom_out()
+    assert brightness('in') == brightness('out')
