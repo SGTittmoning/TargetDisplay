@@ -126,3 +126,36 @@ def test_stop_waehrend_der_wartezeit_vor_dem_neuen_versuch(monkeypatch):
     cam.stop()
     cam._thread.join(timeout=2)
     assert not cam._thread.is_alive()
+
+
+def write_video(path, frames=30, size=(64, 48)):
+    """Kleines Video mit PyAV: jedes Bild links schwarz, rechts weiss."""
+    import av
+    with av.open(str(path), 'w') as out:
+        stream = out.add_stream('mpeg4', rate=10)
+        stream.width, stream.height = size
+        stream.pix_fmt = 'yuv420p'
+        img = np.zeros((size[1], size[0], 3), np.uint8)
+        img[:, size[0] // 2:] = 255
+        for _ in range(frames):
+            for packet in stream.encode(av.VideoFrame.from_ndarray(img, format='bgr24')):
+                out.mux(packet)
+        for packet in stream.encode():
+            out.mux(packet)
+
+
+def test_echte_dekodierung_mit_pyav(tmp_path):
+    # Der echte Weg ueber open_container und to_ndarray (bgr24), mit Zuschnitt.
+    path = tmp_path / 'scheibe.mp4'
+    write_video(path)
+    cam = camera.Camera(str(path), reconnect_delay=0.01)
+    cam.set_crop_region((28, 10, 40, 30))
+    try:
+        assert wait_for_frames(cam, 3)
+        full, crop = cam.get_frame(full=True), cam.get_frame()
+    finally:
+        cam.stop()
+    assert full.shape == (48, 64, 3) and crop.shape == (20, 12, 3)
+    # Links dunkel, rechts hell (Kompressionsrauschen zugelassen).
+    assert full[:, :20].mean() < 40 and full[:, 44:].mean() > 215
+    assert crop[:, :2].mean() < 60 and crop[:, -2:].mean() > 195
