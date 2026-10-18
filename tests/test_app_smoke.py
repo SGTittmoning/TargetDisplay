@@ -357,10 +357,14 @@ def test_ersteinrichtung_wiederholt_schritte_nach_speicherfehler(tmp_path, monke
     monkeypatch.setattr(main, 'edit_section_points', edit)
     monkeypatch.setattr(main, 'save_sections_override', save_sections)
     monkeypatch.setattr(main, 'change_pin_flow', change_pin)
+    monkeypatch.setattr(main, 'popup', lambda text: log.append(('meldung', text)))
 
     draws = run_app(main, [(1.0, '-FULL_VIDEO-')], monkeypatch)
-    assert log == ['stand', 'stand fehlgeschlagen', 'stand',
-                   'Ganze Scheibe', 'ausschnitte fehlgeschlagen', 'Ganze Scheibe', 'Innen Scheibe',
+    # Gescheitertes Speichern wird gemeldet (die PIN meldet flows selbst).
+    assert log == ['stand', 'stand fehlgeschlagen', ('meldung', 'Stand konnte nicht gespeichert werden.'), 'stand',
+                   'Ganze Scheibe', 'ausschnitte fehlgeschlagen',
+                   ('meldung', 'Speichern fehlgeschlagen - Ausschnitt wurde NICHT übernommen.'),
+                   'Ganze Scheibe', 'Innen Scheibe',
                    'pin', 'pin']
     assert len(draws) > 3
 

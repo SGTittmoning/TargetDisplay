@@ -42,7 +42,7 @@ from settings_store import (
     save_sections_override,
 )
 from transformlib import VIDEO_ZOOM_FACTOR, clamp_zoom_center
-from ui import WIN_CLOSED, apply_controls, set_stand_name, show_info, show_page
+from ui import WIN_CLOSED, apply_controls, popup, set_stand_name, show_info, show_page
 from watchdog import stale_check_due
 
 # Takt der Hauptschleife (Neuzeichnen, Timer, Uhr). Tasteneingaben wecken
@@ -86,8 +86,11 @@ def run_setup_wizard(cfg):
         while True:
             stands = load_stands()
             chosen = run_stand_select(stands, forced=True)
-            if chosen is not None and save_active_stand(chosen['id']):
+            if chosen is None:
+                continue
+            if save_active_stand(chosen['id']):
                 return chosen
+            popup('Stand konnte nicht gespeichert werden.')
 
     active_stand = load_active_stand(stands, cfg)
     if active_stand is None:
@@ -119,7 +122,8 @@ def run_setup_wizard(cfg):
         result = edit_section_points(SECTION_LABELS[which], cap, None, other_points=other,
                                      allow_cancel=False, will_restart=False)
         if result is not None:
-            save_sections_override(*with_section(which, result, section_full, section_detail))
+            if not save_sections_override(*with_section(which, result, section_full, section_detail)):
+                popup('Speichern fehlgeschlagen - Ausschnitt wurde NICHT übernommen.')
             section_full, section_detail = load_sections(cfg)
 
     settings_pin = load_settings_pin(cfg)
