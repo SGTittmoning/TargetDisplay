@@ -7,13 +7,12 @@ jede Änderung am Handbuch, egal von wem.
 
 | Datei | Inhalt |
 |---|---|
-| `Benutzerhandbuch.md` | Textquelle (Markdown) |
-| `Benutzerhandbuch.html` | gestaltete Fassung, Grundlage für das PDF |
+| `Benutzerhandbuch.html` | Textquelle und gestaltete Fassung, Grundlage für das PDF |
 | `Benutzerhandbuch.pdf` | Druckfassung (A4), aus der HTML-Datei erzeugt |
 | `screenshots/NN_*.png` | Abbildungen, `NN` = Abbildungsnummer |
 | `assets/fake_scheibe.png` | künstliches Kamerabild für Screenshots (siehe unten) |
 
-- Markdown und HTML haben immer denselben Inhalt. Jede Textänderung wird in beiden Dateien gemacht.
+- Die HTML-Datei ist die einzige Textquelle. Es gibt keine weitere Fassung, die mitgepflegt werden muss.
 - Nach jeder Änderung an Text, Bildern oder Gestaltung wird das PDF neu erzeugt und geprüft (siehe
   „PDF erzeugen und prüfen").
 - Die Versionsangabe oben im Handbuch (Monat, App-Version) passt zum Stand der App.
