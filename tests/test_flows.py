@@ -6,22 +6,18 @@ import time
 
 import numpy as np
 import pytest
+from app_harness import needs_display, open_window
 
 import flows
 import ui
 
-
-class Cfg:
-    def get_property(self, key):
-        return {'screenSize': [1024, 768]}[key]
+pytestmark = needs_display
 
 
 @pytest.fixture
 def win():
-    ui.window = ui.Window(Cfg(), (600, 600), 'test')
-    yield ui.window
-    ui.window.close()
-    ui.window = None
+    with open_window(ui, [1024, 768], (600, 600)) as window:
+        yield window
 
 
 def camwait_text():

@@ -141,7 +141,8 @@ def test_sperren_bei_video_aus(gradient, monkeypatch):
 
 def test_sperren_waehrend_des_replays(gradient, monkeypatch, short_timers):
     probes = {}
-    run_app(gradient, [(1.0, '-TIMER_10-'), (3.5, '-PROBE-aufnahme-'),
+    # Timer: 1 s Vorbereitung, 1 s Gruen, 1 s Stopp.
+    run_app(gradient, [(1.0, '-TIMER_10-'), (4.5, '-PROBE-aufnahme-'),
                        (0.2, '-REPLAY-'), (0.3, '-PROBE-replay-'),
                        (0.2, '-REPLAY_END-'), (0.3, '-PROBE-ende-')], monkeypatch, probes=probes)
     assert only(probes['aufnahme'], *ZOOM, '-BLINK_START-', *TIMERS, '-REPLAY-', '-TOGGLEVIDEO-')
@@ -364,8 +365,11 @@ def test_replay_kein_bild_bei_ausgefallener_kamera(gradient, monkeypatch, short_
     # Serie mit zwei Durchgaengen; im ersten liefert die Kamera kein Bild.
     def blank(value):
         return lambda: setattr(GradientCamera.last, 'blank', value)
+    # Aufgenommen wird 1 s verzoegert (Latenz): Durchgang 1 von 2 bis 3 s,
+    # Durchgang 2 von 4 bis 5 s nach dem Start. Die Kamera kommt dazwischen
+    # zurueck, das Replay startet nach dem Ende der Serie.
     draws = run_app(gradient, [(1.0, blank(True)), (0.1, '-TIMER_5_3_7-'), (3.5, blank(False)),
-                               (2.0, '-REPLAY-'), (5.5, '-FULL_VIDEO-')], monkeypatch)
+                               (3.0, '-REPLAY-'), (5.5, '-FULL_VIDEO-')], monkeypatch)
     replay = [color_at_bottom(d) for d in draws if is_replay_frame(d) and not is_red(d)]
     # "kein Bild" ist schwarz mit grauer Schrift, danach das Kamerabild.
     assert (0, 0, 0) in replay
