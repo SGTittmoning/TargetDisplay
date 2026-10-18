@@ -363,3 +363,32 @@ def test_ersteinrichtung_wiederholt_schritte_nach_speicherfehler(tmp_path, monke
                    'Ganze Scheibe', 'ausschnitte fehlgeschlagen', 'Ganze Scheibe', 'Innen Scheibe',
                    'pin', 'pin']
     assert len(draws) > 3
+
+
+def test_ausschnitt_in_falscher_form_startet_den_assistenten(tmp_path, monkeypatch):
+    # Statt beim Start abzustuerzen (Neustart-Schleife), fragt der Assistent
+    # den kaputten Ausschnitt neu ab.
+    import json
+    main = load_app(tmp_path, monkeypatch, WIZARD_CONFIG)
+    import settings_store
+    for path, data in ((settings_store.STANDS_FILE, {'stands': WIZARD_STANDS}),
+                       (settings_store.ACTIVE_STAND_FILE, {'id': 'stand2'}),
+                       (settings_store.SECTIONS_OVERRIDE_FILE,
+                        {'section_full': [[1, 2], [3, 4], [5, 6]], 'section_detail': WIZARD_DETAIL}),
+                       (settings_store.PIN_FILE, {'pin': '2580'})):
+        with open(path, 'w') as f:
+            json.dump(data, f)
+    edited = []
+
+    def edit(label, *args, **kwargs):
+        edited.append(label)
+        with open(settings_store.SECTIONS_OVERRIDE_FILE, 'w') as f:
+            json.dump({'section_full': WIZARD_FULL, 'section_detail': WIZARD_DETAIL}, f)
+        return WIZARD_FULL
+
+    monkeypatch.setattr(main, 'wait_for_camera_frame', lambda cap: np.zeros((700, 700, 3), np.uint8))
+    monkeypatch.setattr(main, 'edit_section_points', edit)
+    monkeypatch.setattr(main, 'save_sections_override', lambda full, detail: True)
+    draws = run_app(main, [(1.0, '-FULL_VIDEO-')], monkeypatch)
+    assert edited == ['Ganze Scheibe']
+    assert len(draws) > 3
