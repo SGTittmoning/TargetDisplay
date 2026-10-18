@@ -203,6 +203,19 @@ def test_pin_falsch_zeigt_hinweis(win, monkeypatch, limiter):
     assert texts == ['falsch']
 
 
+def test_pin_wartezeit_zeigt_die_restsekunden(win, monkeypatch, limiter):
+    monkeypatch.setattr(limiter, 'register_failure', lambda: 2.5)
+    texts = []
+
+    def shown():
+        texts.append(win['-PINDISPLAY-'].widget.cget('text'))
+
+    script(win, monkeypatch, ['1', '-PIN_OK-', shown, lambda: time.sleep(1.0), '-VERWORFEN-',
+                              shown, '-PIN_CANCEL-'])
+    flows.check_pin('4711')
+    assert texts == ['falsch 3s', 'falsch 2s']
+
+
 # ---------------------------------------------------------- PIN aendern
 
 @pytest.fixture
