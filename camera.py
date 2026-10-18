@@ -85,9 +85,9 @@ class Camera:
             return self.frame_id, self.last_frame_time, self.start_time
 
     def _open_container(self):
-        # options={"rtmp_live": "live"} bewusst weggelassen: fuehrt mit der auf
-        # Stand 1 installierten ffmpeg-Version (4.3.9+rpt1) zu einem Segfault
-        # in av.open() -- vermutlich ein Options-Dict-Bug in PyAV 10.0.0.
+        # options={"rtmp_live": "live"} bewusst weggelassen: fuehrte mit ffmpeg
+        # 4.3.9+rpt1 und PyAV 10.0.0 zu einem Segfault in av.open() (Ursache
+        # nicht geklaert).
         container = av.open(self.stream_url, timeout=(OPEN_TIMEOUT_SEC, READ_TIMEOUT_SEC))
         vstream = container.streams.video[0]
         # SLICE-Threading spart auf dem Pi 4 rund 10-13 % CPU-Zeit pro Frame.

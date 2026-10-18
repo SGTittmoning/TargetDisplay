@@ -1,17 +1,8 @@
 ---
-# Eng gefasstes sudo-Recht fuer den unprivilegierten targetdisplay-User,
-# ausschliesslich fuer den PIN-geschuetzten Settings/Restart-Screen (und
-# den Ersteinrichtungs-Assistenten) in flows.py: das Speichern von
-# section_full/section_detail-Aenderungen (targetdisplay-save-sections.sh,
-# siehe dort fuer die Begruendung der Boot-Partition statt config.yml),
-# der Stand-Auswahl (targetdisplay-save-active-stand.sh), des PIN
-# (targetdisplay-save-pin.sh) und den Geraete-Reboot-Button. Jede Aktion
-# hat ihr eigenes, einzelnes Skript statt eines gemeinsamen "Sammel"-
-# Skripts - ein kompromittierter main.py-Prozess kann dadurch nie mehr als
-# die eine Aktion ausloesen, fuer die er den Aufruf gerade auch
-# tatsaechlich verwendet. Keine Shell, kein Passwort, keine weiteren
-# Befehle - bewusst so eng wie moeglich, da main.py als dieser User laeuft
-# und ein kompromittierter App-Prozess sonst mehr ausloesen koennte.
+# Eng gefasstes sudo-Recht fuer den Dienst-Benutzer der App: je ein Skript
+# zum Speichern von Ausschnitten, Stand-Auswahl und PIN (Begruendung in
+# targetdisplay-save-lib.sh) sowie der Neustart des Geraets. Keine Shell,
+# kein Passwort, keine weiteren Befehle.
 #
 # "visudo -cf %s" validiert die Syntax VOR dem Einspielen - eine defekte
 # sudoers-Datei koennte sonst sudo systemweit lahmlegen.
