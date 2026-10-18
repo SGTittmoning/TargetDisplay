@@ -178,3 +178,23 @@ def test_speicherrahmen_bei_genug_ram_unveraendert(tmp_path, monkeypatch, capsys
 def test_speicherrahmen_ohne_meminfo_unveraendert(tmp_path, monkeypatch):
     monkeypatch.setattr(r.sysinfo, 'PROC_MEMINFO', str(tmp_path / 'fehlt'))
     assert r.read_settings(FakeCfg({}))[1] == r.DEFAULT_BUDGET_MB * 1024 * 1024
+
+
+def test_ausduennung_behaelt_genau_jedes_vierte_bild():
+    one = frame(size=10).nbytes
+    rec = r.Recording([(0, 10)], latency=0, budget_bytes=4 * one)
+    for n in range(10):
+        rec.add(frame(n), float(n))
+    # Bei Bild 4 und Bild 8 ist der Rahmen voll: jeweils jedes zweite Bild
+    # fliegt raus, danach wird nur noch jedes zweite (vierte) angenommen.
+    assert rec.step == 4
+    assert [int(f[0, 0, 0]) for _, f in rec.segments[0]] == [0, 4, 8]
+    assert rec.bytes == 3 * one
+
+
+def test_zaehler_rundet_auf_zehntelsekunden():
+    one = r.ReplayView('frame', 0, 0.0, None, None)
+    assert r.counter_text(one, 1) == '0,0 s'
+    assert r.counter_text(one._replace(offset=0.04), 1) == '0,0 s'
+    assert r.counter_text(one._replace(offset=0.06), 1) == '0,1 s'
+    assert r.counter_text(one._replace(offset=59.96), 3) == 'Durchgang 1/3  60,0 s'

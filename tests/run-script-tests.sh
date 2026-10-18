@@ -188,7 +188,12 @@ run_reset() {
   [ -z "$enter" ] || export STUB_ACTIVE_ENTER_US="$enter"
   echo 3 > "$COUNT"
   echo "$up.00 1234.00" > "$WORK/uptime"
-  "$BIN/targetdisplay-reboot-count-reset.sh"
+  local rc=0
+  "$BIN/targetdisplay-reboot-count-reset.sh" || rc=$?
+  # Die Werte gelten nur fuer diesen Lauf; sonst wirkten sie auf den naechsten
+  # Aufruf weiter (z. B. blieb der Dienst "inaktiv").
+  unset BOOTRO STUB_INACTIVE STUB_NRESTARTS STUB_ACTIVE_ENTER_US
+  return "$rc"
 }
 
 # Uptime 400 s, Dienst seit 100 s (= 100000000 us) aktiv -> 300 s stabil
@@ -211,6 +216,14 @@ check "Dienst inaktiv: Zaehler bleibt" 3 "$(cat "$COUNT")"
 # Dienst erst seit 350 s aktiv bei Uptime 400 s -> nur 50 s stabil
 STUB_ACTIVE_ENTER_US=350000000 STUB_NRESTARTS=0 run_reset
 check "erst 50 s aktiv: Zaehler bleibt" 3 "$(cat "$COUNT")"
+
+# Grenzwerte: genau 3 Neustarts reichen nicht, genau 120 s stabil schon.
+STUB_ACTIVE_ENTER_US=100000000 STUB_NRESTARTS=3 run_reset
+check "genau 3 Neustarts: Zaehler bleibt" 3 "$(cat "$COUNT")"
+UPTIME_S=400 STUB_ACTIVE_ENTER_US=280000000 STUB_NRESTARTS=0 run_reset
+check "genau 120 s stabil: Zaehler geloescht" "" "$(find "$BOOT" -maxdepth 1 -name '*reboot-count*')"
+UPTIME_S=400 STUB_ACTIVE_ENTER_US=281000000 STUB_NRESTARTS=0 run_reset
+check "119 s stabil: Zaehler bleibt" 3 "$(cat "$COUNT")"
 
 reset; "$BIN/targetdisplay-reboot-count-reset.sh"; rc=$?
 check "ohne Zaehlerdatei: Exit 0" 0 "$rc"

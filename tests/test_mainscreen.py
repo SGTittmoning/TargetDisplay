@@ -2,7 +2,7 @@
 Timer, Replay, Blinken und Zoom ohne Tk und ohne Wartezeiten."""
 import re
 
-from screen_harness import Screen, gray
+from screen_harness import BLACK, RED, Screen, below_center, gray
 
 import overlays
 import timerlib
@@ -71,7 +71,7 @@ def replay_frames(s, seconds):
     start = len(s.window.draws)
     s.run(seconds)
     # Nur Aufnahmebilder: nicht rot (Start-/Trennbild).
-    return [d for d in s.window.draws[start:] if is_replay(d) and tuple(d[200, 150]) != (0, 0, 255)]
+    return [d for d in s.window.draws[start:] if is_replay(d) and below_center(d) != RED]
 
 
 def test_zoom_wirkt_im_replay(monkeypatch):
@@ -173,7 +173,7 @@ def test_replay_zeigt_titel_trenntext_und_zaehler(monkeypatch):
 
 
 def red(frame):
-    return tuple(frame[200, 150]) == (0, 0, 255)
+    return below_center(frame) == RED
 
 
 def test_replay_serie_mit_trennbild(monkeypatch):
@@ -205,8 +205,8 @@ def test_replay_kein_bild_bei_ausgefallener_kamera(monkeypatch):
     s.run(25)
     shown = [d for d in s.window.draws[start:] if is_replay(d) and not red(d)]
     # "kein Bild" ist schwarz, danach folgt das Kamerabild.
-    assert any(tuple(d[250, 150]) == (0, 0, 0) for d in shown)
-    assert any(tuple(d[250, 150]) != (0, 0, 0) for d in shown)
+    assert any(below_center(d) == BLACK for d in shown)
+    assert any(below_center(d) != BLACK for d in shown)
 
 
 def test_naechster_timer_ersetzt_die_aufnahme(monkeypatch):
@@ -233,3 +233,34 @@ def test_blinken_referenz_nimmt_ein_neues_bezugsbild_auf(monkeypatch):
     before = reference(s)
     s.run(2).send('-BLINK_REF-').run(0.5)
     assert reference(s) != before
+
+
+def test_uhr_und_geraetewerte_laufen_in_jedem_modus(monkeypatch):
+    s = Screen(monkeypatch)
+    s.send('-INFO-').run(0.1)
+    stamps = []
+
+    def phase(seconds):
+        before = len(s.window.infos)
+        s.run(seconds)
+        shown = [args[0] for args, _ in s.window.infos[before:]]
+        stamps.append((s.mode, shown.count(True)))
+    phase(3)
+    s.send('-TIMER_10-')
+    phase(5)
+    s.run(16).send('-REPLAY-')
+    phase(1.5)
+    s.send('-REPLAY_END-').send('-TOGGLEVIDEO-')
+    phase(3)
+    # Je Sekunde ein neuer Wert, auch im Timer, Replay und bei Video aus.
+    assert [mode for mode, _ in stamps] == ['live', 'timer', 'replay', 'blank']
+    assert all(count >= 1 for _, count in stamps[:2] + stamps[3:]), stamps
+    assert stamps[0][1] >= 2 and stamps[1][1] >= 4 and stamps[3][1] >= 2
+
+
+def test_uhr_wechselt_um_mitternacht_das_datum(monkeypatch):
+    s = Screen(monkeypatch)
+    dates, times = [], []
+    s.run(10, each=lambda: (dates.append(s.window['-DATE-'].value), times.append(s.window['-TIME-'].value)))
+    assert dates[0] == '18.10.2026' and dates[-1] == '19.10.2026'
+    assert times[0] == '23:59:55' and times[-1] in ('00:00:04', '00:00:05')

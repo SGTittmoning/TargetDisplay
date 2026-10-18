@@ -44,6 +44,21 @@ def test_kamera_warten_erneut_versuchen_startet_die_wartezeit_neu(win):
     assert texts[-1].startswith('Verbinde'), texts
 
 
+def test_kamera_warten_zeigt_die_warteseite(win):
+    seen = []
+    win.show_page('-MAINVIEW-')
+
+    class Cam:
+        def get_frame(self, full=False):
+            page = win.pages['-CAMWAITVIEW-']
+            # Die zuletzt angehobene Seite liegt oben (zuletzt in der Stapelfolge).
+            seen.append((page.master.winfo_children()[-1] is page, camwait_text()))
+            return np.zeros((4, 4, 3), np.uint8) if len(seen) > 2 else None
+
+    flows.wait_for_camera_frame(Cam(), max_wait_sec=5)
+    assert seen[0] == (True, 'Verbinde mit Kamera...')
+
+
 def test_kamera_warten_zurueck(win):
     class Cam:
         def get_frame(self, full=False):

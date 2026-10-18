@@ -98,3 +98,26 @@ def test_crop_bleibt_am_rand_im_bild(center):
     assert out.shape == img.shape
     left = int(out[0, 0, 0]) if center[0] < 50 else int(out[0, -1, 0])
     assert left in ((0, 1) if center[0] < 50 else (777, 778))
+
+
+def test_perspektivmatrix_bildet_die_ecken_auf_ein_nicht_quadratisches_rechteck_ab():
+    import cv2
+    dsize = (900, 600)
+    matrix = tl.compute_perspective_matrix(TRAPEZ, dsize)
+    corners = np.array([tl.order_points(TRAPEZ)], dtype=np.float32)
+    mapped = cv2.perspectiveTransform(corners, matrix)[0]
+    assert np.allclose(mapped, [[0, 0], [899, 0], [899, 599], [0, 599]], atol=1e-3)
+
+
+def test_crop_bei_nicht_quadratischem_bild_und_mitte_ausserhalb_der_bildmitte():
+    img = gradient(600, 900)
+    out = tl.crop(img, 3, (25, 75))
+    assert out.shape == img.shape
+    # Mitte des Ausschnitts = (25 % von 900, 75 % von 600), Kanal 0 = x, 1 = y.
+    assert abs(int(out[300, 450, 0]) - 225) <= 3
+    assert abs(int(out[300, 450, 1]) - 450) <= 3
+
+
+def test_crop_bounds_oberer_rand_wird_nicht_begrenzt():
+    # x1/y1 begrenzt erst die Kamera gegen die echte Bildgroesse.
+    assert tl.crop_bounds([np.array([[10, 20], [990, 790]])], 15) == (0, 5, 1005, 805)
