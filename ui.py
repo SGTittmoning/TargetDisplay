@@ -477,14 +477,14 @@ class Window:
         info_labels = []
         for key in ('-USAGE-', '-TEMP-', '-LOAD-'):
             label = tk.Label(info_row, text='', font=footer_font, bg=BG, fg=FG_MUTED, anchor='w')
-            label.pack(side='left', padx=5, pady=(8, 0))
+            label.pack(side='left', padx=5, pady=(0, 0))
             self._reg(key, label)
             info_labels.append(label)
         for w in (info_row, version_row, version_label, fps_label, *info_labels):
             w.bind('<Button-1>', lambda e: self.post('-INFO-'))
 
         dt_frame = tk.Frame(left, bg=DATETIME_BG)
-        dt_frame.pack(side='bottom', fill='x', pady=(0, 10))
+        dt_frame.pack(side='bottom', fill='x', pady=(0, 4))
         date_label = tk.Label(dt_frame, font=('Courier', 14), bg=DATETIME_BG, fg=NEUTRAL_FG)
         date_label.pack(pady=(8, 0))
         self._reg('-DATE-', date_label)
