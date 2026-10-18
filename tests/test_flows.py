@@ -182,6 +182,17 @@ def test_pin_erst_falsch_dann_richtig(win, monkeypatch, limiter):
     assert limiter.failures == 1
 
 
+def test_pin_abbrechen_in_der_wartezeit_beendet_sofort(win, monkeypatch, limiter):
+    # Ohne Wirkung von "Abbrechen" liefe die Wartezeit weiter und verbrauchte
+    # die folgenden Ereignisse; '-UNGELESEN-' bliebe dann nicht uebrig.
+    monkeypatch.setattr(limiter, 'register_failure', lambda: 30)
+    rest = script(win, monkeypatch, ['1', '-PIN_OK-', '-PIN_CANCEL-', '-UNGELESEN-'])
+    started = time.monotonic()
+    assert flows.check_pin('4711') is False
+    assert time.monotonic() - started < 5
+    assert rest == ['-UNGELESEN-']
+
+
 def test_pin_falsch_zeigt_hinweis(win, monkeypatch, limiter):
     monkeypatch.setattr(limiter, 'register_failure', lambda: 1.0)
     texts = []

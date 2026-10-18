@@ -62,6 +62,22 @@ def test_pin_falsch_dann_richtig_und_einstellungsmenue(app, monkeypatch):
     assert opened == [True]
 
 
+def opened_menus(app, monkeypatch):
+    opened = []
+    monkeypatch.setattr(app, 'run_settings_flow', lambda *a, **k: opened.append(True) or False)
+    return opened
+
+
+def test_pin_abbrechen_oeffnet_das_menue_nicht(app, monkeypatch):
+    opened = opened_menus(app, monkeypatch)
+    probes = {}
+    run_app(app, [(1.0, '-SETTINGS-'), (0.4, '4'), (0.1, '-PIN_CANCEL-'),
+                  (0.4, '-PROBE-danach-')], monkeypatch, probes=probes)
+    assert opened == []
+    # Zurueck auf dem Hauptbildschirm: dessen Buttons reagieren wieder.
+    assert probes['danach']['clickable']['-FULL_VIDEO-']
+
+
 def test_pin_abbrechen_waehrend_wartezeit(app, monkeypatch):
     import flows
     from pinlock import PinLimiter
@@ -85,7 +101,9 @@ def test_pin_abbrechen_waehrend_wartezeit(app, monkeypatch):
         (0.4, '1'), (0.1, '-PIN_OK-'),
         (0.5, '-PIN_CANCEL-'),   # waehrend der 30 s Wartezeit
     ]
+    opened = opened_menus(app, monkeypatch)
     run_app(app, steps, monkeypatch)
+    assert opened == []
     # Abgebrochen (False) lange vor Ablauf der 30 s.
     assert len(waits) == 1
     result, duration = waits[0]
