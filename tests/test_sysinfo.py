@@ -48,3 +48,30 @@ def test_texte():
     assert sysinfo.temperature_text(None) == ''
     assert sysinfo.load_text((1.03, 0.69, 0.29)) == 'Last 1,03 0,69 0,29'
     assert sysinfo.load_text(None) == ''
+
+
+def test_cpu_gleicher_zaehlerstand_liefert_keinen_wert(tmp_path):
+    path = write(tmp_path, 'stat', 'cpu  100 0 100 700 100 0 0 0 0 0\n')
+    cpu = sysinfo.CpuUsage(path)
+    cpu.percent()
+    # Kein Tick vergangen: keine Teilung durch null, kein Wert.
+    assert cpu.percent() is None
+    write(tmp_path, 'stat', 'cpu  200 0 100 800 100 0 0 0 0 0\n')
+    assert cpu.percent() == pytest.approx(50.0)
+
+
+def test_cpu_wartezeit_auf_ein_geraet_zaehlt_als_untaetig(tmp_path):
+    path = write(tmp_path, 'stat', 'cpu  100 0 100 700 100 0 0 0 0 0\n')
+    cpu = sysinfo.CpuUsage(path)
+    cpu.percent()
+    # Nur iowait waechst: die CPU ist nicht belegt.
+    write(tmp_path, 'stat', 'cpu  100 0 100 700 300 0 0 0 0 0\n')
+    assert cpu.percent() == pytest.approx(0.0)
+
+
+def test_cpu_zeile_ohne_iowait_spalte(tmp_path):
+    path = write(tmp_path, 'stat', 'cpu  100 0 100 700\n')
+    cpu = sysinfo.CpuUsage(path)
+    cpu.percent()
+    write(tmp_path, 'stat', 'cpu  150 0 150 800\n')
+    assert cpu.percent() == pytest.approx(50.0)
