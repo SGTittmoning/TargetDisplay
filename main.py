@@ -356,6 +356,8 @@ class MainScreen:
         # Ein laufendes Blinken pausiert nur: blink und blink_ref bleiben
         # unveraendert, nach dem Timer blinkt das Bild mit der Referenz von
         # vor der Serie weiter und zeigt so die Treffer der Serie.
+        if self.mode != 'live':
+            return
         self.mode = 'timer'
         self.timer_type = event
         self.timer_started_at = time.monotonic()
@@ -368,6 +370,8 @@ class MainScreen:
         self.last_rec_frame_id, _, _ = self.cap.snapshot()
 
     def timer_stop(self, event, values):
+        if self.mode != 'timer':
+            return
         self.mode = 'live'
         self.video_resumed_at = time.monotonic()
         if self.recording is not None:
@@ -387,6 +391,8 @@ class MainScreen:
     def replay_end(self, event, values):
         # Zurueck zum Livebild. Die Aufnahme bleibt fuer ein weiteres Replay
         # erhalten.
+        if self.mode != 'replay':
+            return
         self.mode = 'live'
         self.video_resumed_at = time.monotonic()
         self.last_frame_id = -1
@@ -405,10 +411,9 @@ class MainScreen:
         view = self.recording.view(time.monotonic() - self.replay_started_at)
         if view is None:
             # Nach dem roten Schlussbild endet das Replay von selbst, wie mit
-            # "Replay Ende". Den Modus sofort verlassen, damit das Ereignis nur
-            # einmal gesendet wird.
-            self.mode = 'live'
-            self.window.post('-REPLAY_END-')
+            # "Replay Ende".
+            self.replay_end(None, None)
+            self.update_controls()
             return
         segments = len(self.recording.windows)
         counter = replay.counter_text(view, segments)
@@ -481,7 +486,10 @@ class MainScreen:
             self.window.draw_image(timer_frame(self.video_size, state))
             self.window_fps.update('')
         if state.finished:
-            self.window.post('-TIMER_STOP-')
+            # Ende wie mit "Timer Stop", direkt statt ueber die Ereignis-Queue:
+            # so wird es genau einmal ausgefuehrt.
+            self.timer_stop(None, None)
+            self.update_controls()
 
     # -- Uhr ---------------------------------------------------------------
 
