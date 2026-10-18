@@ -154,3 +154,27 @@ def test_ungueltige_einstellung_faellt_auf_standard_zurueck(values, capsys):
     assert latency == r.DEFAULT_LATENCY_SEC
     assert budget == r.DEFAULT_BUDGET_MB * 1024 * 1024
     assert 'ungültig' in capsys.readouterr().err
+
+
+def meminfo(tmp_path, monkeypatch, mb):
+    path = tmp_path / 'meminfo'
+    path.write_text(f'MemTotal:  {mb * 1024} kB\nMemAvailable:  1 kB\n')
+    monkeypatch.setattr(r, 'PROC_MEMINFO', str(path))
+
+
+def test_speicherrahmen_wird_bei_wenig_ram_begrenzt(tmp_path, monkeypatch, capsys):
+    meminfo(tmp_path, monkeypatch, 1000)
+    _, budget = r.read_settings(FakeCfg({}))
+    assert budget == int(1000 * 1024 * 1024 * r.MAX_BUDGET_SHARE)
+    assert 'begrenzt' in capsys.readouterr().err
+
+
+def test_speicherrahmen_bei_genug_ram_unveraendert(tmp_path, monkeypatch, capsys):
+    meminfo(tmp_path, monkeypatch, 4000)
+    assert r.read_settings(FakeCfg({}))[1] == r.DEFAULT_BUDGET_MB * 1024 * 1024
+    assert capsys.readouterr().err == ''
+
+
+def test_speicherrahmen_ohne_meminfo_unveraendert(tmp_path, monkeypatch):
+    monkeypatch.setattr(r, 'PROC_MEMINFO', str(tmp_path / 'fehlt'))
+    assert r.read_settings(FakeCfg({}))[1] == r.DEFAULT_BUDGET_MB * 1024 * 1024
