@@ -399,7 +399,7 @@ footer{
           <li><span class="legend-num zoom">1</span><div><b>Ganze Scheibe</b><p>Zeigt die komplette Zielscheibe in der Übersicht &ndash; die Standardansicht.</p></div></li>
           <li><span class="legend-num zoom">2</span><div><b>Innen Scheibe</b><p>Vergrößert auf den inneren, hochwertigeren Bereich der Scheibe (eigener, separat kalibrierter Ausschnitt).</p></div></li>
           <li><span class="legend-num zoom">3</span><div><b>Reset</b><p>Setzt Zoomstufe und eine manuelle Verschiebung (siehe Punkt&nbsp;4) auf &bdquo;Ganze Scheibe&ldquo; zurück. Nur aktiv, wenn es etwas zurückzusetzen gibt.</p></div></li>
-          <li><span class="legend-num zoom">4</span><div><b>Tippen auf das Kamerabild</b><p>Erster Tipp legt einen Ausschnitts-Mittelpunkt fest; Tippen nahe einem Bildrand verschiebt den sichtbaren Ausschnitt schrittweise dorthin. Über &bdquo;Reset&ldquo; (Punkt&nbsp;3) kommt man wieder zur zentrierten Ansicht zurück.</p></div></li>
+          <li><span class="legend-num zoom">4</span><div><b>Tippen auf das Kamerabild</b><p>Der erste Tipp vergrößert das Bild dreifach, die getippte Stelle rückt in die Mitte. Jeder weitere Tipp in den Randbereich (links, rechts, oben oder unten) verschiebt den Ausschnitt ein Stück in diese Richtung; ein Tipp in die Bildmitte ändert nichts. Über &bdquo;Reset&ldquo; (Punkt&nbsp;3) kommt man zur ganzen Ansicht zurück. Während eines Timers und bei &bdquo;Video aus&ldquo; hat ein Tipp keine Wirkung.</p></div></li>
         </ol>
         </div>
 
@@ -433,7 +433,7 @@ footer{
 
         <div class="grp">
         <h3 id="zoom-detail">Zoom im Detail</h3>
-        <p><b>Ganze Scheibe</b> und <b>Innen Scheibe</b> schließen sich in der Wirkung gegenseitig aus &ndash; immer ist genau eine Stufe tatsächlich aktiv. Das sieht man den Buttons farblich aber nicht an: Beide bleiben durchgehend kräftig blau, da sich jederzeit erneut zwischen ihnen wechseln lässt. Ist eine Zoomstufe aktiv und man tippt zusätzlich auf das Bild, verschiebt sich der Ausschnitt innerhalb dieser Stufe, ohne das Zoom-Verhältnis zu ändern. <b>Reset</b> bringt beides in einem Schritt zurück &ndash; und ist der einzige der drei Buttons, dessen Farbe den Zustand tatsächlich widerspiegelt (siehe Abb. 2).</p>
+        <p><b>Ganze Scheibe</b> und <b>Innen Scheibe</b> schließen sich in der Wirkung gegenseitig aus &ndash; immer ist genau eine Stufe tatsächlich aktiv. Das sieht man den Buttons farblich aber nicht an: Beide bleiben durchgehend kräftig blau, da sich jederzeit erneut zwischen ihnen wechseln lässt. Ein Tipp ins Bild vergrößert die gewählte Stufe zusätzlich dreifach; ein erneuter Druck auf <b>Ganze Scheibe</b> oder <b>Innen Scheibe</b> hebt diese Vergrößerung wieder auf. <b>Reset</b> bringt beides in einem Schritt zurück &ndash; und ist der einzige der drei Buttons, dessen Farbe den Zustand tatsächlich widerspiegelt (siehe Abb. 2).</p>
         <figure class="plate">
           <img src="screenshots/02_hauptbildschirm_innen_scheibe.png" alt="Zoomstufe Innen Scheibe aktiv">
           <figcaption class="fig-note">Abb. 2 &ndash; Innen Scheibe ist aktiv (Ganze Scheibe bleibt ebenfalls blau) &ndash; erkennbar am jetzt nutzbaren Reset (blau statt blass).</figcaption>
