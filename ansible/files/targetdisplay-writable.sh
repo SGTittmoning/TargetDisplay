@@ -77,20 +77,14 @@ cmd_ro() {
   OVERLAY_ALREADY_ACTIVE=0
   [ "$(overlay_now)" -eq 0 ] && OVERLAY_ALREADY_ACTIVE=1
 
-  if [ "$(bootro_now)" -eq 1 ]; then
-    if [ "$OVERLAY_ALREADY_ACTIVE" -eq 1 ]; then
-      echo "Boot-Partition ist noch nicht read-only, OverlayFS aber schon aktiv." >&2
-      echo "Eine Aenderung an /etc/fstab waere in diesem Zustand NICHT dauerhaft" >&2
-      echo "(landet nur im RAM-Overlay). Bitte zuerst:" >&2
-      echo "  sudo $0 rw" >&2
-      echo "damit noetigen Reboot durchfuehren, Boot-RO dort setzen, dann" >&2
-      echo "erneut 'sudo $0 ro' ausfuehren." >&2
-      exit 1
-    fi
-    echo "Setze Boot-Partition auf read-only (fstab)..."
-    raspi-config nonint enable_bootro
-  else
-    echo "Boot-Partition ist bereits read-only."
+  if [ "$OVERLAY_ALREADY_ACTIVE" -eq 1 ] && [ "$(bootro_now)" -eq 1 ]; then
+    echo "Boot-Partition ist noch nicht read-only, OverlayFS aber schon aktiv." >&2
+    echo "Eine Aenderung an /etc/fstab waere in diesem Zustand NICHT dauerhaft" >&2
+    echo "(landet nur im RAM-Overlay). Bitte zuerst:" >&2
+    echo "  sudo $0 rw" >&2
+    echo "damit noetigen Reboot durchfuehren, Boot-RO dort setzen, dann" >&2
+    echo "erneut 'sudo $0 ro' ausfuehren." >&2
+    exit 1
   fi
 
   if [ "$OVERLAY_ALREADY_ACTIVE" -eq 1 ]; then
@@ -104,14 +98,8 @@ cmd_ro() {
     return 0
   fi
 
-  # Overlay erst aktivieren und den initramfs-Hook pruefen, solange die
-  # Boot-Partition live beschreibbar ist - danach erst read-only mounten
-  # (siehe enable_overlay_checked).
-  echo "Aktiviere OverlayFS wieder (wirkt erst nach Reboot)..."
-  mount -o remount,rw "$BOOT_DIR"
   OVERLAY_RC=0
-  enable_overlay_checked || OVERLAY_RC=$?
-  mount -o remount,ro "$BOOT_DIR"
+  restore_readonly || OVERLAY_RC=$?
   if [ "$OVERLAY_RC" -ne 0 ]; then
     exit "$OVERLAY_RC"
   fi

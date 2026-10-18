@@ -77,9 +77,7 @@ cmd_apply() {
 
   echo "OverlayFS ist inaktiv (live), fahre fort."
 
-  BOOTRO_WAS_ACTIVE=0
   if [ "$(bootro_now)" -eq 0 ]; then
-    BOOTRO_WAS_ACTIVE=1
     echo "Deaktiviere Boot-Partition-Schreibschutz (fstab, persistent)..."
     raspi-config nonint disable_bootro
     echo "Mounte Boot-Partition live beschreibbar..."
@@ -101,22 +99,9 @@ cmd_apply() {
   apt-get autoremove -y
   apt-get clean
 
-  if [ "$BOOTRO_WAS_ACTIVE" -eq 1 ]; then
-    echo ""
-    echo "Setze Boot-Partition auf read-only (fstab)..."
-    raspi-config nonint enable_bootro
-  fi
-
-  # Overlay aktivieren und initramfs-Hook pruefen, solange die Boot-Partition
-  # noch live beschreibbar ist (siehe enable_overlay_checked); erst danach
-  # live read-only mounten.
   echo ""
-  echo "Aktiviere OverlayFS wieder (wirkt erst nach Reboot)..."
   OVERLAY_RC=0
-  enable_overlay_checked || OVERLAY_RC=$?
-  if [ "$BOOTRO_WAS_ACTIVE" -eq 1 ]; then
-    mount -o remount,ro "$BOOT_DIR"
-  fi
+  restore_readonly || OVERLAY_RC=$?
   if [ "$OVERLAY_RC" -ne 0 ]; then
     exit "$OVERLAY_RC"
   fi
