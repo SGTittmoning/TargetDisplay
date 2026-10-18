@@ -51,8 +51,17 @@ write_count() {
 
 count=0
 if [ -f "$COUNT_FILE" ]; then
-  count=$(cat "$COUNT_FILE")
+  count=$(cat "$COUNT_FILE" 2>/dev/null || true)
 fi
+# Eine leere oder beschaedigte Zaehlerdatei (z.B. nach Stromausfall waehrend
+# des Schreibens) zaehlt als 0; sonst braeche die Rechnung unten unter
+# "set -e" ab, ohne Reboot und ohne Log-Eintrag.
+case "$count" in
+  ''|*[!0-9]*)
+    logger -t targetdisplay-reboot-guard "Zaehlerdatei unlesbar, zaehle ab 0"
+    count=0
+    ;;
+esac
 previous=$count
 count=$((count + 1))
 
