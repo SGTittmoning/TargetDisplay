@@ -1,6 +1,7 @@
 import pytest
 from app_harness import needs_display, open_window
 
+import flows
 import ui
 
 pytestmark = needs_display
@@ -135,3 +136,17 @@ def test_infozeile_ein_und_aus(win):
     win.root.update()
     assert win['-FPS-'].widget.winfo_manager() == ''
     assert [win[k].widget.cget('text') for k in ('-USAGE-', '-TEMP-', '-LOAD-')] == ['', '', '']
+
+
+def test_auswaehlen_erst_mit_markiertem_stand(win):
+    win.post('-STAND_BACK-')
+    flows.run_stand_select([{'id': 'a', 'displayName': 'Stand A', 'url': 'x'},
+                            {'id': 'b', 'displayName': 'Stand B', 'url': 'y'}], forced=False)
+    button, listbox = win['-STAND_SELECT-'].widget, win['-STAND_LIST-'].widget
+    assert str(button.cget('state')) == 'disabled'
+    assert button.cget('bg') == ui.ACCENT_ZOOM_MUTED_BG
+    listbox.selection_set(1)
+    listbox.event_generate('<<ListboxSelect>>')
+    win.root.update()
+    assert str(button.cget('state')) == 'normal'
+    assert button.cget('bg') == ui.ACCENT_ZOOM

@@ -291,6 +291,12 @@ class Window:
             name = name + '…'
         self.widgets['-STANDNAME-'].update(name)
 
+    def set_stand_select_enabled(self, enabled):
+        # Gesperrt blass wie die gesperrten Farbknoepfe, nicht nur graue Schrift.
+        self.widgets['-STAND_SELECT-'].widget.config(
+            state=tk.NORMAL if enabled else tk.DISABLED,
+            bg=ACCENT_ZOOM if enabled else ACCENT_ZOOM_MUTED_BG)
+
     def show_page(self, key):
         self.pages[key].tkraise()
         self.root.update()
@@ -598,6 +604,8 @@ class Window:
                                command=lambda: self.post('-STAND_SELECT-'))
         select_btn.pack(side='left', padx=10)
         self._reg('-STAND_SELECT-', select_btn)
+        # Auswaehlen erst bedienbar, wenn ein Stand markiert ist.
+        listbox.bind('<<ListboxSelect>>', lambda e: self.set_stand_select_enabled(bool(listbox.curselection())))
         # Heisst "Abbrechen" wie in den anderen Unterdialogen. Nur beim freiwilligen
         # Stand-Wechsel sichtbar, im Assistenten versteckt.
         back_btn = tk.Button(btnrow, text='Abbrechen', width=20, height=2,

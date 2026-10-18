@@ -177,10 +177,12 @@ def run_stand_select(stands, forced):
         # Ohne Stand-Liste (z.B. noch nicht per Ansible verteilt) eine klare
         # Meldung statt einer leeren Auswahl.
         ui.window['-STAND_LIST-'].update(values=['(keine Stand-Liste gefunden - bitte Installation prüfen)'])
-        ui.window['-STAND_SELECT-'].update(disabled=True)
+        ui.window.set_stand_select_enabled(False)
     else:
+        # update(values=...) leert die Liste samt Markierung; Auswaehlen wird
+        # mit der ersten Markierung bedienbar (siehe ui._build_stand_view).
         ui.window['-STAND_LIST-'].update(values=[s['displayName'] for s in stands])
-        ui.window['-STAND_SELECT-'].update(disabled=False)
+        ui.window.set_stand_select_enabled(False)
     ui.window.refresh()
     while True:
         event, values = ui.window.read()
