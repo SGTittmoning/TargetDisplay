@@ -370,6 +370,7 @@ footer{
     <main>
 
       <section class="intro" id="einleitung">
+        <h2>Einleitung</h2>
         <p>TargetDisplay ist die Bildschirmanzeige an den Schießständen unseres Vereins. Eine Kamera blickt schräg auf die Zielscheibe, und die App rechnet dieses Bild automatisch so um, dass die Scheibe gerade von oben zu sehen ist &ndash; so, als würde man direkt davorstehen. Das Gerät läuft auf einem kleinen Touchscreen-Computer direkt am Stand und wird ausschließlich mit dem Finger bedient, eine Maus oder Tastatur wird nicht benötigt.</p>
         <p>Neben der reinen Live-Ansicht bietet TargetDisplay zwei Zoomstufen, einen &bdquo;Blinken&ldquo;-Vergleichsmodus zum Erkennen neuer Einschusslöcher sowie mehrere eingebaute Wettkampf-Timer, deren Sichtzeiten sich anschließend als Replay ansehen lassen. Ein PIN-geschützter Einstellungsbereich erlaubt Standaufsichten außerdem, das Gerät direkt am Stand neu zu kalibrieren.</p>
         <p>Kapitel 1 beschreibt die Bedienelemente für den täglichen Gebrauch. Kapitel 2, <em>Administrativer Bereich</em>, richtet sich an Standaufsichten.</p>
@@ -378,7 +379,7 @@ footer{
       <!-- ================= KAPITEL 1 ================= -->
       <section class="chapter" id="hauptbildschirm">
         <div class="chapter-head"><span class="chapter-num">01</span><h2>Der Hauptbildschirm</h2></div>
-        <p>Nach dem Einschalten erscheint zunächst das Vereinswappen (Boot-Logo) auf einfarbigem Hintergrund; sobald die Anwendung gestartet ist, folgt der Hauptbildschirm. Das Gerät muss dabei nicht bedient werden. Der Hauptbildschirm ist die Ansicht, die danach dauerhaft zu sehen ist. Links liegen die Bedienelemente, rechts das entzerrte Kamerabild der Scheibe.</p>
+        <p>Nach dem Einschalten erscheint zunächst das Vereinswappen auf einfarbigem Hintergrund; sobald die Anwendung gestartet ist, folgt der Hauptbildschirm. Das Gerät muss dabei nicht bedient werden. Der Hauptbildschirm ist die Ansicht, die danach dauerhaft zu sehen ist. Links liegen die Bedienelemente, rechts das entzerrte Kamerabild der Scheibe.</p>
 
         <figure class="plate">
           <img src="screenshots/01_hauptbildschirm.png" alt="Hauptbildschirm im Normalzustand">
@@ -391,7 +392,7 @@ footer{
         <p class="group-label"><span class="swatch" style="background:var(--ink)"></span>Kopfzeile</p>
         <ol class="legend">
           <li><span class="legend-num">1</span><div><b>Standname</b><p>Oben links, z.&nbsp;B. &bdquo;Stand 1&ldquo;. Zeigt den aktuell angezeigten Schießstand. Rein informativ, kein Bedienelement.</p></div></li>
-          <li><span class="legend-num">2</span><div><b>Video-aus-Symbol</b><p>Auge mit Schrägstrich, oben rechts (linkes der beiden Symbole). Blendet das Kamerabild aus und zeigt das Vereinswappen. Erneuter Klick schaltet zurück. Solange ausgeblendet, sind Zoom, Blinken, Timer und Replay gesperrt.</p></div></li>
+          <li><span class="legend-num">2</span><div><b>Video-aus-Symbol</b><p>Auge mit Schrägstrich, oben rechts (linkes der beiden Symbole). Blendet das Kamerabild aus und zeigt das Vereinswappen. Erneutes Tippen schaltet zurück. Solange ausgeblendet, sind Zoom, Blinken, Timer und Replay gesperrt.</p></div></li>
           <li><span class="legend-num">3</span><div><b>Einstellungen-Symbol</b><p>Zahnrad mit Schloss, oben rechts. Öffnet den PIN-geschützten Administrativen Bereich, siehe Kapitel 2.</p></div></li>
         </ol>
         </div>
@@ -400,7 +401,7 @@ footer{
         <p class="group-label"><span class="swatch zoom"></span>Gruppe Zoom</p>
         <ol class="legend">
           <li><span class="legend-num zoom">1</span><div><b>Ganze Scheibe</b><p>Zeigt die komplette Zielscheibe in der Übersicht &ndash; die Standardansicht.</p></div></li>
-          <li><span class="legend-num zoom">2</span><div><b>Innen Scheibe</b><p>Vergrößert auf den inneren, hochwertigeren Bereich der Scheibe (eigener, separat kalibrierter Ausschnitt).</p></div></li>
+          <li><span class="legend-num zoom">2</span><div><b>Innen Scheibe</b><p>Vergrößert auf den inneren Bereich der Scheibe mit den hohen Ringen (eigener, separat kalibrierter Ausschnitt).</p></div></li>
           <li><span class="legend-num zoom">3</span><div><b>Reset</b><p>Setzt Zoomstufe und eine manuelle Verschiebung (siehe Punkt&nbsp;4) auf &bdquo;Ganze Scheibe&ldquo; zurück. Nur aktiv, wenn es etwas zurückzusetzen gibt.</p></div></li>
           <li><span class="legend-num zoom">4</span><div><b>Tippen auf das Kamerabild</b><p>Der erste Tipp vergrößert das Bild dreifach, die getippte Stelle rückt in die Mitte. Jeder weitere Tipp in den Randbereich (links, rechts, oben oder unten) verschiebt den Ausschnitt ein Stück in diese Richtung; ein Tipp in die Bildmitte ändert nichts. Über &bdquo;Reset&ldquo; (Punkt&nbsp;3) kommt man zur ganzen Ansicht zurück. Während eines Timers und bei &bdquo;Video aus&ldquo; hat ein Tipp keine Wirkung.</p></div></li>
         </ol>
@@ -418,9 +419,9 @@ footer{
         <div class="grp">
         <p class="group-label"><span class="swatch timer"></span>Gruppe Timer</p>
         <ol class="legend">
-          <li><span class="legend-num timer">1</span><div><b>5&nbsp;&times;&nbsp;3&nbsp;Sek.</b><p>Fünf Durchgänge im Wechsel, Scheibe 3&nbsp;Sekunden sichtbar, 7&nbsp;Sekunden verdeckt.</p></div></li>
-          <li><span class="legend-num timer">2</span><div><b>20&nbsp;Sek.</b><p>Eine einzelne Zeitscheibe von 20 Sekunden.</p></div></li>
-          <li><span class="legend-num timer">3</span><div><b>10&nbsp;Sek.</b><p>Eine einzelne Zeitscheibe von 10 Sekunden.</p></div></li>
+          <li><span class="legend-num timer">1</span><div><b>5&nbsp;x&nbsp;3&nbsp;Sek.</b><p>Fünf Durchgänge im Wechsel, Scheibe 3&nbsp;Sekunden sichtbar, 7&nbsp;Sekunden verdeckt.</p></div></li>
+          <li><span class="legend-num timer">2</span><div><b>20&nbsp;Sek.</b><p>Ein einzelner Durchgang mit 20 Sekunden Sichtzeit.</p></div></li>
+          <li><span class="legend-num timer">3</span><div><b>10&nbsp;Sek.</b><p>Ein einzelner Durchgang mit 10 Sekunden Sichtzeit.</p></div></li>
           <li><span class="legend-num timer">4</span><div><b>Timer&nbsp;Stop</b><p>Bricht einen laufenden Timer vorzeitig ab. Nur während eines laufenden Timers farbig/aktiv.</p></div></li>
           <li><span class="legend-num timer">5</span><div><b>Replay / Replay&nbsp;Ende</b><p>Ein Knopf für beides. Als <b>Replay</b> (Abspielsymbol) spielt er die aufgezeichneten Sichtzeiten des letzten Timers ab. Während des Replays heißt er <b>Replay&nbsp;Ende</b> und kehrt sofort zum Live-Bild zurück, die Aufnahme bleibt erhalten. Farbig/aktiv, sobald eine Aufnahme vorliegt.</p></div></li>
         </ol>
@@ -436,7 +437,7 @@ footer{
 
         <div class="grp">
         <h3 id="zoom-detail">Zoom im Detail</h3>
-        <p><b>Ganze Scheibe</b> und <b>Innen Scheibe</b> schließen sich in der Wirkung gegenseitig aus &ndash; immer ist genau eine Stufe tatsächlich aktiv. Das sieht man den Buttons farblich aber nicht an: Beide bleiben durchgehend kräftig blau, da sich jederzeit erneut zwischen ihnen wechseln lässt. Ein Tipp ins Bild vergrößert die gewählte Stufe zusätzlich dreifach; ein erneuter Druck auf <b>Ganze Scheibe</b> oder <b>Innen Scheibe</b> hebt diese Vergrößerung wieder auf. <b>Reset</b> bringt beides in einem Schritt zurück &ndash; und ist der einzige der drei Buttons, dessen Farbe den Zustand tatsächlich widerspiegelt (siehe Abb. 2).</p>
+        <p><b>Ganze Scheibe</b> und <b>Innen Scheibe</b> schließen sich in der Wirkung gegenseitig aus &ndash; immer ist genau eine Stufe tatsächlich aktiv. Das sieht man den Buttons farblich aber nicht an: Beide bleiben im Live-Bild und im Replay kräftig blau, da sich jederzeit erneut zwischen ihnen wechseln lässt. Ein Tipp ins Bild vergrößert die gewählte Stufe zusätzlich dreifach; ein erneuter Druck auf <b>Ganze Scheibe</b> oder <b>Innen Scheibe</b> hebt diese Vergrößerung wieder auf. <b>Reset</b> bringt beides in einem Schritt zurück &ndash; und ist der einzige der drei Buttons, dessen Farbe den Zustand tatsächlich widerspiegelt (siehe Abb. 2).</p>
         <figure class="plate">
           <img src="screenshots/02_hauptbildschirm_innen_scheibe.png" alt="Zoomstufe Innen Scheibe aktiv">
           <figcaption class="fig-note">Abb. 2 &ndash; Innen Scheibe ist aktiv (Ganze Scheibe bleibt ebenfalls blau) &ndash; erkennbar am jetzt nutzbaren Reset (blau statt blass).</figcaption>
@@ -455,7 +456,7 @@ footer{
         <div class="grp">
         <h3 id="timer">Wettkampf-Timer im Detail</h3>
         <p><b>20&nbsp;Sek.</b> und <b>10&nbsp;Sek.</b> laufen nach demselben einfachen Muster ab: 7&nbsp;Sekunden roter Countdown zur Vorbereitung, dann grün für die Sichtzeit, anschließend kurz (3&nbsp;Sekunden) wieder rot als Stopp-Phase, danach automatisches Ende.</p>
-        <p><b>5&nbsp;&times;&nbsp;3&nbsp;Sek.</b> beginnt ebenfalls mit der 7-Sekunden-Vorbereitungszeit in Rot, wiederholt danach aber fünfmal denselben Wechsel: 3&nbsp;Sekunden grün (Scheibe sichtbar, mit Countdown und Durchgangszähler), gefolgt von 7&nbsp;Sekunden rot (Scheibe verdeckt, ebenfalls mit Countdown und Durchgangszähler). Nach der fünften grünen Phase entfällt die 7-Sekunden-Pause: Es folgt direkt, genau wie bei den anderen beiden Varianten, die kurze (3 Sekunden) rote Stopp-Phase ohne Zahl, danach schaltet der Timer automatisch ab und die Scheibe ist sofort wieder zu sehen. Die ganze Serie dauert 53 Sekunden.</p>
+        <p><b>5&nbsp;x&nbsp;3&nbsp;Sek.</b> beginnt ebenfalls mit der 7-Sekunden-Vorbereitungszeit in Rot, wiederholt danach aber fünfmal denselben Wechsel: 3&nbsp;Sekunden grün (Scheibe sichtbar, mit Countdown und Durchgangszähler), gefolgt von 7&nbsp;Sekunden rot (Scheibe verdeckt, ebenfalls mit Countdown und Durchgangszähler). Nach der fünften grünen Phase entfällt die 7-Sekunden-Pause: Es folgt direkt, genau wie bei den anderen beiden Varianten, die kurze (3 Sekunden) rote Stopp-Phase ohne Zahl, danach schaltet der Timer automatisch ab und die Scheibe ist sofort wieder zu sehen. Die ganze Serie dauert 53 Sekunden.</p>
         <p>Während eines laufenden Timers wird kein Kamerabild angezeigt und Zoom/Blinken/Video-aus sind gesperrt. War vor dem Start &bdquo;Blinken&ldquo; aktiv, läuft es nach dem Timer automatisch weiter (siehe &bdquo;Blinken&ldquo;-Vergleichsmodus im Detail). Die grünen Phasen werden dabei für das Replay aufgezeichnet (siehe &bdquo;Replay im Detail&ldquo;).</p>
         <div class="plate-pair">
           <figure class="plate"><img src="screenshots/04_timer_vorbereitung_rot.png" alt="Timer Vorbereitungsphase, rot"><figcaption class="fig-note">Abb. 4 &ndash; Vorbereitungsphase (rot)</figcaption></figure>
@@ -465,7 +466,7 @@ footer{
 
         <div class="grp">
         <h3 id="replay">Replay im Detail</h3>
-        <p>Während jedes Timers zeichnet das Gerät die grünen Phasen (Sichtzeiten) im Hintergrund auf: bei <b>5&nbsp;&times;&nbsp;3&nbsp;Sek.</b> die fünf Durchgänge, bei <b>20&nbsp;Sek.</b> und <b>10&nbsp;Sek.</b> die eine Sichtzeit. Die Aufnahme liegt nur im Arbeitsspeicher und wird nirgends gespeichert.</p>
+        <p>Während jedes Timers zeichnet das Gerät die grünen Phasen (Sichtzeiten) im Hintergrund auf: bei <b>5&nbsp;x&nbsp;3&nbsp;Sek.</b> die fünf Durchgänge, bei <b>20&nbsp;Sek.</b> und <b>10&nbsp;Sek.</b> die eine Sichtzeit. Die Aufnahme wird nicht dauerhaft gespeichert.</p>
         <figure class="plate">
           <img src="screenshots/06_replay.png" alt="Replay mit violettem Rahmen">
           <figcaption class="fig-note">Abb. 6 &ndash; Replay in der Zoomstufe Innen Scheibe: violetter Rahmen, &bdquo;REPLAY&ldquo; und Zähler in Zehntelsekunden. Der Knopf zeigt jetzt Replay&nbsp;Ende.</figcaption>
@@ -474,21 +475,21 @@ footer{
         <ul>
           <li><b>Replay</b> spielt die Aufnahme in Echtzeit ab, beliebig oft. Zu Beginn erscheint eine Sekunde lang ein rotes Startbild mit dem Timer-Modus (z.&nbsp;B. &bdquo;5&nbsp;x&nbsp;3&nbsp;Sek.&ldquo;). Am Ende erscheint eine Sekunde lang ein rotes Schlussbild, danach kehrt die Anzeige von selbst zum Live-Bild zurück.</li>
           <li>Während des Replays heißt der Knopf <b>Replay&nbsp;Ende</b>. Er kehrt sofort zum Live-Bild zurück, ohne das Ende abzuwarten. Die Aufnahme bleibt erhalten und lässt sich später erneut abspielen.</li>
-          <li>Das Replay ist deutlich gekennzeichnet: violetter Rahmen, &bdquo;REPLAY&ldquo; oben links und oben rechts ein Zähler in Zehntelsekunden, der in jeder Sichtzeit bei 0,0 beginnt (z.&nbsp;B. &bdquo;7,3&nbsp;s&ldquo;, bei 5&nbsp;&times;&nbsp;3 &bdquo;Durchgang 2/5&nbsp;&nbsp;1,4&nbsp;s&ldquo;).</li>
-          <li>Bei <b>5&nbsp;&times;&nbsp;3&nbsp;Sek.</b> werden die roten Phasen übersprungen. Zwischen zwei Durchgängen erscheint für eine Sekunde ein rotes Trennbild &bdquo;Durchgang 2/5&ldquo; usw.</li>
+          <li>Das Replay ist deutlich gekennzeichnet: violetter Rahmen, &bdquo;REPLAY&ldquo; oben links und oben rechts ein Zähler in Zehntelsekunden, der in jeder Sichtzeit bei 0,0 beginnt (z.&nbsp;B. &bdquo;7,3&nbsp;s&ldquo;, bei 5&nbsp;x&nbsp;3 &bdquo;Durchgang 2/5&nbsp;&nbsp;1,4&nbsp;s&ldquo;).</li>
+          <li>Bei <b>5&nbsp;x&nbsp;3&nbsp;Sek.</b> werden die roten Phasen übersprungen. Zwischen zwei Durchgängen erscheint für eine Sekunde ein rotes Trennbild &bdquo;Durchgang 2/5&ldquo; usw.</li>
           <li>Alle Zoomfunktionen (Ganze Scheibe, Innen Scheibe, Tippen ins Bild, Reset) wirken im Replay wie im Live-Bild.</li>
           <li>Blinken, Timer und Video aus sind während des Replays gesperrt. Ein aktives Blinken läuft nach <b>Replay&nbsp;Ende</b> mit derselben Referenz weiter.</li>
           <li>Die Aufnahme wird erst beim Start des nächsten Timers verworfen und durch die neue ersetzt. Ein Neustart der Anzeige oder des Geräts löscht sie ebenfalls.</li>
-          <li>Wird ein Timer mit <b>Timer&nbsp;Stop</b> vorzeitig beendet, lässt sich das bis dahin Aufgezeichnete abspielen.</li>
+          <li>Wird ein Timer mit <b>Timer&nbsp;Stop</b> vorzeitig beendet, lässt sich das bis dahin Aufgezeichnete abspielen. Endet er schon in der roten Vorbereitung, gibt es nichts abzuspielen; die vorige Aufnahme ist dann ebenfalls verworfen.</li>
           <li><b>Replay</b> ist gesperrt, solange keine Aufnahme vorliegt, während eines Timers und bei ausgeblendetem Video.</li>
         </ul>
 
         <div class="grp">
         <h3 id="video-aus">&bdquo;Video aus&ldquo; im Detail</h3>
-        <p>Ein Klick auf das Augen-Symbol (Kopfzeile, Punkt 2) blendet das Kamerabild aus und zeigt das Vereinswappen auf schwarzem Grund &ndash; etwa wenn niemand am Stand ist. Uhrzeit/Datum laufen normal weiter. Das Symbol wechselt dabei auf ein Auge ohne Schrägstrich; ein erneuter Klick darauf schaltet das Live-Bild wieder ein.</p>
+        <p>Ein Tipp auf das Augen-Symbol (Kopfzeile, Punkt 2) blendet das Kamerabild aus und zeigt das Vereinswappen auf schwarzem Grund &ndash; etwa wenn niemand am Stand ist. Uhrzeit/Datum laufen normal weiter. Das Symbol wechselt dabei auf ein Auge ohne Schrägstrich; ein erneuter Tipp darauf schaltet das Live-Bild wieder ein.</p>
         <figure class="plate">
           <img src="screenshots/07_video_aus_logo.png" alt="Video aus, Vereinswappen als Wasserzeichen">
-          <figcaption class="fig-note">Abb. 7 &ndash; Video ausgeblendet, Vereinswappen als Wasserzeichen.</figcaption>
+          <figcaption class="fig-note">Abb. 7 &ndash; Video ausgeblendet, Vereinswappen als Wasserzeichen (hier ein Platzhalter-Logo).</figcaption>
         </figure>
         </div>
       </section>
@@ -501,11 +502,10 @@ footer{
         </span>
         <div class="chapter-head"><span class="chapter-num">02</span><h2>Administrativer Bereich</h2></div>
         <p><b>Dieser Abschnitt richtet sich an Standaufsichten</b>, nicht an normale Vereinsmitglieder. Alle Funktionen sind über das Zahnrad-Symbol (Kopfzeile, Punkt&nbsp;3) erreichbar und durch eine numerische PIN geschützt.</p>
-        <div class="callout"><p><b>Wichtig:</b> Nach einer falschen Eingabe ist eine neue Eingabe erst nach einer Wartezeit möglich, die mit jedem Fehlversuch wächst (1&nbsp;s, 4&nbsp;s, 7&nbsp;s, &hellip; bis höchstens 60&nbsp;s); die Restzeit steht neben &bdquo;falsch&ldquo;. Nach einer richtigen Eingabe oder 10 Minuten ohne Eingabe beginnt die Wartezeit wieder bei 1&nbsp;s.</p></div>
 
         <div class="grp">
         <h3 id="pin-eingabe">PIN-Eingabe</h3>
-        <p>Nach Klick auf das Zahnrad erscheint das PIN-Tastenfeld:</p>
+        <p>Nach einem Tipp auf das Zahnrad erscheint das PIN-Tastenfeld:</p>
         <figure class="plate"><img src="screenshots/08_pin_eingabe.png" alt="PIN-Eingabe Tastenfeld"><figcaption class="fig-note">Abb. 8 &ndash; PIN-Tastenfeld.</figcaption></figure>
         </div>
         <ol class="legend">
@@ -514,6 +514,7 @@ footer{
           <li><span class="legend-num admin">3</span><div><b>OK</b><p>Bestätigt die Eingabe. Bei falscher PIN erscheint &bdquo;falsch&ldquo; in Rot, ab dem zweiten Fehlversuch mit ablaufender Wartezeit in Sekunden (wird mit jedem weiteren Fehlversuch länger, siehe oben); erst danach ist eine neue Eingabe möglich.</p></div></li>
           <li><span class="legend-num admin">4</span><div><b>Abbrechen</b><p>Bricht ab, kehrt zum Hauptbildschirm zurück.</p></div></li>
         </ol>
+        <div class="callout"><p><b>Wichtig:</b> Nach einer falschen Eingabe ist eine neue Eingabe erst nach einer Wartezeit möglich, die mit jedem Fehlversuch wächst (1&nbsp;s, 4&nbsp;s, 7&nbsp;s, &hellip; bis höchstens 60&nbsp;s); die Restzeit steht neben &bdquo;falsch&ldquo;. Nach einer richtigen Eingabe oder 10 Minuten ohne Eingabe beginnt die Wartezeit wieder bei 1&nbsp;s.</p></div>
 
         <h3 id="einstellungen">Einstellungen-Menü</h3>
         <figure class="plate"><img src="screenshots/09_einstellungen_menue.png" alt="Einstellungen-Menü"><figcaption class="fig-note">Abb. 9 &ndash; Einstellungen-Menü.</figcaption></figure>
@@ -537,7 +538,7 @@ footer{
           <li><span class="legend-num admin">2</span><div><b>Vier nummerierte Eckpunkte</b><p>Per Fingertipp greifbar und auf eine Scheibenecke ziehbar. Eine gelbe Linie verbindet sie zur Kontrolle; der jeweils andere, bereits kalibrierte Ausschnitt wird hellgrau zur Orientierung eingeblendet.</p></div></li>
           <li><span class="legend-num admin">3</span><div><b>Lupe</b><p>Blendet beim Ziehen eines Punkts automatisch eine vergrößerte Detailansicht ein (springt in die gegenüberliegende Ecke, um den Punkt nie zu verdecken) &ndash; erleichtert millimetergenaue Platzierung.</p></div></li>
           <li><span class="legend-num admin">4</span><div><b>Neues Bild</b><p>Holt ein frisches Kamerabild, ohne gesetzte Punkte zu verwerfen.</p></div></li>
-          <li><span class="legend-num admin">5</span><div><b>Speichern und neu starten</b><p>Übernimmt die neue Positionierung dauerhaft, die Anzeige startet neu.</p></div></li>
+          <li><span class="legend-num admin">5</span><div><b>Speichern und neu starten</b><p>Übernimmt die neue Positionierung dauerhaft, die Anzeige startet neu. Bilden die vier Punkte kein gültiges Viereck (z.&nbsp;B. überkreuzt), erscheint ein Hinweis und der Editor bleibt offen.</p></div></li>
           <li><span class="legend-num admin">6</span><div><b>Abbrechen</b><p>Verwirft alle Änderungen, zurück zum Einstellungen-Menü.</p></div></li>
         </ol>
 
@@ -554,11 +555,11 @@ footer{
         <div class="callout"><p><b>Wichtig:</b> Nach einem Stand-Wechsel muss in aller Regel auch die Kalibrierung (siehe oben) für den neuen Stand geprüft werden, da sich Kamerawinkel und -position je Stand unterscheiden.</p></div>
 
         <h3 id="pin-aendern">PIN ändern</h3>
-        <p style="color:var(--muted); font-size:14.5px;">Anders als die übrigen Unterabschnitte hier ist dies kein einzelner Bildschirm mit festen Bedienelementen, sondern ein Ablauf über mehrere Schritte/Bildschirme hinweg:</p>
+        <p>Das Ändern der PIN läuft in mehreren Schritten ab:</p>
         <div class="grp">
         <ol style="padding-left:20px;">
           <li style="margin-bottom:10px;">
-            Das Tastenfeld erscheint mit dem Titel &bdquo;Neuen PIN eingeben (4-6 Ziffern)&ldquo;. Der Standard-PIN &bdquo;1234&ldquo; wird nicht angenommen (Hinweis &bdquo;zu einfach&ldquo;):
+            Das Tastenfeld erscheint mit dem Titel &bdquo;Neuen PIN eingeben (4-6 Ziffern)&ldquo;. Die Standard-PIN &bdquo;1234&ldquo; wird nicht angenommen (Hinweis &bdquo;zu einfach&ldquo;):
             <figure class="plate" style="margin-top:14px;"><img src="screenshots/12_neuen_pin_eingeben.png" alt="Neuen PIN eingeben"><figcaption class="fig-note">Abb. 12 &ndash; Neuen PIN eingeben.</figcaption></figure>
           </li>
           <li style="margin-bottom:10px;">Die neue PIN muss zur Kontrolle ein zweites Mal eingegeben werden. Stimmen beide Eingaben nicht überein, erscheint kurz &bdquo;PINs stimmen nicht überein&ldquo;, und es geht zurück zur Eingabe der neuen PIN.</li>
@@ -569,11 +570,11 @@ footer{
 
         <div class="grp">
         <h3 id="neustart">Gerät neu starten</h3>
-        <p>Über &bdquo;Neu starten&ldquo; im Einstellungen-Menü lässt sich das Gerät gezielt neu booten, z.&nbsp;B. wenn die Kamera-Verbindung dauerhaft hängt.</p>
+        <p>Über &bdquo;Neu starten&ldquo; im Einstellungen-Menü lässt sich das ganze Gerät gezielt neu starten, z.&nbsp;B. wenn die Kamera-Verbindung dauerhaft hängt.</p>
         <figure class="plate"><img src="screenshots/13_neustart_bestaetigen.png" alt="Neustart bestätigen"><figcaption class="fig-note">Abb. 13 &ndash; Neustart-Bestätigung.</figcaption></figure>
         </div>
         <ol class="legend">
-          <li><span class="legend-num admin">1</span><div><b>Ja, neu starten</b><p>Startet das Gerät sofort neu. Zuerst erscheint das Boot-Logo, danach der Hauptbildschirm.</p></div></li>
+          <li><span class="legend-num admin">1</span><div><b>Ja, neu starten</b><p>Startet das Gerät sofort neu. Zuerst erscheint das Vereinswappen, danach der Hauptbildschirm.</p></div></li>
           <li><span class="legend-num admin">2</span><div><b>Abbrechen</b><p>Zurück zum Einstellungen-Menü ohne Neustart.</p></div></li>
         </ol>
       </section>
@@ -581,11 +582,11 @@ footer{
       <!-- ================= ANHANG ================= -->
       <section class="appendix" id="assistent">
         <div class="chapter-head"><span class="chapter-num">A</span><h2>Kurzübersicht Ersteinrichtungs-Assistent</h2></div>
-        <p>Ein fabrikneues bzw. zurückgesetztes Gerät zeigt beim allerersten Start automatisch einen geführten Assistenten, bevor der normale Hauptbildschirm erreichbar ist. Er läuft in exakt dieser Reihenfolge ab und lässt sich nicht abbrechen:</p>
+        <p>Ein fabrikneues bzw. zurückgesetztes Gerät zeigt beim allerersten Start automatisch einen geführten Assistenten, bevor der normale Hauptbildschirm erreichbar ist. Er läuft in dieser Reihenfolge ab und lässt sich nicht abbrechen; ein Schritt, dessen Einstellung schon vorhanden ist, wird übersprungen:</p>
         <ol>
           <li><b>Stand auswählen</b> &ndash; identisch zum Dialog &bdquo;Stand wechseln&ldquo;, nur ohne Abbrechen-Button.</li>
           <li><b>Ausschnitte kalibrieren</b> &ndash; zunächst &bdquo;Ganze Scheibe&ldquo;, danach &bdquo;Innen Scheibe&ldquo;, jeweils identisch zum Ausschnitte-Editor (ohne Abbrechen; der Speichern-Button heißt hier schlicht &bdquo;Speichern&ldquo;, da der Assistent ohne Neustart weiterläuft).</li>
-          <li><b>PIN festlegen</b> &ndash; identisch zum Dialog &bdquo;PIN ändern&ldquo;, nur ohne Abbrechen: Das Gerät startet mit dem eingebauten Standard-PIN &bdquo;1234&ldquo;, den der Assistent an dieser Stelle zwingend durch einen selbst gewählten PIN ersetzen lässt.</li>
+          <li><b>PIN festlegen</b> &ndash; identisch zum Dialog &bdquo;PIN ändern&ldquo;, nur ohne Abbrechen: Das Gerät startet mit der eingebauten Standard-PIN &bdquo;1234&ldquo;, die der Assistent an dieser Stelle zwingend durch eine selbst gewählte PIN ersetzen lässt.</li>
         </ol>
         <p>Nach der Stand-Auswahl steht &bdquo;Verbinde mit Kamera&hellip;&ldquo; da, bis das erste Kamerabild ankommt; dann geht es von selbst weiter. Antwortet die Kamera nach 30&nbsp;Sekunden noch nicht, erscheint &bdquo;Kamera nicht erreichbar. Bitte URL/Verkabelung prüfen.&ldquo; Der Assistent wartet trotzdem weiter und geht weiter, sobald ein Bild kommt. &bdquo;Erneut versuchen&ldquo; zeigt wieder &bdquo;Verbinde mit Kamera&hellip;&ldquo;, &bdquo;Zurück zur Stand-Auswahl&ldquo; führt zur Auswahl eines anderen Standes.</p>
         <p>Erst nach allen drei Schritten erscheint der normale Hauptbildschirm aus Kapitel 1.</p>
@@ -595,6 +596,8 @@ footer{
         <div class="chapter-head"><h2>Bei Problemen</h2></div>
         <p>Fällt das Kamerabild aus, versucht das Gerät selbst, die Verbindung wiederherzustellen, und startet dafür bei Bedarf neu. Kommt das Bild nicht zurück, bitte die Standaufsicht verständigen: Sie kann das Gerät über das Einstellungen-Menü neu starten (Abschnitt &bdquo;Gerät neu starten&ldquo;).</p>
         <p>Lässt sich ein Problem so nicht beheben, wenden Sie sich bitte an:</p>
+        <hr class="writeline">
+        <hr class="writeline">
         <hr class="writeline">
       </section>
 
