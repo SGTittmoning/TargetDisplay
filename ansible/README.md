@@ -25,7 +25,7 @@ ansible-playbook -i inventory.yml install.yml --limit <host> -e targetdisplay_gi
 
 Omit it (or re-run without the flag) to go back to the default (`main`) on the next deploy.
 
-`targetdisplay_stands` is a **fleet-wide** list (name + camera URL per stand) deployed identically to every host in the group — it doesn't say which stand a *given* device shows. That's chosen once, on the device itself, the first time it boots (see "First-run setup wizard" below); there's no per-host camera/region/PIN variable to fill in here anymore. This makes the same install work for any number of stands, at this club or another, without touching the playbook.
+`targetdisplay_stands` is a **fleet-wide** list (name + camera URL per stand) deployed identically to every host in the group (a single host can add entries of its own via `targetdisplay_extra_stands`, e.g. a test stand on a test device) — it doesn't say which stand a *given* device shows. That's chosen once, on the device itself, the first time it boots (see "First-run setup wizard" below); there's no per-host camera/region/PIN variable to fill in here anymore. This makes the same install work for any number of stands, at this club or another, without touching the playbook.
 
 ## What `install.yml` does
 
