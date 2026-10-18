@@ -5,8 +5,8 @@ import numpy as np
 def compute_perspective_matrix(pts, dsize):
     # 3x3-Homographie, die das Viereck pts (schraeg gesehene Scheibe) auf ein
     # Rechteck der Groesse dsize abbildet. Das korrigiert den Blickwinkel, nicht
-    # die Objektivverzeichnung. main() berechnet sie einmal, je Frame wird sie
-    # nur mit warpPerspective() angewendet.
+    # die Objektivverzeichnung. MainScreen berechnet sie einmal, je Frame wird
+    # sie nur mit warpPerspective() angewendet.
     rect = order_points(pts)
     dst = np.array([
       [0, 0],

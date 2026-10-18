@@ -11,8 +11,7 @@
 # die eine Aktion ausloesen, fuer die er den Aufruf gerade auch
 # tatsaechlich verwendet. Keine Shell, kein Passwort, keine weiteren
 # Befehle - bewusst so eng wie moeglich, da main.py als dieser User laeuft
-# und im Browser/Prozess-Kontext eines Kiosk-Geraets kompromittiert werden
-# koennte.
+# und ein kompromittierter App-Prozess sonst mehr ausloesen koennte.
 #
 # "visudo -cf %s" validiert die Syntax VOR dem Einspielen - eine defekte
 # sudoers-Datei koennte sonst sudo systemweit lahmlegen.

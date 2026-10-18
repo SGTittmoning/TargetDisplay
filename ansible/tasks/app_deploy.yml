@@ -1,13 +1,8 @@
 ---
 # TargetDisplay selbst: Code, Python-Abhaengigkeiten (venv), Konfiguration.
 
-# Alle vier folgenden Tasks werden registriert (Checkout, venv, config.yml,
-# Logo) - startup_service.yml startet den Dienst nur dann neu, wenn
-# IRGENDEINER davon "changed" meldet. Ohne diese Registrierung wuerde ein
-# reiner App-Code-Update (z.B. ein neuer Commit auf demselben Branch) mit
-# state=started statt restarted durchlaufen, und der laufende Prozess wuerde
-# unbemerkt weiterhin den ALTEN Code zeigen, obwohl Checkout/venv/config.yml/
-# Logo auf der Platte schon aktualisiert sind.
+# Checkout, venv, config.yml und Logo werden registriert: startup_service.yml
+# startet den Dienst neu, sobald einer davon "changed" meldet.
 - name: "Aktuellen TargetDisplay-Stand nach {{ targetdisplay_app_path }} holen"
   git:
     repo: "{{ targetdisplay_git_repo }}"
@@ -40,15 +35,11 @@
     mode: "0600"
   register: targetdisplay_app_config
 
-# ressources/logo.png kommt bereits ueber den Git-Checkout oben mit (das im
-# Repo mitgelieferte generische Platzhalter-Wappen, quasi das "dist"-Logo).
-# Legt der Anwender zusaetzlich ein eigenes Logo unter ansible/files/logo.png
-# ab (auf der Ansible-Kontrollmaschine, NICHT im Repo - siehe .gitignore),
-# ueberschreibt dieser Task es automatisch auf jedem Stand - kein manuelles
-# Kopieren einzeln je Geraet mehr noetig. Kein force:no wie bei der Touch-
-# Kalibrierung: die Datei hier auf der Kontrollmaschine ist die Quelle der
-# Wahrheit, ein erneuter Lauf soll eine aktualisierte Version zuverlaessig
-# nachziehen.
+# ressources/logo.png kommt mit dem Checkout (generisches Platzhalter-
+# Wappen). Liegt auf der Kontrollmaschine ein eigenes Logo unter
+# ansible/files/logo.png (nicht im Repo, siehe .gitignore), ersetzt es den
+# Platzhalter auf jedem Stand. Ohne force:no: die Datei auf der
+# Kontrollmaschine ist massgeblich, ein erneuter Lauf zieht Aenderungen nach.
 - name: Vorhandensein eines eigenen Logos pruefen (ansible/files/logo.png)
   stat:
     path: "{{ playbook_dir }}/files/logo.png"

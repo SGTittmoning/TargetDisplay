@@ -27,9 +27,7 @@
 #                                           Hook im geladenen initramfs auch
 #                                           nach Neuerzeugung fehlt.
 #
-# Nach demselben Muster wie im oeffentlichen CamDisplay-Repo
-# (https://github.com/SGTittmoning/CamDisplay) - setzt eine frische
-# Installation mit aktuellem Raspberry Pi OS voraus (/boot/firmware).
+# Setzt aktuelles Raspberry Pi OS voraus (/boot/firmware).
 
 set -euo pipefail
 

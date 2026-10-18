@@ -1,14 +1,10 @@
 ---
 # Display-/Touchscreen-Hardwarekonfiguration (HDMI, KMS/fkms, Touch-
 # Kalibrierung). Der eigentliche Session-Start (X11 + App) steckt in
-# tasks/startup_service.yml - TargetDisplay ist eine echte interaktive
-# GUI-App (Buttons, Touch-Pan, Timer), anders als CamDisplay (reiner
-# Video-Kiosk) kann das nicht auf einen headless systemd+kmsdrm-Ansatz
-# umgestellt werden, es wird weiterhin ein X-Server gebraucht.
+# tasks/startup_service.yml. Als interaktive GUI-App (Buttons, Touch, Timer)
+# braucht TargetDisplay einen X-Server.
 #
-# Pfad /boot/firmware/config.txt: aktuelles Raspberry Pi OS (Bookworm/
-# Trixie), nicht mehr das alte /boot/config.txt der bisherigen
-# Bullseye-Installation.
+# Pfad /boot/firmware/config.txt: aktuelles Raspberry Pi OS (Bookworm/Trixie).
 
 - name: HDMI-Gruppe setzen
   lineinfile:

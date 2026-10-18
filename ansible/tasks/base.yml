@@ -2,10 +2,8 @@
 # en_US.UTF-8 fehlt auf frischen Raspberry Pi OS Lite Images oft komplett -
 # fuehrt zu "setlocale: LC_ALL: cannot change locale"-Warnungen bei jedem
 # SSH-Login/Ansible-Lauf (harmlos, aber unnoetiger Laerm). ansible.builtin
-# hat kein eigenes locale_gen-Modul mehr (das wanderte nach community.general),
-# deshalb hier bewusst ueber locale-gen/lineinfile direkt geloest, um ohne
-# zusaetzliche Collection auszukommen. Nach demselben Muster wie im
-# oeffentlichen CamDisplay-Repo: https://github.com/SGTittmoning/CamDisplay
+# hat kein locale_gen-Modul (es liegt in community.general), deshalb hier bewusst ueber locale-gen/lineinfile direkt geloest, um ohne
+# zusaetzliche Collection auszukommen.
 - name: en_US.UTF-8 Locale aktivieren (/etc/locale.gen)
   lineinfile:
     path: /etc/locale.gen
@@ -71,15 +69,11 @@
                 # da sich das SONAME zwischen Debian-Releases aendert (58 auf Bullseye, 61 auf
                 # Trixie, ...)
   register: targetdisplay_base_packages
-  # KEIN nodm (mehr) - siehe tasks/startup_service.yml: ein dedizierter
-  # systemd-Service startet X11 direkt per "startx" fuer einen eigenen,
-  # unprivilegierten User statt eines PAM-Autologins ueber ein sehr altes,
-  # kaum noch gepflegtes Paket.
 
 # Eigener, unprivilegierter User fuer die TargetDisplay-X11-Session -
 # bewusst NICHT der Ansible-Automatisierungsaccount ({{ ansible_user }}),
-# der ueblicherweise passwortloses sudo hat. Anders als bei CamDisplay
-# braucht dieser User ein echtes Home-Verzeichnis (fuer .xinitrc, den
+# der ueblicherweise passwortloses sudo hat. Dieser User braucht ein echtes
+# Home-Verzeichnis (fuer .xinitrc, den
 # App-Checkout, .Xauthority) und Zugriff auf Grafik-/Touch-Devices, aber
 # keine interaktive Shell (kein SSH/Login als dieser User vorgesehen) und
 # kein sudo. video/render/input regeln den Geraetezugriff hier bewusst

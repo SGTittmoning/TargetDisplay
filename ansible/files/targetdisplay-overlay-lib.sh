@@ -50,15 +50,8 @@ clear_state() {
   return 0
 }
 
-# Overlay aktivieren und sicherstellen, dass das von der Firmware geladene
-# initramfs den overlayroot-Hook wirklich enthaelt. "overlayroot=tmpfs" in der
-# Kommandozeile allein macht kein Overlay - den Mount erledigt ein Skript IM
-# initramfs. Ist /boot/firmware dabei schon read-only gemountet, erzeugt apt das
-# neue initrd zwar, der Kopierschritt nach /boot/firmware scheitert aber
-# lautlos; das Root-FS bleibt beschreibbar, get_overlay_now meldet trotzdem
-# "aktiv". Deshalb: Aufruf NUR bei live beschreibbarer Boot-Partition, danach
-# Hook pruefen und bei Bedarf neu erzeugen. Rueckgabe 1, wenn der Hook auch
-# danach fehlt (die Boot-Partition setzt der Aufrufer in jedem Fall zurueck).
+# Gibt die initramfs-Dateien auf der Boot-Partition aus, denen der
+# overlayroot-Hook fehlt (leer: alle in Ordnung oder lsinitramfs fehlt).
 overlay_initramfs_missing() {
   local f n out=""
   command -v lsinitramfs >/dev/null 2>&1 || return 0
@@ -70,6 +63,15 @@ overlay_initramfs_missing() {
   echo "$out"
 }
 
+# Overlay aktivieren und sicherstellen, dass das von der Firmware geladene
+# initramfs den overlayroot-Hook wirklich enthaelt. "overlayroot=tmpfs" in der
+# Kommandozeile allein macht kein Overlay - den Mount erledigt ein Skript IM
+# initramfs. Ist /boot/firmware dabei schon read-only gemountet, erzeugt apt das
+# neue initrd zwar, der Kopierschritt nach /boot/firmware scheitert aber
+# lautlos; das Root-FS bleibt beschreibbar, get_overlay_now meldet trotzdem
+# "aktiv". Deshalb: Aufruf NUR bei live beschreibbarer Boot-Partition, danach
+# Hook pruefen und bei Bedarf neu erzeugen. Rueckgabe 1, wenn der Hook auch
+# danach fehlt (die Boot-Partition setzt der Aufrufer in jedem Fall zurueck).
 enable_overlay_checked() {
   raspi-config nonint enable_overlayfs
   if [ -n "$(overlay_initramfs_missing)" ]; then

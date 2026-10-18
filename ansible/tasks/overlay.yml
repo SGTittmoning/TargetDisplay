@@ -4,9 +4,7 @@
 # harte Stromabschaltung ohne sauberes Herunterfahren.
 #
 # Nutzt den offiziell unterstuetzten raspi-config-Mechanismus statt eines
-# eigenen, manuellen fstab-basierten Verfahrens (eigenes mount-Modul + eigene
-# partuuid-Ermittlung) - identisches Vorgehen wie im oeffentlichen
-# CamDisplay-Repo: https://github.com/SGTittmoning/CamDisplay
+# eigenen fstab-basierten Verfahrens.
 #
 # WICHTIGE REIHENFOLGE: raspi-configs enable_bootro() verweigert die Arbeit,
 # wenn das Overlay bereits aktiv ist ("Overlay in use; cannot update fstab") -

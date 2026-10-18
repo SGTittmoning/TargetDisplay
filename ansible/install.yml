@@ -48,12 +48,8 @@
 
   tasks:
 
-    # my_url/section_full/section_detail/my_settings_pin sind bewusst KEINE
-    # Pflichtvariablen mehr - Kamera-URL, Ausschnitte und PIN werden seit
-    # der Mehr-Stand-Faehigkeit nicht mehr einmalig bei der Installation
-    # gesetzt, sondern kommen aus targetdisplay_stands (s.u.) plus dem
-    # (ggf. erzwungenen) Ersteinrichtungs-Assistenten am Geraet selbst -
-    # siehe tasks/stands.yml.
+    # Kamera-URLs kommen aus targetdisplay_stands, Ausschnitte und PIN legt
+    # der Ersteinrichtungs-Assistent am Geraet fest (siehe tasks/stands.yml).
     - name: targetdisplay_stands/targetdisplay_git_repo muessen gesetzt sein
       assert:
         that:

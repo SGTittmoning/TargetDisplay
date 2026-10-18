@@ -124,7 +124,7 @@ def confirm_reboot():
 
 def validate_new_pin(entered):
     # Prueft eine neue PIN: 4-6 Ziffern und nicht der Standard-PIN (den wuerde
-    # main() sofort wieder zur Aenderung vorlegen). Liefert (True, entered) oder
+    # der Assistent sofort wieder zur Aenderung vorlegen). Liefert (True, entered) oder
     # (False, (Fehlertext, Wartezeit_s)) wie _run_pin_keypad() erwartet. Das
     # Anzeigefeld fasst rund 11 Zeichen.
     if not PIN_MIN_LEN <= len(entered) <= PIN_MAX_LEN:
@@ -399,8 +399,9 @@ def with_section(which, points, section_full, section_detail):
 def run_settings_flow(cap, section_full, section_detail, stands):
     # Einstellungen-Menue. section_full/section_detail sind Kamerakoordinaten
     # des vollen Bilds, wie sie gespeichert werden. Liefert True, wenn etwas
-    # gespeichert wurde (Ausschnitte, Stand oder PIN); main() beendet sich dann
-    # und systemd startet mit den neuen Werten neu. Auch die PIN laeuft ueber
+    # gespeichert wurde (Ausschnitte, Stand oder PIN); die App beendet sich
+    # dann (MainScreen.open_settings) und systemd startet sie mit den neuen
+    # Werten neu. Auch die PIN laeuft ueber
     # diesen Neustart: ein Weg fuer alles ist weniger fehleranfaellig.
     # Abbrechen oder ein Fehler in einer Unteraktion fuehrt zurueck in dieses
     # Menue, nicht zum Hauptbildschirm.

@@ -12,25 +12,13 @@
 # erneut gestartet (siehe targetdisplay-retry.sh) - sobald die Ursache
 # (z.B. die Kamera) behoben ist, kommt der Stand von selbst wieder.
 #
-# Nach demselben Muster wie im oeffentlichen CamDisplay-Repo
-# (https://github.com/SGTittmoning/CamDisplay), nur das Namensschema
-# angepasst.
+# Der Zaehler liegt auf der Boot-Partition: sie uebersteht auch ein aktives
+# Overlay-Root. Ist sie per "bootro" read-only (Normalzustand), wird sie
+# zum Schreiben kurz beschreibbar gemountet.
 #
-# Zaehler liegt auf der Boot-Partition (siehe targetdisplay-update.sh fuer
-# die Begruendung: uebersteht auch ein aktives Overlay-Root).
-#
-# WICHTIG: /boot/firmware kann UNABHAENGIG vom Root-Overlay zusaetzlich per
-# "bootro" (raspi-config) read-only gemountet sein - das ist der Normalzustand
-# in Produktion (siehe targetdisplay-writable.sh). Schreibzugriffe hier muessen
-# daher denselben remount-Tanz machen wie targetdisplay-update.sh/-writable.sh,
-# sonst schlaegt das Schreiben schlicht fehl, sobald "ro" aktiv ist.
-#
-# WICHTIG #2: "[ cond ] && cmd" als LETZTE Anweisung einer Funktion/des
-# Skripts ist unter "set -e" gefaehrlich - ist "cond" falsch (voellig
-# normaler Fall, kein Fehler), liefert das trotzdem Exit-Code 1, und set -e
-# bricht die Funktion/das Skript sofort ab, noch VOR dem eigentlichen
-# reboot-Aufruf. Deshalb ueberall ein abschliessendes "return 0"/"true", wo
-# dieses Muster als letzte Zeile steht.
+# "[ cond ] && cmd" als letzte Anweisung einer Funktion bricht unter
+# "set -e" ab, wenn cond falsch ist (siehe targetdisplay-overlay-lib.sh);
+# deshalb enden die Funktionen mit "return 0".
 
 set -euo pipefail
 

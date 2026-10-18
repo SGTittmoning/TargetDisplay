@@ -121,7 +121,7 @@ def load_active_stand(stands, cfg):
             if s['id'] == stand_id:
                 return s
         # Die ID steht (noch) nicht in der Stand-Liste: wie "nicht ausgewaehlt"
-        # behandeln, main() zeigt die Auswahl erneut.
+        # behandeln, der Assistent (run_setup_wizard) zeigt die Auswahl erneut.
         print(f"Aktive Stand-ID '{stand_id}' nicht in {STANDS_FILE} gefunden, behandle als nicht ausgewaehlt.", file=sys.stderr)
         return fallback
     except Exception as e:
@@ -140,8 +140,8 @@ def is_valid_pin(pin):
 
 def load_settings_pin(cfg):
     # Ein PIN, der sich nicht eingeben laesst (z.B. der Platzhalter
-    # "CHANGEME" aus config.yml.dist), gilt als DEFAULT_PIN. main() erzwingt
-    # dann eine Aenderung, statt die Standaufsicht auszusperren.
+    # "CHANGEME" aus config.yml.dist), gilt als DEFAULT_PIN. Der Assistent
+    # erzwingt dann eine Aenderung, statt die Standaufsicht auszusperren.
     pin = cfg.get_property_with_default('settingsPin', DEFAULT_PIN)
     if os.path.exists(PIN_FILE):
         try:
