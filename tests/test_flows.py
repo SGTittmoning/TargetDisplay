@@ -397,6 +397,47 @@ def test_editor_beschriftung_im_menue(win, monkeypatch):
     assert seen == ['Speichern und\nneu starten']
 
 
+class SizedCam:
+    """Kamerabild in echter Groesse: der Editor verkleinert es und setzt es
+    mittig in den Canvas, Canvas- und Kamerakoordinaten unterscheiden sich."""
+
+    def __init__(self, width, height):
+        self.shape = (height, width, 3)
+
+    def get_frame(self, full=False):
+        return np.full(self.shape, 80, np.uint8)
+
+
+def canvas_mapping(width, height):
+    # Massstab und Versatz wie im Editor, unabhaengig nachgerechnet.
+    scale = min(ui.EDITOR_MAX_W / width, ui.EDITOR_MAX_H / height)
+    off_x = (ui.EDITOR_MAX_W - int(width * scale)) // 2
+    off_y = (ui.EDITOR_MAX_H - int(height * scale)) // 2
+    return scale, off_x, off_y
+
+
+# 2560x1920 (Kamera der Staende): Rand links und rechts. 2560x1000: Rand
+# oben und unten.
+@pytest.mark.parametrize('width, height', [(2560, 1920), (2560, 1000)])
+def test_editor_rechnet_bei_echter_aufloesung_richtig_zurueck(win, monkeypatch, width, height):
+    scale, off_x, off_y = canvas_mapping(width, height)
+    assert off_x > 0 or off_y > 0
+    points = [[500, 300], [2000, 320], [520, 900], [1980, 880]]
+    grab = (points[0][0] * scale + off_x, points[0][1] * scale + off_y)
+    target = (300, 200)
+    script(win, monkeypatch, drag(grab, target) + ['-EDIT_SAVE-'])
+    result = flows.edit_section_points('Ganze Scheibe', SizedCam(width, height), points)
+    assert np.allclose(result[0], [(target[0] - off_x) / scale, (target[1] - off_y) / scale])
+    assert np.allclose(result[1:], points[1:])
+
+
+@pytest.mark.parametrize('width, height', [(2560, 1920), (2560, 1000)])
+def test_editor_speichert_unveraenderte_punkte_bei_echter_aufloesung(win, monkeypatch, width, height):
+    points = [[500, 300], [2000, 320], [520, 900], [1980, 880]]
+    script(win, monkeypatch, ['-EDIT_SAVE-'])
+    assert np.allclose(flows.edit_section_points('Ganze Scheibe', SizedCam(width, height), points), points)
+
+
 def test_editor_ohne_kamerabild(win, monkeypatch):
     messages = []
     monkeypatch.setattr(flows, 'popup', messages.append)
