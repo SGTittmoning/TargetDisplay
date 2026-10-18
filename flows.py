@@ -86,14 +86,18 @@ def check_pin(correct_pin):
     # PIN-Abfrage vor den Einstellungen. Nach jedem Fehlversuch eine laenger
     # werdende Pause (pinlock.py): schreckt zufaelliges Herumtippen ab, ist aber
     # kein Schutz gegen gezieltes Durchprobieren.
+    # Bei richtiger PIN bleibt die Seite stehen, bis der Aufrufer die naechste
+    # zeigt (sonst blitzte der Hauptbildschirm kurz auf); bei Abbrechen geht es
+    # zurueck zum Hauptbildschirm.
     def validate(entered):
         if entered == str(correct_pin):
             PIN_LIMITER.register_success()
             return True, True
         return False, ('falsch', PIN_LIMITER.register_failure())
-    result = _run_pin_keypad('PIN eingeben', True, validate)
-    show_page('-MAINVIEW-')
-    return bool(result)
+    result = bool(_run_pin_keypad('PIN eingeben', True, validate))
+    if not result:
+        show_page('-MAINVIEW-')
+    return result
 
 
 def _reboot():
@@ -142,13 +146,10 @@ def _enter_new_pin(title, show_cancel):
     return result
 
 
-def change_pin_flow(current_pin, forced):
+def change_pin_flow(forced):
     # forced=True: Assistent, solange der Standard-PIN gilt; kein Abbrechen.
-    # forced=False: Aenderung ueber das Menue, fragt zuerst die aktuelle PIN ab
-    # und laesst sich abbrechen.
-    if not forced:
-        if not check_pin(current_pin):
-            return None
+    # forced=False: Aenderung ueber das Menue, abbrechbar. Die aktuelle PIN
+    # wurde schon vor dem Menue abgefragt.
     while True:
         new1 = _enter_new_pin('Neuen PIN eingeben (4-6 Ziffern)', show_cancel=not forced)
         if new1 is None:
@@ -395,7 +396,7 @@ def with_section(which, points, section_full, section_detail):
     return (points, section_detail) if which == 'full' else (section_full, points)
 
 
-def run_settings_flow(cap, section_full, section_detail, stands, current_pin):
+def run_settings_flow(cap, section_full, section_detail, stands):
     # Einstellungen-Menue. section_full/section_detail sind Kamerakoordinaten
     # des vollen Bilds, wie sie gespeichert werden. Liefert True, wenn etwas
     # gespeichert wurde (Ausschnitte, Stand oder PIN); main() beendet sich dann
@@ -431,7 +432,7 @@ def run_settings_flow(cap, section_full, section_detail, stands, current_pin):
             show_page('-MAINVIEW-')
             return True
         elif event == '-MENU_PIN-':
-            new_pin = change_pin_flow(current_pin, forced=False)
+            new_pin = change_pin_flow(forced=False)
             if new_pin is None:
                 continue
             show_page('-MAINVIEW-')

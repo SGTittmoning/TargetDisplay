@@ -123,7 +123,7 @@ def run_setup_wizard(cfg):
 
     settings_pin = load_settings_pin(cfg)
     while settings_pin == DEFAULT_PIN:
-        new_pin = change_pin_flow(settings_pin, forced=True)
+        new_pin = change_pin_flow(forced=True)
         if new_pin is not None:
             settings_pin = new_pin
     return stands, cap, section_full, section_detail, settings_pin
@@ -283,7 +283,7 @@ class MainScreen:
 
     def open_settings(self, event, values):
         if check_pin(self.settings_pin):
-            if run_settings_flow(self.cap, self.section_full, self.section_detail, self.stands, self.settings_pin):
+            if run_settings_flow(self.cap, self.section_full, self.section_detail, self.stands):
                 # Gespeichert: Prozess beenden (Exit 0), systemd startet
                 # ihn mit den neuen Werten neu.
                 sys.exit(0)

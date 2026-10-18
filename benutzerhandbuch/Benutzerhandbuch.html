@@ -555,14 +555,13 @@ footer{
         <p style="color:var(--muted); font-size:14.5px;">Anders als die übrigen Unterabschnitte hier ist dies kein einzelner Bildschirm mit festen Bedienelementen, sondern ein Ablauf über mehrere Schritte/Bildschirme hinweg:</p>
         <div class="grp">
         <ol style="padding-left:20px;">
-          <li style="margin-bottom:10px;">Zunächst muss die <b>aktuell gültige PIN</b> eingegeben werden (dasselbe Tastenfeld wie oben) &ndash; verhindert, dass jemand, der zufällig ans offene Menü gelangt, die PIN einfach überschreibt.</li>
           <li style="margin-bottom:10px;">
-            Danach erscheint das Tastenfeld erneut, Titel &bdquo;Neuen PIN eingeben (4-6 Ziffern)&ldquo;. Der Standard-PIN &bdquo;1234&ldquo; wird nicht angenommen (Hinweis &bdquo;zu einfach&ldquo;):
+            Das Tastenfeld erscheint mit dem Titel &bdquo;Neuen PIN eingeben (4-6 Ziffern)&ldquo;. Der Standard-PIN &bdquo;1234&ldquo; wird nicht angenommen (Hinweis &bdquo;zu einfach&ldquo;):
             <figure class="plate" style="margin-top:14px;"><img src="screenshots/12_neuen_pin_eingeben.png" alt="Neuen PIN eingeben"><figcaption class="fig-note">Abb. 12 &ndash; Neuen PIN eingeben.</figcaption></figure>
           </li>
-          <li style="margin-bottom:10px;">Die neue PIN muss zur Kontrolle ein zweites Mal eingegeben werden. Stimmen beide Eingaben nicht überein, erscheint kurz &bdquo;PINs stimmen nicht überein&ldquo;, und es geht zurück zur neuen-PIN-Eingabe &ndash; die bereits bestätigte aktuelle PIN muss dafür nicht erneut eingegeben werden.</li>
+          <li style="margin-bottom:10px;">Die neue PIN muss zur Kontrolle ein zweites Mal eingegeben werden. Stimmen beide Eingaben nicht überein, erscheint kurz &bdquo;PINs stimmen nicht überein&ldquo;, und es geht zurück zur Eingabe der neuen PIN.</li>
           <li style="margin-bottom:10px;">Nach zweimal übereinstimmender Eingabe wird die neue PIN gespeichert, danach startet die Anzeige automatisch neu.</li>
-          <li><b>Abbrechen</b> ist in jedem Schritt möglich und verwirft die Änderung.</li>
+          <li><b>Abbrechen</b> ist in jedem Schritt möglich, verwirft die Änderung und führt zurück ins Einstellungen-Menü.</li>
         </ol>
         </div>
 
@@ -584,7 +583,7 @@ footer{
         <ol>
           <li><b>Stand auswählen</b> &ndash; identisch zum Dialog &bdquo;Stand wechseln&ldquo;, nur ohne Abbrechen-Button.</li>
           <li><b>Ausschnitte kalibrieren</b> &ndash; zunächst &bdquo;Ganze Scheibe&ldquo;, danach &bdquo;Innen Scheibe&ldquo;, jeweils identisch zum Ausschnitte-Editor (ohne Abbrechen; der Speichern-Button heißt hier schlicht &bdquo;Speichern&ldquo;, da der Assistent ohne Neustart weiterläuft).</li>
-          <li><b>PIN festlegen</b> &ndash; identisch zum Dialog &bdquo;PIN ändern&ldquo;, nur ohne vorherige Abfrage einer aktuellen PIN: Das Gerät startet mit dem eingebauten Standard-PIN &bdquo;1234&ldquo;, den der Assistent an dieser Stelle zwingend durch einen selbst gewählten PIN ersetzen lässt.</li>
+          <li><b>PIN festlegen</b> &ndash; identisch zum Dialog &bdquo;PIN ändern&ldquo;, nur ohne Abbrechen: Das Gerät startet mit dem eingebauten Standard-PIN &bdquo;1234&ldquo;, den der Assistent an dieser Stelle zwingend durch einen selbst gewählten PIN ersetzen lässt.</li>
         </ol>
         <p>Ist die Kamera nicht erreichbar, zeigt der Assistent &bdquo;Kamera nicht erreichbar&ldquo; mit &bdquo;Erneut versuchen&ldquo; und &bdquo;Zurück zur Stand-Auswahl&ldquo;. Er wartet, bis die Kamera antwortet, und geht dann von selbst weiter. &bdquo;Erneut versuchen&ldquo; zeigt wieder &bdquo;Verbinde mit Kamera&hellip;&ldquo; und wartet erneut bis zu 30&nbsp;Sekunden; ansonsten führt nur &bdquo;Zurück zur Stand-Auswahl&ldquo; hier heraus.</p>
         <p>Erst nach allen drei Schritten erscheint der normale Hauptbildschirm aus Kapitel 1.</p>
