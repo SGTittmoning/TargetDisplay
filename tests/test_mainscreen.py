@@ -313,8 +313,8 @@ def test_maximum_passt_zur_innen_scheibe_von_stand_1():
     import transformlib
     full = np.array([[92, 662], [1052, 514], [368, 1359], [1170, 1319]])
     detail = np.array([[387, 839], [805, 792], [489, 1182], [901, 1170]])
-    # Innen Scheibe ist dort gut 2,1-fach vergroessert; mit der normalen Stufe
+    # Innen Scheibe ist dort gut 2,1-fach vergroessert; mit weiteren 3x
     # ergibt das das Maximum.
     magnification = main.MainScreen.detail_magnification(full, detail)
     assert magnification == pytest.approx(2.11, abs=0.01)
-    assert magnification * transformlib.VIDEO_ZOOM_FACTOR == pytest.approx(transformlib.VIDEO_ZOOM_MAX, abs=0.1)
+    assert magnification * 3 == pytest.approx(transformlib.VIDEO_ZOOM_MAX, abs=0.1)

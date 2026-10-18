@@ -19,6 +19,20 @@ CONTROL_ALPHA, CONTROL_ALPHA_MUTED = 0.65, 0.35
 CONTROL_BG = (40, 40, 40)
 CONTROL_FG, CONTROL_FG_MUTED = (255, 255, 255), (170, 170, 170)
 
+# Richtungsdreiecke am Bildrand, solange der Tipp-Zoom laeuft: Groesse und Rand
+# in Pixel, bezogen auf ein Bild von 780 Pixeln Breite (skaliert mit der
+# Bildbreite). Halbtransparent weiss mit schwarzem Rand.
+TRIANGLE_W, TRIANGLE_H, TRIANGLE_INSET, TRIANGLE_OUTLINE = 100, 50, 16, 5
+TRIANGLE_REFERENCE_WIDTH = 780
+TRIANGLE_ALPHA = 0.55
+
+# Anteil des Wegs von der gewaehlten Ansicht zur hoechsten Vergroesserung, den
+# die erste Zoomstufe zuruecklegt.
+STEP_SHARE = 0.5
+
+# Toleranz beim Vergleich mit dem Rand in Prozent.
+EDGE_EPS = 1e-6
+
 # Zeitraum fuer die FPS-Anzeige.
 FPS_WINDOW_SECONDS = 60
 
@@ -27,10 +41,11 @@ class Viewport:
     """Zoomstufe ('full'/'detail') und manueller Ausschnitt (Tipp-Zoom).
 
     Die Perspektiv-Matrizen bilden direkt auf video_size ab; sie aendern sich
-    nur mit einem Neustart. Der Tipp-Zoom hat zwei Stufen (tl.VIDEO_ZOOM_FACTOR,
-    tl.VIDEO_ZOOM_MAX), absolut bezogen auf "Ganze Scheibe". detail_factor ist
-    die Vergroesserung von "Innen Scheibe" gegenueber "Ganze Scheibe": dort
-    wirkt dieselbe Stufe um diesen Faktor schwaecher.
+    nur mit einem Neustart. Der Tipp-Zoom hat zwei Stufen: Stufe 1 liegt auf
+    halbem Weg von der gewaehlten Ansicht zur hoechsten Vergroesserung
+    tl.VIDEO_ZOOM_MAX, Stufe 2 erreicht sie. Beide Werte sind absolut auf
+    "Ganze Scheibe" bezogen; detail_factor ist die Vergroesserung von "Innen
+    Scheibe" dagegen und damit der Startwert dieser Ansicht.
     """
 
     def __init__(self, matrix_full, matrix_detail, video_size, detail_factor=1.0):
@@ -38,7 +53,7 @@ class Viewport:
         self.video_size = video_size
         self.detail_factor = max(detail_factor, 1.0)
         self.level = 'full'
-        # 0: kein Tipp-Zoom, 1: normale Stufe, 2: Maximum.
+        # 0: kein Tipp-Zoom, 1: halber Weg zum Maximum, 2: Maximum.
         self.step = 0
         # Mitte des Tipp-Zooms in Prozent der Bildgroesse, None ohne Tipp-Zoom.
         self.center = None
@@ -48,15 +63,20 @@ class Viewport:
         """Wechselt genau dann, wenn sich die Ansicht aendert."""
         return self.level, self.step, self.center
 
+    def start_factor(self):
+        """Vergroesserung der gewaehlten Ansicht gegenueber "Ganze Scheibe"."""
+        return self.detail_factor if self.level == 'detail' else 1.0
+
     def absolute_factor(self):
-        """Vergroesserung gegenueber "Ganze Scheibe" (0 ohne Tipp-Zoom)."""
-        return (0, tl.VIDEO_ZOOM_FACTOR, tl.VIDEO_ZOOM_MAX)[self.step]
+        """Vergroesserung der aktuellen Stufe gegenueber "Ganze Scheibe"."""
+        start = self.start_factor()
+        top = max(tl.VIDEO_ZOOM_MAX, start)
+        return (start, start + STEP_SHARE * (top - start), top)[self.step]
 
     def factor(self):
         """Vergroesserung des Tipp-Zooms gegenueber dem Anzeigebild der
-        aktuellen Zoomstufe."""
-        level = self.detail_factor if self.level == 'detail' else 1.0
-        return max(self.absolute_factor() / level, 1.0)
+        aktuellen Ansicht."""
+        return self.absolute_factor() / self.start_factor()
 
     def set_level(self, level):
         # Ganze/Innen Scheibe und Reset heben den Tipp-Zoom auf.
@@ -110,6 +130,43 @@ class Viewport:
         x_minus = x_plus - side
         return {name: (x, y0, x + side, y0 + side) for name, x in (('out', x_minus), ('in', x_plus))}
 
+    def pan_directions(self):
+        """Richtungen ('left', 'right', 'up', 'down'), in die sich der Ausschnitt
+        noch verschieben laesst; leer ohne Tipp-Zoom."""
+        if not self.step:
+            return []
+        low = 100 / (2 * self.factor())
+        high = 100 - low
+        cx, cy = self.center
+        return [name for name, free in (('left', cx - low > EDGE_EPS), ('right', high - cx > EDGE_EPS),
+                                        ('up', cy - low > EDGE_EPS), ('down', high - cy > EDGE_EPS)) if free]
+
+    def _triangle(self, direction):
+        """Eckpunkte des Dreiecks am Rand in Richtung direction (Pixel)."""
+        width, height = self.video_size
+        scale = width / TRIANGLE_REFERENCE_WIDTH
+        w, h, inset = TRIANGLE_W * scale, TRIANGLE_H * scale, TRIANGLE_INSET * scale
+        cx, cy = width / 2, height / 2
+        points = {
+            'up': [(cx - w / 2, inset + h), (cx + w / 2, inset + h), (cx, inset)],
+            'down': [(cx - w / 2, height - inset - h), (cx + w / 2, height - inset - h), (cx, height - inset)],
+            'left': [(inset + h, cy - w / 2), (inset + h, cy + w / 2), (inset, cy)],
+            'right': [(width - inset - h, cy - w / 2), (width - inset - h, cy + w / 2), (width - inset, cy)],
+        }[direction]
+        return np.array(points, np.int32)
+
+    def _draw_triangles(self, out):
+        directions = self.pan_directions()
+        if not directions:
+            return
+        fill = out.copy()
+        for direction in directions:
+            cv2.fillPoly(fill, [self._triangle(direction)], (255, 255, 255))
+        out[:] = cv2.addWeighted(fill, TRIANGLE_ALPHA, out, 1 - TRIANGLE_ALPHA, 0)
+        thickness = max(int(TRIANGLE_OUTLINE * self.video_size[0] / TRIANGLE_REFERENCE_WIDTH), 1)
+        for direction in directions:
+            cv2.polylines(out, [self._triangle(direction)], True, (0, 0, 0), thickness, cv2.LINE_AA)
+
     def hit(self, x, y):
         """'in' oder 'out', wenn der Tipp bei (x, y) (Prozent) eines der beiden
         Felder trifft, sonst None."""
@@ -120,9 +177,10 @@ class Viewport:
         return None
 
     def render_with_controls(self, raw):
-        """render() mit den Zoomfeldern im Bild: "-" ohne Tipp-Zoom und "+"
-        beim Maximum sind blass."""
+        """render() mit den Zoomfeldern im Bild ("-" ohne Tipp-Zoom und "+"
+        beim Maximum sind blass) und den Richtungsdreiecken."""
         out = self.render(raw)
+        self._draw_triangles(out)
         for name, (x0, y0, x1, y1) in self._control_rects().items():
             enabled = not ((name == 'out' and self.step == 0) or (name == 'in' and self.step == 2))
             roi = out[y0:y1, x0:x1]

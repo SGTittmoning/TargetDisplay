@@ -72,8 +72,8 @@ def test_crop_bounds_clamped_auf_null():
 
 
 def test_clamp_zoom_center():
-    assert tl.clamp_zoom_center((0, 100)) == (100 / 6, 100 - 100 / 6)
-    assert tl.clamp_zoom_center((50, 50)) == (50, 50)
+    assert tl.clamp_zoom_center((0, 100), 3) == (100 / 6, 100 - 100 / 6)
+    assert tl.clamp_zoom_center((50, 50), 3) == (50, 50)
 
 
 def gradient(height, width):
