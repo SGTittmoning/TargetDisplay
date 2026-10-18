@@ -292,7 +292,8 @@ Dauer-Deaktivierung, `targetdisplay-retry.timer`; 0.12.1: Paket `unclutter`;
 overlayroot-Hook, der Guard schreibt den Zähler nach der Obergrenze nicht
 weiter; 0.13.x: `targetdisplay-save-lib.sh` räumt seine temp-Datei immer
 auf, neue gemeinsame `targetdisplay-overlay-lib.sh` für `-writable.sh` und
-`-update.sh`), muss einmal `install.yml` laufen. Bei aktivem Overlay bricht dieses im
+`-update.sh`; 0.13.3: gemeinsame `targetdisplay-boot-lib.sh`, der Guard
+verträgt eine beschädigte Zählerdatei), muss einmal `install.yml` laufen. Bei aktivem Overlay bricht dieses im
 Vorab-Check ab (Schreibvorgänge gingen nur in den flüchtigen tmpfs-Layer), der
 Ablauf ist dann:
 
