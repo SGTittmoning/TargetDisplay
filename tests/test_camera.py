@@ -37,10 +37,10 @@ class FakeContainer:
             raise self.close_error
 
 
-def start_camera(monkeypatch, containers):
+def start_camera(monkeypatch, containers, reconnect_delay=0.01):
     it = iter(containers)
     monkeypatch.setattr(camera.Camera, '_open_container', lambda self: next(it))
-    return camera.Camera('rtmp://test.invalid/live', reconnect_delay=0.01)
+    return camera.Camera('rtmp://test.invalid/live', reconnect_delay=reconnect_delay)
 
 
 def wait_for_frames(cam, count, timeout=3.0):
@@ -108,3 +108,21 @@ def test_zugangsdaten_landen_nicht_im_log(monkeypatch, capsys):
     finally:
         cam.stop()
     assert 'geheim' not in capsys.readouterr().err
+
+
+def test_stop_beendet_den_lesethread(monkeypatch):
+    cam = start_camera(monkeypatch, [FakeContainer(0)])
+    assert wait_for_frames(cam, 3)
+    cam.stop()
+    cam._thread.join(timeout=2)
+    assert not cam._thread.is_alive()
+
+
+def test_stop_waehrend_der_wartezeit_vor_dem_neuen_versuch(monkeypatch):
+    cam = start_camera(monkeypatch, [FakeContainer(1, error=OSError('weg')), FakeContainer(0)],
+                       reconnect_delay=30)
+    assert wait_for_frames(cam, 1)
+    time.sleep(0.1)
+    cam.stop()
+    cam._thread.join(timeout=2)
+    assert not cam._thread.is_alive()
