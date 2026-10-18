@@ -641,7 +641,7 @@ class Window:
         canvas.image_refs = []
         canvas.bind('<Button-1>', self._on_editgraph_event)
         canvas.bind('<B1-Motion>', self._on_editgraph_event)
-        canvas.bind('<ButtonRelease-1>', lambda e: self.post('-EDITGRAPH-+UP'))
+        canvas.bind('<ButtonRelease-1>', lambda e: self.post('-EDITGRAPH_UP-'))
         self.editor_canvas = canvas
 
         btnrow = tk.Frame(content, bg=BG)

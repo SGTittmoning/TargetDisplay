@@ -90,7 +90,7 @@ def check_pin(correct_pin):
     # zeigt (sonst blitzte der Hauptbildschirm kurz auf); bei Abbrechen geht es
     # zurueck zum Hauptbildschirm.
     def validate(entered):
-        if entered == str(correct_pin):
+        if entered == correct_pin:
             PIN_LIMITER.register_success()
             return True, True
         return False, ('falsch', PIN_LIMITER.register_failure())
@@ -421,7 +421,7 @@ def edit_section_points(region_label, cap, points, other_points=None, allow_canc
             if dragging_idx is not None:
                 pts[dragging_idx] = mapping.clamp(pos)
                 redraw(dragged=pts[dragging_idx])
-        elif event == '-EDITGRAPH-+UP':
+        elif event == '-EDITGRAPH_UP-':
             dragging_idx = None
             redraw()
 

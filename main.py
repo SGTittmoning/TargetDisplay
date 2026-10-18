@@ -158,7 +158,7 @@ class MainScreen:
         # Rohes Referenzbild beim Blinken, None bis zum naechsten Livebild.
         self.blink_ref = None
         self.last_frame_id = -1
-        self.frame_count = 1
+        self.frame_count = 0
         self.frame_timestamps = deque()
         self.timer_type = None
         self.timer_started_at = time.monotonic()
@@ -167,7 +167,6 @@ class MainScreen:
         # nach "Replay Ende" erhalten und wird erst beim Start der naechsten
         # Serie verworfen.
         self.recording = None
-        self.replay_type = None
         self.last_rec_frame_id = -1
         self.replay_started_at = time.monotonic()
         self.last_replay_key = None
@@ -367,7 +366,6 @@ class MainScreen:
         # anlegen - sonst lagen kurzzeitig beide im RAM.
         self.recording = None
         self.recording = replay.Recording(timerlib.green_windows(event), self.replay_latency, self.replay_budget)
-        self.replay_type = event
         self.last_rec_frame_id, _, _ = self.cap.snapshot()
 
     def timer_stop(self, event, values):
@@ -425,7 +423,7 @@ class MainScreen:
             return
         self.last_replay_key = replay_key
         if view.kind == 'start':
-            frame = replay_separator(self.video_size, timerlib.TITLES[self.replay_type])
+            frame = replay_separator(self.video_size, timerlib.TITLES[self.timer_type])
         elif view.kind == 'separator':
             frame = replay_separator(self.video_size, f'Durchgang {view.segment + 1}/{segments}')
         elif view.kind == 'end':

@@ -35,13 +35,21 @@ class CpuUsage:
         return 100.0 * (1 - (idle - last[1]) / (total - last[0]))
 
 
-def ram_percent(path=PROC_MEMINFO):
-    """Belegter Arbeitsspeicher in Prozent (MemTotal - MemAvailable)."""
+def meminfo(path=None):
+    """/proc/meminfo als Dict (Werte in kB), None wenn nicht lesbar."""
     try:
-        with open(path, encoding='ascii') as f:
-            info = {line.split(':')[0]: int(line.split()[1]) for line in f if ':' in line}
+        with open(path or PROC_MEMINFO, encoding='ascii') as f:
+            return {line.split(':')[0]: int(line.split()[1]) for line in f if ':' in line}
+    except (OSError, ValueError, IndexError):
+        return None
+
+
+def ram_percent(path=None):
+    """Belegter Arbeitsspeicher in Prozent (MemTotal - MemAvailable)."""
+    info = meminfo(path)
+    try:
         return 100.0 * (1 - info['MemAvailable'] / info['MemTotal'])
-    except (OSError, ValueError, IndexError, KeyError, ZeroDivisionError):
+    except (TypeError, KeyError, ZeroDivisionError):
         return None
 
 

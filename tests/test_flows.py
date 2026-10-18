@@ -373,7 +373,7 @@ POINTS = [[200, 100], [800, 110], [210, 500], [790, 490]]
 def drag(start, end):
     return [('-EDITGRAPH-', {'-EDITGRAPH-': start}),
             ('-EDITGRAPH-', {'-EDITGRAPH-': end}),
-            '-EDITGRAPH-+UP']
+            '-EDITGRAPH_UP-']
 
 
 def test_editor_speichern_ohne_aenderung(win, monkeypatch):
@@ -506,7 +506,7 @@ def test_editor_lupe_in_der_gegenueberliegenden_ecke(win, monkeypatch, grab, end
     seen = []
     script(win, monkeypatch, [('-EDITGRAPH-', {'-EDITGRAPH-': grab}), ('-EDITGRAPH-', {'-EDITGRAPH-': end}),
                               lambda: seen.append(magnifier_corner(win)),
-                              '-EDITGRAPH-+UP', lambda: seen.append(magnifier_corner(win)), '-EDIT_SAVE-'])
+                              '-EDITGRAPH_UP-', lambda: seen.append(magnifier_corner(win)), '-EDIT_SAVE-'])
     flows.edit_section_points('Ganze Scheibe', FrameCam(), POINTS)
     # Waehrend des Ziehens sichtbar, nach dem Loslassen weg.
     assert seen == [corner, None]

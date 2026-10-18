@@ -20,15 +20,14 @@ set -euo pipefail
 # shellcheck source=targetdisplay-boot-lib.sh
 . "$(dirname "$(readlink -f "$0")")/targetdisplay-boot-lib.sh"
 
-COUNT_FILE="$BOOT_DIR/.targetdisplay-reboot-count"
 MAX_REBOOTS=5
 
-_write_count_file() { echo "$1" > "$COUNT_FILE"; }
+_write_count_file() { echo "$1" > "$REBOOT_COUNT_FILE"; }
 write_count() { with_boot_rw _write_count_file "$1"; }
 
 count=0
-if [ -f "$COUNT_FILE" ]; then
-  count=$(cat "$COUNT_FILE" 2>/dev/null || true)
+if [ -f "$REBOOT_COUNT_FILE" ]; then
+  count=$(cat "$REBOOT_COUNT_FILE" 2>/dev/null || true)
 fi
 # Eine leere oder beschaedigte Zaehlerdatei (z.B. nach Stromausfall waehrend
 # des Schreibens) zaehlt als 0; sonst braeche die Rechnung unten unter
