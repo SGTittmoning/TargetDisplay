@@ -297,6 +297,11 @@ class MainScreen:
         self.zoom_center = []
 
     def tap_video(self, event, values):
+        # Zoomen nur, solange ein Bild zu sehen ist: im Timer und bei
+        # "Video aus" bliebe ein Tipp sonst unbemerkt bis zum naechsten
+        # Livebild stehen.
+        if self.mode() not in ('live', 'replay'):
+            return
         x, y = values['-VIDEO-']
         if self.zoom_center == []:
             # Erster Tipp: Mittelpunkt des Ausschnitts.
