@@ -10,6 +10,7 @@ jede Änderung am Handbuch, egal von wem.
 | `Benutzerhandbuch.html` | Textquelle und gestaltete Fassung, Grundlage für das PDF |
 | `Benutzerhandbuch.pdf` | Druckfassung (A4), aus der HTML-Datei erzeugt |
 | `screenshots/NN_*.png` | Abbildungen, `NN` = Abbildungsnummer |
+| `nummern.py` | erzeugt aus den Screenshots 01, 08 und 09 die Fassungen `*_nummern.png` mit Nummernmarken (nach jeder Neuerstellung der Screenshots ausführen) |
 | `assets/fake_scheibe.png` | künstliches Kamerabild für Screenshots (siehe unten) |
 
 - Die HTML-Datei ist die einzige Textquelle. Es gibt keine weitere Fassung, die mitgepflegt werden muss.
