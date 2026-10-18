@@ -246,6 +246,17 @@ def test_pin_aendern_ungleiche_wiederholung_fragt_neu(win, monkeypatch, limiter,
     assert limiter.successes == 1
 
 
+def test_pin_aendern_meldet_ungleiche_wiederholung(win, monkeypatch, limiter, saved_pins):
+    titles = []
+    monkeypatch.setattr(flows.time, 'sleep', lambda s: titles.append(win['-PIN_TITLE-'].widget.cget('text')))
+    script(win, monkeypatch, ['4', '7', '1', '1', '-PIN_OK-',
+                              '2', '5', '8', '0', '-PIN_OK-',
+                              '9', '9', '9', '9', '-PIN_OK-',
+                              '-PIN_CANCEL-'])
+    assert flows.change_pin_flow('4711', forced=False) is None
+    assert titles == ['PINs stimmen nicht überein']
+
+
 @pytest.mark.parametrize('steps', [
     ['-PIN_CANCEL-'],
     ['4', '7', '1', '1', '-PIN_OK-', '-PIN_CANCEL-'],
@@ -540,6 +551,20 @@ def test_menue_pin_aendern(win, monkeypatch, saved, limiter, saved_pins):
                               '2', '5', '8', '0', '-PIN_OK-'])
     assert flows.run_settings_flow(FrameCam(), POINTS, DETAIL, STANDS, '4711') is True
     assert saved_pins == ['2580']
+
+
+def test_menue_pin_aendern_abbrechen_zurueck_ins_menue(win, monkeypatch, saved, limiter, saved_pins):
+    pages = []
+    real_show = flows.show_page
+    monkeypatch.setattr(flows, 'show_page', lambda key: (pages.append(key), real_show(key))[1])
+    script(win, monkeypatch, ['-MENU_PIN-',
+                              '4', '7', '1', '1', '-PIN_OK-',
+                              '-PIN_CANCEL-',
+                              '-MENU_BACK-'])
+    assert flows.run_settings_flow(FrameCam(), POINTS, DETAIL, STANDS, '4711') is False
+    assert saved_pins == []
+    # Nach dem Abbrechen wieder das Menue, erst "Zurueck" fuehrt hinaus.
+    assert pages[-2:] == ['-MENUVIEW-', '-MAINVIEW-']
 
 
 def test_menue_neustart_abbrechen(win, monkeypatch, saved):
