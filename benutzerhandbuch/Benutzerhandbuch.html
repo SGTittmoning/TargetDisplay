@@ -288,6 +288,8 @@ footer{
   /* Abb. 1 etwas kleiner, damit die Legende der Kopfzeile noch auf
      dieselbe Seite passt. */
   #hauptbildschirm > figure.plate:first-of-type img { max-height: 62mm; }
+  /* Abb. 2 kleiner, damit "Zoom im Detail" noch auf die Seite des Fussbereichs passt. */
+  figure.fig-small img { max-height: 60mm; }
   /* Verhindert, dass ein Absatz mitten im Satz getrennt wird - erzwingt
      mindestens 3 Zeilen vor/nach einem Seitenumbruch innerhalb eines
      Absatzes (sonst wandert der ganze Absatz auf die naechste Seite). */
@@ -433,8 +435,8 @@ footer{
           <li><span class="legend-num zoom">1</span><div><b>Ganze Scheibe</b><p>Zeigt die komplette Zielscheibe in der Übersicht &ndash; die Standardansicht.</p></div></li>
           <li><span class="legend-num zoom">2</span><div><b>Innen Scheibe</b><p>Vergrößert auf den inneren Bereich der Scheibe mit den hohen Ringen (eigener, separat kalibrierter Ausschnitt).</p></div></li>
           <li><span class="legend-num zoom">3</span><div><b>Reset</b><p>Setzt Zoomstufe und eine manuelle Verschiebung (Zoom, Punkt&nbsp;4) auf &bdquo;Ganze Scheibe&ldquo; zurück. Nur aktiv, wenn es etwas zurückzusetzen gibt.</p></div></li>
-          <li><span class="legend-num zoom">4</span><div><b>Tippen auf das Kamerabild</b><p>Der erste Tipp vergrößert das Bild auf die normale Stufe (3x), die getippte Stelle rückt in die Mitte. Jeder weitere Tipp in den Randbereich (links, rechts, oben oder unten) verschiebt den Ausschnitt ein Stück in diese Richtung; ein Tipp in die Bildmitte ändert nichts. Über &bdquo;Reset&ldquo; (Zoom, Punkt&nbsp;3) kommt man zur ganzen Ansicht zurück. Während eines Timers und bei &bdquo;Video aus&ldquo; hat ein Tipp keine Wirkung.</p></div></li>
-          <li><span class="legend-num zoom">5</span><div><b>Zoomfelder</b><p>Unten rechts im Kamerabild: <b>+</b> wählt die nächste Stufe, <b>&minus;</b> geht eine Stufe zurück. Ohne Vergrößerung ist <b>&minus;</b> blass, auf der höchsten Stufe <b>+</b>.</p></div></li>
+          <li><span class="legend-num zoom">4</span><div><b>Tippen auf das Kamerabild</b><p>Der erste Tipp vergrößert das Bild auf die erste Stufe, die getippte Stelle rückt in die Mitte. Halbtransparente Dreiecke am Bildrand zeigen, in welche Richtungen sich der Ausschnitt noch verschieben lässt; am Rand verschwindet das Dreieck dieser Richtung. Jeder weitere Tipp in den Randbereich (links, rechts, oben oder unten) verschiebt den Ausschnitt um ein Viertel des sichtbaren Bildes in diese Richtung; ein Tipp in die Bildmitte ändert nichts. Über &bdquo;Reset&ldquo; (Zoom, Punkt&nbsp;3) kommt man zur ganzen Ansicht zurück. Während eines Timers und bei &bdquo;Video aus&ldquo; hat ein Tipp keine Wirkung.</p></div></li>
+          <li><span class="legend-num zoom">5</span><div><b>Zoomfelder</b><p>Erscheinen unten rechts im Kamerabild, sobald durch einen Tipp ins Bild vergrößert wurde: <b>+</b> wählt die größte Stufe, <b>&minus;</b> geht eine Stufe zurück und blendet die Felder auf der ersten Stufe wieder aus. Auf der größten Stufe ist <b>+</b> blass.</p></div></li>
         </ol>
         </div>
 
@@ -469,8 +471,8 @@ footer{
         <div class="grp">
         <h3 id="zoom-detail">Zoom im Detail</h3>
         <p><b>Ganze Scheibe</b> und <b>Innen Scheibe</b> wählen die Ansicht. Beide Knöpfe bleiben blau, auch der gerade gültige. Ob <b>Innen Scheibe</b> oder ein vergrößerter Ausschnitt aktiv ist, zeigt der <b>Reset</b>-Knopf: Er ist nur dann farbig, wenn es etwas zurückzusetzen gibt (siehe Abb. 2).</p>
-        <p>Die Vergrößerung beim Tippen ist in beiden Ansichten gleich scharf: Es gibt zwei Stufen, 3x (normal) und 6,3x (maximal), gemessen an <b>Ganze Scheibe</b>. In <b>Innen Scheibe</b> ist das Bild schon vergrößert, dort wirken dieselben Stufen entsprechend schwächer. Die Stufe wählt man mit den Zoomfeldern <b>+</b> und <b>&minus;</b> unten rechts im Bild (Zoom, Punkt&nbsp;5). Ein Tipp auf <b>Ganze Scheibe</b> oder <b>Innen Scheibe</b> nimmt die Vergrößerung wieder zurück, <b>Reset</b> stellt Ansicht und Vergrößerung in einem Schritt zurück.</p>
-        <figure class="plate">
+        <p>Die Vergrößerung hat zwei Stufen. Die größte Stufe ist für beide Ansichten gleich: Sie zeigt das Bild so stark vergrößert, wie es die Kamera noch scharf wiedergibt. Die erste Stufe liegt auf halbem Weg zwischen der gewählten Ansicht und dieser größten Stufe. In <b>Innen Scheibe</b>, die schon vergrößert ist, beginnt der Weg deshalb weiter oben als in <b>Ganze Scheibe</b>. Ein Tipp ins Bild wählt die erste Stufe; danach erscheinen unten rechts die Felder (Zoom, Punkt&nbsp;5): <b>+</b> wählt die größte Stufe, <b>&minus;</b> geht zurück. Ein Tipp auf <b>Ganze Scheibe</b> oder <b>Innen Scheibe</b> nimmt die Vergrößerung wieder zurück, <b>Reset</b> stellt Ansicht und Vergrößerung in einem Schritt zurück.</p>
+        <figure class="plate fig-small">
           <img src="screenshots/02_hauptbildschirm_innen_scheibe.png" alt="Zoomstufe Innen Scheibe aktiv">
           <figcaption class="fig-note">Abb. 2 &ndash; Innen Scheibe ist aktiv (Ganze Scheibe bleibt ebenfalls blau) &ndash; erkennbar am farbigen Reset-Knopf.</figcaption>
         </figure>

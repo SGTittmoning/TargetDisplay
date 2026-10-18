@@ -91,17 +91,15 @@ def crop(image, zoom_factor, center):
     return image
 
 
-# Stufen des manuellen Zooms (Tippen ins Bild, siehe crop()), absolut bezogen
-# auf das Bild "Ganze Scheibe": die normale Stufe und das Maximum, das die
-# Kamera noch sauber aufloest: Innen Scheibe am Stand 1 ist 2,1-fach
-# vergroessert, mit der normalen Stufe (3x) ergibt das 6,3x.
-# In "Innen Scheibe" liegt die Ansicht schon darueber; dort wirkt die Stufe
-# entsprechend schwaecher (siehe screenlogic.Viewport).
-VIDEO_ZOOM_FACTOR = 3
+# Hoechste Vergroesserung des manuellen Zooms (Tippen ins Bild, siehe crop()),
+# absolut bezogen auf das Bild "Ganze Scheibe": das, was die Kamera noch sauber
+# aufloest. Am Stand 1 ist Innen Scheibe 2,1-fach vergroessert; mit weiteren
+# 3x ergibt das 6,3x. Die erste Stufe liegt auf halbem Weg von der gewaehlten
+# Ansicht zu diesem Wert (siehe screenlogic.Viewport).
 VIDEO_ZOOM_MAX = 6.3
 
 
-def clamp_zoom_center(center, zoom_factor=VIDEO_ZOOM_FACTOR):
+def clamp_zoom_center(center, zoom_factor):
     # Begrenzt zoom_center (x %, y %) dauerhaft. crop() begrenzt nur fuer die
     # Anzeige; ohne diese Grenze wuerde zoom_center bei wiederholtem Tippen an
     # den Rand immer weiter wandern, und der Rueckweg braeuchte entsprechend

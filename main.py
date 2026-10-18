@@ -58,7 +58,7 @@ BLINK_SWITCH_SEC = 1
 # Rand um die beiden Ausschnitte beim Zuschnitt des Kamerabilds (Pixel).
 CROP_MARGIN = 15
 
-VERSION = '0.13.7'
+VERSION = '0.13.8'
 
 
 # Ergebnis des Assistenten: alles, was der Hauptbildschirm zum Start braucht.
@@ -183,6 +183,8 @@ class MainScreen:
         self.last_rec_frame_id = -1
         self.replay_started_at = self.clock()
         self.last_replay_key = None
+        # Art des gerade gezeigten Replay-Bilds ('frame', 'start', 'separator', 'end').
+        self.replay_kind = None
         self.last_date_str = None
         self.last_time_str = None
         # FPS und Systemwerte im Fussbereich, ein-/ausgeblendet per Tipp.
@@ -332,6 +334,11 @@ class MainScreen:
         # Livebild stehen.
         if self.mode not in ('live', 'replay'):
             return
+        # Die roten Replay-Bilder (Start, Trennung, Ende) laufen nicht durch den
+        # Zoom und zeigen weder Dreiecke noch Felder: dort bewirkt ein Tipp
+        # nichts, weder Zoom noch Verschieben.
+        if self.mode == 'replay' and self.replay_kind != 'frame':
+            return
         x, y = values['-VIDEO-']
         hit = self.view.hit(x, y)
         if hit == 'in':
@@ -388,6 +395,9 @@ class MainScreen:
             self.mode = 'replay'
             self.replay_started_at = self.clock()
             self.last_replay_key = None
+            self.replay_kind = None
+        # Art des gerade gezeigten Replay-Bilds ('frame', 'start', 'separator', 'end').
+        self.replay_kind = None
 
     def replay_end(self, event, values):
         # Zurueck zum Livebild. Die Aufnahme bleibt fuer ein weiteres Replay
@@ -416,6 +426,7 @@ class MainScreen:
             self.replay_end(None, None)
             self.update_controls()
             return
+        self.replay_kind = view.kind
         segments = len(self.recording.windows)
         counter = replay.counter_text(view, segments)
         # Neu zeichnen nur, wenn sich Bild, Zaehler (Zehntelsekunden) oder

@@ -273,7 +273,8 @@ def test_zoomfelder_im_bild_schalten_die_stufen(monkeypatch):
     rects = s.screen.view._control_rects()
     cx = lambda r: ((r[0] + r[2]) / 2 * 100 / 300, (r[1] + r[3]) / 2 * 100 / 300)  # noqa: E731
     plus, minus = cx(rects['in']), cx(rects['out'])
-    s.send('-VIDEO-', {'-VIDEO-': plus}).run(0.2)
+    # Die Felder gibt es erst nach dem Tipp ins Bild: davor zoomt ein Tipp dorthin normal.
+    s.send('-VIDEO-', {'-VIDEO-': (50, 50)}).run(0.2)
     assert s.screen.view.step == 1 and s.window.controls['zoom_center'] is not None
     s.send('-VIDEO-', {'-VIDEO-': plus}).run(0.2)
     assert s.screen.view.step == 2
@@ -281,7 +282,6 @@ def test_zoomfelder_im_bild_schalten_die_stufen(monkeypatch):
     assert s.screen.view.step == 1
     s.send('-VIDEO-', {'-VIDEO-': minus}).run(0.2)
     assert s.screen.view.step == 0 and s.window.controls['zoom_center'] is None
-    # Ein Tipp aufs Feld vergroessert nicht zusaetzlich um die getippte Stelle.
     assert s.screen.view.center is None
 
 
@@ -293,11 +293,26 @@ def test_zoomfelder_im_timer_ohne_wirkung(monkeypatch):
     assert s.screen.view.step == 0
 
 
-def test_zoomfelder_sind_im_livebild_sichtbar(monkeypatch):
+def test_zoomfelder_erst_mit_tipp_zoom_sichtbar(monkeypatch):
     s = Screen(monkeypatch)
-    s.run(0.5)
-    x0, y0, x1, y1 = s.screen.view._control_rects()['out']
-    assert s.window.draws[-1][y0:y1, x0:x1].mean() < 100
+    view = s.screen.view
+    real = view.render_with_controls
+    plain = []
+
+    def spy(raw):
+        out = real(raw)
+        plain.append(np.array_equal(out, view.render(raw)))
+        return out
+    monkeypatch.setattr(view, 'render_with_controls', spy)
+    s.run(0.6)
+    # Ohne Tipp-Zoom: Bild ohne Felder und Dreiecke.
+    assert plain and all(plain)
+    plain.clear()
+    s.send('-VIDEO-', {'-VIDEO-': (50, 50)}).run(0.6)
+    assert plain and not any(plain[1:])
+    plain.clear()
+    s.send('-RESETZOOM-').run(0.6)
+    assert plain and all(plain)
 
 
 def test_vergroesserung_der_innen_scheibe_aus_den_ausschnitten():
@@ -313,8 +328,53 @@ def test_maximum_passt_zur_innen_scheibe_von_stand_1():
     import transformlib
     full = np.array([[92, 662], [1052, 514], [368, 1359], [1170, 1319]])
     detail = np.array([[387, 839], [805, 792], [489, 1182], [901, 1170]])
-    # Innen Scheibe ist dort gut 2,1-fach vergroessert; mit der normalen Stufe
+    # Innen Scheibe ist dort gut 2,1-fach vergroessert; mit weiteren 3x
     # ergibt das das Maximum.
     magnification = main.MainScreen.detail_magnification(full, detail)
     assert magnification == pytest.approx(2.11, abs=0.01)
-    assert magnification * transformlib.VIDEO_ZOOM_FACTOR == pytest.approx(transformlib.VIDEO_ZOOM_MAX, abs=0.1)
+    assert magnification * 3 == pytest.approx(transformlib.VIDEO_ZOOM_MAX, abs=0.1)
+
+
+def field_center(s, name):
+    x0, y0, x1, y1 = s.screen.view._control_rects()[name]
+    return (x0 + x1) / 2 * 100 / 300, (y0 + y1) / 2 * 100 / 300
+
+
+def tap_at(s, point):
+    s.send('-VIDEO-', {'-VIDEO-': point}).run(0.1)
+
+
+def test_tippen_im_replay_auf_roten_bildern_ohne_wirkung(monkeypatch):
+    s = Screen(monkeypatch)
+    s.send('-TIMER_5_3_7-').run(72).send('-REPLAY-')
+    # Startbild: rot, weder Felder noch Zoom oder Verschieben wirken.
+    s.run(0.3)
+    assert s.screen.replay_kind == 'start'
+    tap_at(s, field_center(s, 'in'))
+    tap_at(s, (50, 50))
+    assert (s.screen.view.step, s.screen.view.center) == (0, None)
+    # Auf einem Aufnahmebild wirken Zoom, Felder und Verschieben.
+    s.run(1.5)
+    assert s.screen.replay_kind == 'frame'
+    tap_at(s, (50, 50))
+    assert s.screen.view.step == 1
+    center = s.screen.view.center
+    tap_at(s, (95, 50))
+    assert s.screen.view.center[0] > center[0]
+    tap_at(s, field_center(s, 'in'))
+    assert s.screen.view.step == 2
+
+
+def test_zoomfelder_reagieren_im_replay_nicht_beim_trennbild(monkeypatch):
+    s = Screen(monkeypatch)
+    s.send('-TIMER_5_3_7-').run(72).send('-REPLAY-').run(1.5)
+    s.send('-VIDEO-', {'-VIDEO-': (50, 50)}).run(0.1)
+    for _ in range(200):
+        if s.screen.replay_kind == 'separator':
+            break
+        s.run(0.05)
+    assert s.screen.replay_kind == 'separator'
+    before = (s.screen.view.step, s.screen.view.center)
+    for point in (field_center(s, 'in'), field_center(s, 'out'), (50, 50), (95, 50)):
+        tap_at(s, point)
+    assert (s.screen.view.step, s.screen.view.center) == before
