@@ -43,6 +43,20 @@ def _close_quietly(container):
         print(f"camera.py: Fehler beim Schliessen ignoriert ({type(e).__name__})", file=sys.stderr)
 
 
+def open_container(url):
+    """Oeffnet den Kamerastream mit den Einstellungen der App (Timeouts,
+    Decoder-Threads); auch fuer tools/latenz_messung.py."""
+    # options={"rtmp_live": "live"} bewusst weggelassen: fuehrte mit ffmpeg
+    # 4.3.9+rpt1 und PyAV 10.0.0 zu einem Segfault in av.open() (Ursache
+    # nicht geklaert).
+    container = av.open(url, timeout=(OPEN_TIMEOUT_SEC, READ_TIMEOUT_SEC))
+    vstream = container.streams.video[0]
+    # SLICE-Threading spart auf dem Pi 4 rund 10-13 % CPU-Zeit pro Frame.
+    vstream.codec_context.thread_type = "SLICE"
+    vstream.codec_context.thread_count = 4
+    return container
+
+
 class Camera:
     def __init__(self, stream_url, reconnect_delay=2, crop_region=None):
         self.stream_url = stream_url
@@ -85,15 +99,7 @@ class Camera:
             return self.frame_id, self.last_frame_time, self.start_time
 
     def _open_container(self):
-        # options={"rtmp_live": "live"} bewusst weggelassen: fuehrte mit ffmpeg
-        # 4.3.9+rpt1 und PyAV 10.0.0 zu einem Segfault in av.open() (Ursache
-        # nicht geklaert).
-        container = av.open(self.stream_url, timeout=(OPEN_TIMEOUT_SEC, READ_TIMEOUT_SEC))
-        vstream = container.streams.video[0]
-        # SLICE-Threading spart auf dem Pi 4 rund 10-13 % CPU-Zeit pro Frame.
-        vstream.codec_context.thread_type = "SLICE"
-        vstream.codec_context.thread_count = 4
-        return container
+        return open_container(self.stream_url)
 
     def _buffer_loop(self):
         container = None
