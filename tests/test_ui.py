@@ -150,3 +150,25 @@ def test_auswaehlen_erst_mit_markiertem_stand(win):
     win.root.update()
     assert str(button.cget('state')) == 'normal'
     assert button.cget('bg') == ui.ACCENT_ZOOM
+
+
+def test_popup_zeigt_text_und_schliesst_mit_ok(win):
+    seen = []
+
+    def press_ok():
+        top = next(w for w in win.root.winfo_children() if isinstance(w, ui.tk.Toplevel))
+        seen.extend(c.cget('text') for c in top.winfo_children())
+        next(c for c in top.winfo_children() if c.cget('text') == 'OK').invoke()
+
+    win.root.after(200, press_ok)
+    win.popup('Speichern fehlgeschlagen.')
+    assert seen == ['Speichern fehlgeschlagen.', 'OK']
+    # Danach ist das Fenster wieder bedienbar (kein Grab mehr aktiv).
+    assert win.root.grab_current() is None
+
+
+@pytest.mark.parametrize('x, y, expected', [(390, 195, (50.0, 25.0)), (0, 780, (0.0, 100.0))])
+def test_tipp_ins_bild_wird_in_prozent_umgerechnet(win, x, y, expected):
+    win.video_canvas.event_generate('<Button-1>', x=x, y=y)
+    win.root.update()
+    assert win._queue.get_nowait() == ('-VIDEO-', {'-VIDEO-': expected})

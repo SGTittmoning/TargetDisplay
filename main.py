@@ -133,8 +133,11 @@ class MainScreen:
     (check_stream) und Uhr (update_clock)."""
 
     def __init__(self, window, video_size, cap, section_full, section_detail, stands,
-                 settings_pin, replay_settings, blank_logo):
+                 settings_pin, replay_settings, blank_logo, clock=time.monotonic):
         self.window = window
+        # Monotone Uhr fuer Timer, Replay, Blinken und Stream-Ueberwachung; in
+        # Tests ersetzbar.
+        self.clock = clock
         self.video_size = video_size
         self.cap = cap
         self.section_full = section_full
@@ -146,21 +149,21 @@ class MainScreen:
 
         # 'live' (Kamerabild), 'blank' (Video aus), 'timer' oder 'replay'.
         self.mode = 'live'
-        self.video_resumed_at = time.monotonic()
+        self.video_resumed_at = self.clock()
         self.blink = False
         # Rohes Referenzbild beim Blinken, None bis zum naechsten Livebild.
         self.blink_ref = None
         self.last_frame_id = -1
         self.fps = FpsCounter()
         self.timer_type = None
-        self.timer_started_at = time.monotonic()
+        self.timer_started_at = self.clock()
         self.last_timer_state = None
         # Aufnahme der Gruenphasen der letzten Timer-Serie (replay.py). Bleibt
         # nach "Replay Ende" erhalten und wird erst beim Start der naechsten
         # Serie verworfen.
         self.recording = None
         self.last_rec_frame_id = -1
-        self.replay_started_at = time.monotonic()
+        self.replay_started_at = self.clock()
         self.last_replay_key = None
         self.last_date_str = None
         self.last_time_str = None
@@ -224,7 +227,7 @@ class MainScreen:
     def check_stream(self):
         # Nur im Livebild pruefen (siehe stale_check_due). camera.py verbindet
         # sich im Hintergrund selbst neu.
-        if not (stale_check_due(self.mode, time.monotonic(), self.video_resumed_at, STREAM_STALE_TIMEOUT_SEC)
+        if not (stale_check_due(self.mode, self.clock(), self.video_resumed_at, STREAM_STALE_TIMEOUT_SEC)
                 and self.cap.is_stale(STREAM_STALE_TIMEOUT_SEC, STREAM_STARTUP_TIMEOUT_SEC)):
             return
         # snapshot() liefert die Werte aus einem einzigen Lock-Zugriff, sie
@@ -232,9 +235,9 @@ class MainScreen:
         frame_id, last_frame_time, start_time = self.cap.snapshot()
         if frame_id == 0:
             print(f"Kein Kamera-Frame innerhalb der Startup-Frist von {STREAM_STARTUP_TIMEOUT_SEC}s erhalten "
-                  f"(seit Prozessstart: {time.monotonic() - start_time:.1f}s) - beende Prozess fuer Neustart.", file=sys.stderr)
+                  f"(seit Prozessstart: {self.clock() - start_time:.1f}s) - beende Prozess fuer Neustart.", file=sys.stderr)
         else:
-            print(f"Kein neuer Kamera-Frame seit {time.monotonic() - last_frame_time:.1f}s "
+            print(f"Kein neuer Kamera-Frame seit {self.clock() - last_frame_time:.1f}s "
                   f"(Schwelle {STREAM_STALE_TIMEOUT_SEC}s, zuletzt frame_id={frame_id}) - beende Prozess fuer Neustart.", file=sys.stderr)
         # Eigener Exit-Code 2 (Stream-Ausfall), im Journal als
         # "TargetDisplay beendet (exit 2)" von play_it sichtbar.
@@ -255,7 +258,7 @@ class MainScreen:
             # Der FPS-Zaehler laeuft weiter, die FPS-Anzeige
             # pausiert nur (wie beim Timer).
             self.mode = 'live'
-            self.video_resumed_at = time.monotonic()
+            self.video_resumed_at = self.clock()
         elif self.mode == 'live':
             self.mode = 'blank'
             self.window.draw_image(blank_frame(self.video_size, self.blank_logo))
@@ -326,7 +329,7 @@ class MainScreen:
             return
         self.mode = 'timer'
         self.timer_type = event
-        self.timer_started_at = time.monotonic()
+        self.timer_started_at = self.clock()
         self.last_timer_state = None
         # Die Aufnahme der vorigen Serie zuerst freigeben, dann die neue
         # anlegen - sonst lagen kurzzeitig beide im RAM.
@@ -338,7 +341,7 @@ class MainScreen:
         if self.mode != 'timer':
             return
         self.mode = 'live'
-        self.video_resumed_at = time.monotonic()
+        self.video_resumed_at = self.clock()
         if self.recording is not None:
             print(f"Replay-Aufnahme: {self.recording.frame_count()} Bilder, "
                   f"{self.recording.bytes / 1024 / 1024:.0f} MB, jedes {self.recording.step}. Bild", file=sys.stderr)
@@ -350,7 +353,7 @@ class MainScreen:
         # hier faengt zusaetzlich ein Ereignis ab, das trotz Sperre ankommt.
         if self.has_recording() and self.mode == 'live':
             self.mode = 'replay'
-            self.replay_started_at = time.monotonic()
+            self.replay_started_at = self.clock()
             self.last_replay_key = None
 
     def replay_end(self, event, values):
@@ -359,7 +362,7 @@ class MainScreen:
         if self.mode != 'replay':
             return
         self.mode = 'live'
-        self.video_resumed_at = time.monotonic()
+        self.video_resumed_at = self.clock()
         self.last_frame_id = -1
 
     # -- Bildanzeige -------------------------------------------------------
@@ -373,7 +376,7 @@ class MainScreen:
             self.draw_timer()
 
     def draw_replay(self):
-        view = self.recording.view(time.monotonic() - self.replay_started_at)
+        view = self.recording.view(self.clock() - self.replay_started_at)
         if view is None:
             # Nach dem roten Schlussbild endet das Replay von selbst, wie mit
             # "Replay Ende".
@@ -415,19 +418,19 @@ class MainScreen:
         # neuer Treffer verloren.
         if self.blink and self.blink_ref is None:
             self.blink_ref = frame
-        if self.blink and int(time.monotonic() / BLINK_SWITCH_SEC) % 2 == 1:
+        if self.blink and int(self.clock() / BLINK_SWITCH_SEC) % 2 == 1:
             self.window.draw_image(self.view.render(self.blink_ref))
         else:
             self.window.draw_image(self.view.render(frame))
         self.update_fps()
 
     def update_fps(self):
-        text = self.fps.tick(time.monotonic())
+        text = self.fps.tick(self.clock())
         if text is not None:
             self.window_fps.update(text)
 
     def draw_timer(self):
-        elapsed = time.monotonic() - self.timer_started_at
+        elapsed = self.clock() - self.timer_started_at
         # Aufnahme: jedes neue Kamerabild geht an die Aufnahme, die nur
         # behaelt, was in eine Gruenphase faellt.
         if not self.recording.is_complete(elapsed):

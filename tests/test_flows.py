@@ -167,6 +167,14 @@ def test_pin_richtig_oeffnet(win, monkeypatch, limiter):
     assert (limiter.failures, limiter.successes) == (0, 1)
 
 
+@pytest.mark.parametrize('entered', ['47', '', '471', '47110', '0471', '47111'])
+def test_nur_die_exakte_pin_oeffnet(win, monkeypatch, limiter, entered):
+    # Anfangsstueck, leere Eingabe, zu lang: alles falsch.
+    script(win, monkeypatch, list(entered) + ['-PIN_OK-', '-PIN_CANCEL-'])
+    assert flows.check_pin('4711') is False
+    assert (limiter.failures, limiter.successes) == (1, 0)
+
+
 def test_pin_falsch_oeffnet_nicht(win, monkeypatch, limiter):
     script(win, monkeypatch, ['1', '2', '3', '4', '-PIN_OK-', '-PIN_CANCEL-'])
     assert flows.check_pin('4711') is False
