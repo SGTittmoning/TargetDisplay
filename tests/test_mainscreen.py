@@ -87,6 +87,13 @@ def test_zoom_wirkt_im_replay(monkeypatch):
     assert int(tapped[-1][200, 150, 1]) > int(detail[-1][200, 150, 1])
 
 
+def test_latenz_aus_der_konfiguration_kommt_an(monkeypatch):
+    s = Screen(monkeypatch, replay_settings=(2.5, 300 * 1024 * 1024))
+    s.send('-TIMER_10-').run(0.1)
+    assert s.screen.recording.latency == 2.5
+    assert s.screen.recording.budget_bytes == 300 * 1024 * 1024
+
+
 def test_timer_zeigt_countdown_und_ende(monkeypatch):
     s = Screen(monkeypatch)
     s.send('-TIMER_20-')
