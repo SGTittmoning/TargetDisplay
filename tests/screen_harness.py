@@ -3,6 +3,7 @@ gezeichneten Bilder und Button-Zustaende, eine falsche Uhr und eine
 Ersatzkamera laufen im Gleichschritt. So laufen Timer und Replay in
 Millisekunden statt in Echtzeit."""
 from collections import deque
+from datetime import datetime, timedelta
 
 import numpy as np
 
@@ -24,6 +25,19 @@ class FakeClock:
 
     def __call__(self):
         return self.now
+
+
+class FakeDatetime:
+    """Ersatz fuer datetime in main.py: die Uhrzeit laeuft mit der falschen
+    Uhr. Standard: kurz vor Mitternacht, damit der Datumswechsel vorkommt."""
+
+    def __init__(self, clock, start=datetime(2026, 10, 18, 23, 59, 55)):
+        self.clock = clock
+        self.t0 = clock()
+        self.start = start
+
+    def now(self):
+        return self.start + timedelta(seconds=self.clock() - self.t0)
 
 
 class FakeCamera:
@@ -79,6 +93,7 @@ class FakeWindow:
         self.events = deque()
         self.draws = []
         self.controls = None
+        self.infos = []
         self.elems = {}
 
     def __getitem__(self, key):
@@ -95,7 +110,7 @@ class FakeWindow:
                              has_recording=has_recording)
 
     def show_info(self, *args, **kwargs):
-        pass
+        self.infos.append((args, kwargs))
 
 
 class Screen:
@@ -106,6 +121,7 @@ class Screen:
         self.window = FakeWindow()
         monkeypatch.setattr(ui, 'window', self.window)
         self.cap = FakeCamera(self.clock)
+        monkeypatch.setattr(main, 'datetime', FakeDatetime(self.clock))
         self.screen = main.MainScreen(self.window, VIDEO_SIZE, self.cap, SECTION_FULL, SECTION_DETAIL,
                                       [], '4711', replay_settings, None, clock=self.clock)
 
@@ -121,6 +137,7 @@ class Screen:
             while self.window.events:
                 self.screen.handle(*self.window.events.popleft())
             self.screen.draw()
+            self.screen.update_clock()
             if each:
                 each()
             self.clock.now += TICK

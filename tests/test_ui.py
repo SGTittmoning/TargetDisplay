@@ -122,6 +122,8 @@ def test_kurzer_standname_bleibt(win):
 def test_tipp_auf_version_oder_infozeile_meldet_info(win):
     version_row = win['-FPS-'].widget.master
     version = next(w for w in version_row.winfo_children() if str(w.cget('text')).startswith('V: '))
+    # open_window baut das Fenster mit der Version 'test'.
+    assert version.cget('text') == 'V: test'
     for widget in (version, version_row, win['-USAGE-'].widget, win['-TEMP-'].widget.master):
         assert posted_by_click(win, widget) == ['-INFO-']
 
