@@ -274,6 +274,9 @@ footer{
      zugehoerige Legende auf eine Seite passen. */
   figure.plate img { max-height: 88mm; width: auto; display: block; margin: 0 auto; }
   section.restricted figure.plate img { max-height: 52mm; }
+  /* Abb. 1 etwas kleiner, damit die Legende der Kopfzeile noch auf
+     dieselbe Seite passt. */
+  #hauptbildschirm > figure.plate:first-of-type img { max-height: 62mm; }
   /* Verhindert, dass ein Absatz mitten im Satz getrennt wird - erzwingt
      mindestens 3 Zeilen vor/nach einem Seitenumbruch innerhalb eines
      Absatzes (sonst wandert der ganze Absatz auf die naechste Seite). */
