@@ -18,6 +18,7 @@
     group: root
     mode: '0700'
   loop:
+    - targetdisplay-boot-lib.sh
     - targetdisplay-overlay-lib.sh
     - targetdisplay-update.sh
     - targetdisplay-writable.sh

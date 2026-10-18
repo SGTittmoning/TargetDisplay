@@ -99,6 +99,26 @@ reset() { : > "$STUB_LOG"; rm -rf "$BOOT"; mkdir -p "$BOOT"; unset BOOTRO OVERLA
 calls() { grep -c "$1" "$STUB_LOG" 2>/dev/null || true; }
 lineof() { grep -n -m1 "$1" "$STUB_LOG" 2>/dev/null | cut -d: -f1; }
 
+# =========================================================== boot-lib.sh
+echo "boot-lib.sh (with_boot_rw)"
+LIB="$BIN/targetdisplay-boot-lib.sh"
+
+reset; BOOTRO=0 bash -c ". '$LIB'; with_boot_rw touch '$BOOT/x'"; rc=$?
+check "ro: Befehl ausgefuehrt" 0 "$rc"
+check "ro: Datei angelegt" 1 "$([ -f "$BOOT/x" ] && echo 1 || echo 0)"
+check "ro: erst rw, dann wieder ro" "rw ro" "$(grep -o 'remount,r[ow]' "$STUB_LOG" | sed 's/remount,//' | xargs)"
+
+reset; BOOTRO=0 bash -c ". '$LIB'; with_boot_rw false"; rc=$?
+check "ro, Befehl scheitert: Exit-Code weitergereicht" 1 "$rc"
+check "ro, Befehl scheitert: wieder ro" 1 "$(calls 'remount,ro')"
+
+reset; bash -c ". '$LIB'; with_boot_rw true"
+check "rw: kein remount" 0 "$(calls 'remount')"
+
+reset; BOOTRO=0 FAIL_MOUNT_RW=1 bash -c ". '$LIB'; with_boot_rw touch '$BOOT/x'" 2>/dev/null; rc=$?
+check "remount rw scheitert: Exit 1" 1 "$rc"
+check "remount rw scheitert: Befehl nicht ausgefuehrt" 0 "$([ -f "$BOOT/x" ] && echo 1 || echo 0)"
+
 # =========================================================== save-*.sh
 echo "save-*.sh"
 

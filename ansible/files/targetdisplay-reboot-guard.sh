@@ -13,29 +13,18 @@
 # (z.B. die Kamera) behoben ist, kommt der Stand von selbst wieder.
 #
 # Der Zaehler liegt auf der Boot-Partition: sie uebersteht auch ein aktives
-# Overlay-Root. Ist sie per "bootro" read-only (Normalzustand), wird sie
-# zum Schreiben kurz beschreibbar gemountet.
-#
-# "[ cond ] && cmd" als letzte Anweisung einer Funktion bricht unter
-# "set -e" ab, wenn cond falsch ist (siehe targetdisplay-overlay-lib.sh);
-# deshalb enden die Funktionen mit "return 0".
+# Overlay-Root (Schreiben siehe targetdisplay-boot-lib.sh).
 
 set -euo pipefail
 
-BOOT_DIR="/boot/firmware"
+# shellcheck source=targetdisplay-boot-lib.sh
+. "$(dirname "$(readlink -f "$0")")/targetdisplay-boot-lib.sh"
+
 COUNT_FILE="$BOOT_DIR/.targetdisplay-reboot-count"
 MAX_REBOOTS=5
 
-bootro_now() { raspi-config nonint get_bootro_now; }   # 0=aktiv (ro), 1=inaktiv (rw)
-
-write_count() {
-  local was_ro=0
-  [ "$(bootro_now)" -eq 0 ] && was_ro=1
-  [ "$was_ro" -eq 1 ] && mount -o remount,rw "$BOOT_DIR"
-  echo "$1" > "$COUNT_FILE"
-  [ "$was_ro" -eq 1 ] && mount -o remount,ro "$BOOT_DIR"
-  return 0
-}
+_write_count_file() { echo "$1" > "$COUNT_FILE"; }
+write_count() { with_boot_rw _write_count_file "$1"; }
 
 count=0
 if [ -f "$COUNT_FILE" ]; then

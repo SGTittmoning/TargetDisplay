@@ -12,9 +12,9 @@
 #   damit weder die kleine FAT-Partition vollschreiben noch ungueltige Dateien
 #   ablegen, die den naechsten Start stoeren.
 # - Geschrieben wird atomar (temp-Datei + mv statt direktem "cat >").
-# - Die Boot-Partition wird ueber einen EXIT-Trap in JEDEM Fall (auch bei
-#   Fehler, z.B. voller Partition) wieder read-only gesetzt, sofern sie es
-#   vorher war.
+# - Die Boot-Partition wird in jedem Fall (auch bei Fehler, z.B. voller
+#   Partition) wieder read-only gesetzt, sofern sie es vorher war
+#   (with_boot_rw, targetdisplay-boot-lib.sh).
 #
 # WICHTIG: "[ cond ] && cmd" als LETZTE Anweisung einer Funktion ist unter
 # "set -e" gefaehrlich (siehe targetdisplay-reboot-guard.sh) - deshalb
@@ -22,28 +22,30 @@
 
 set -euo pipefail
 
-BOOT_DIR="/boot/firmware"
+# shellcheck source=targetdisplay-boot-lib.sh
+. "$(dirname "$(readlink -f "$0")")/targetdisplay-boot-lib.sh"
+
 MAX_BYTES=65536
 
 _save_payload=""
-_save_tmp=""
-_save_was_ro=0
 
 _save_cleanup() {
   [ -z "$_save_payload" ] || rm -f "$_save_payload"
-  # Nach einem erfolgreichen mv existiert die temp-Datei nicht mehr; nach
-  # einem Fehler wird sie entfernt, egal ob die Partition vorher ro war.
-  [ -z "$_save_tmp" ] || rm -f "$_save_tmp"
-  if [ "$_save_was_ro" -eq 1 ]; then
-    mount -o remount,ro "$BOOT_DIR"
-  fi
   return 0
 }
 
+# Atomar schreiben; nach einem Fehler bleibt keine temp-Datei liegen.
+_save_write() {
+  local target="$1"
+  if cp "$_save_payload" "$target.tmp" && mv "$target.tmp" "$target"; then
+    return 0
+  fi
+  rm -f "$target.tmp"
+  return 1
+}
+
 save_boot_json() {
-  local name="$1"
-  local target="$BOOT_DIR/$name"
-  _save_tmp="$target.tmp"
+  local target="$BOOT_DIR/$1"
   trap _save_cleanup EXIT
 
   _save_payload=$(mktemp)
@@ -57,13 +59,5 @@ save_boot_json() {
     exit 1
   fi
 
-  # 0=aktiv (ro), 1=inaktiv (rw)
-  if [ "$(raspi-config nonint get_bootro_now)" -eq 0 ]; then
-    _save_was_ro=1
-    mount -o remount,rw "$BOOT_DIR"
-  fi
-
-  cp "$_save_payload" "$_save_tmp"
-  mv "$_save_tmp" "$target"
-  return 0
+  with_boot_rw _save_write "$target"
 }
