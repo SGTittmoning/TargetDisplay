@@ -307,10 +307,13 @@ def test_video_aus_wechselt_das_symbol(gradient, monkeypatch):
 
 def test_kopf_und_fusszeile(gradient, monkeypatch):
     probes = {}
+    before = datetime.now().strftime('%d.%m.%Y')
     run_app(gradient, [(1.5, '-PROBE-a-'), (1.2, '-PROBE-b-')], monkeypatch, probes=probes)
     a, b = probes['a'], probes['b']
     assert a['stand'] == 'Teststand'
-    assert a['date'] == datetime.now().strftime('%d.%m.%Y')
+    # Datum von vor und nach dem Lauf: ein Test um Mitternacht darf nicht
+    # scheitern (der Datumswechsel selbst steht in test_mainscreen.py).
+    assert a['date'] in (before, datetime.now().strftime('%d.%m.%Y'))
     assert re.fullmatch(r'\d{2}:\d{2}:\d{2}', a['time'])
     # Die Uhr laeuft weiter.
     assert b['time'] != a['time']

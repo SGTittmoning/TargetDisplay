@@ -151,3 +151,14 @@ class Screen:
 def gray(frame):
     """Grauwert (Bildnummer) in der Bildmitte, Kanal 0."""
     return int(frame[frame.shape[0] // 2, frame.shape[1] // 2, 0])
+
+
+RED = (0, 0, 255)
+BLACK = (0, 0, 0)
+
+
+def below_center(frame):
+    """Farbe (BGR) unterhalb der Bildmitte: im Replay frei von Beschriftung
+    (Nummer oben links, Zaehler oben rechts, Text in der Mitte)."""
+    height, width = frame.shape[:2]
+    return tuple(int(v) for v in frame[int(height * 0.7), width // 2])

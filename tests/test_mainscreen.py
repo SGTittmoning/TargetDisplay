@@ -2,7 +2,7 @@
 Timer, Replay, Blinken und Zoom ohne Tk und ohne Wartezeiten."""
 import re
 
-from screen_harness import Screen, gray
+from screen_harness import BLACK, RED, Screen, below_center, gray
 
 import overlays
 import timerlib
@@ -71,7 +71,7 @@ def replay_frames(s, seconds):
     start = len(s.window.draws)
     s.run(seconds)
     # Nur Aufnahmebilder: nicht rot (Start-/Trennbild).
-    return [d for d in s.window.draws[start:] if is_replay(d) and tuple(d[200, 150]) != (0, 0, 255)]
+    return [d for d in s.window.draws[start:] if is_replay(d) and below_center(d) != RED]
 
 
 def test_zoom_wirkt_im_replay(monkeypatch):
@@ -173,7 +173,7 @@ def test_replay_zeigt_titel_trenntext_und_zaehler(monkeypatch):
 
 
 def red(frame):
-    return tuple(frame[200, 150]) == (0, 0, 255)
+    return below_center(frame) == RED
 
 
 def test_replay_serie_mit_trennbild(monkeypatch):
@@ -205,8 +205,8 @@ def test_replay_kein_bild_bei_ausgefallener_kamera(monkeypatch):
     s.run(25)
     shown = [d for d in s.window.draws[start:] if is_replay(d) and not red(d)]
     # "kein Bild" ist schwarz, danach folgt das Kamerabild.
-    assert any(tuple(d[250, 150]) == (0, 0, 0) for d in shown)
-    assert any(tuple(d[250, 150]) != (0, 0, 0) for d in shown)
+    assert any(below_center(d) == BLACK for d in shown)
+    assert any(below_center(d) != BLACK for d in shown)
 
 
 def test_naechster_timer_ersetzt_die_aufnahme(monkeypatch):
