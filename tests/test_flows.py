@@ -473,6 +473,51 @@ def test_editor_speichert_unveraenderte_punkte_bei_echter_aufloesung(win, monkey
     assert np.allclose(flows.edit_section_points('Ganze Scheibe', SizedCam(width, height), points), points)
 
 
+def canvas_items(win, kind, **options):
+    canvas = win.editor_canvas
+    return [canvas.coords(i) for i in canvas.find_all()
+            if canvas.type(i) == kind and all(canvas.itemcget(i, k) == v for k, v in options.items())]
+
+
+def magnifier_corner(win):
+    """Linke obere Ecke der Lupe (gelber Rahmen), oder None."""
+    frames = canvas_items(win, 'rectangle', outline='yellow')
+    return tuple(frames[0][:2]) if frames else None
+
+
+@pytest.mark.parametrize('grab, end, corner', [
+    # Punkt oben links -> Lupe unten rechts, und umgekehrt.
+    ((200, 100), (210, 110), (ui.EDITOR_MAX_W - flows.MAG_SIZE - 10, ui.EDITOR_MAX_H - flows.MAG_SIZE - 10)),
+    ((790, 490), (780, 480), (10, 10)),
+])
+def test_editor_lupe_in_der_gegenueberliegenden_ecke(win, monkeypatch, grab, end, corner):
+    seen = []
+    script(win, monkeypatch, [('-EDITGRAPH-', {'-EDITGRAPH-': grab}), ('-EDITGRAPH-', {'-EDITGRAPH-': end}),
+                              lambda: seen.append(magnifier_corner(win)),
+                              '-EDITGRAPH-+UP', lambda: seen.append(magnifier_corner(win)), '-EDIT_SAVE-'])
+    flows.edit_section_points('Ganze Scheibe', FrameCam(), POINTS)
+    # Waehrend des Ziehens sichtbar, nach dem Loslassen weg.
+    assert seen == [corner, None]
+
+
+def test_editor_zeigt_den_anderen_ausschnitt_grau(win, monkeypatch):
+    seen = []
+    script(win, monkeypatch, [lambda: seen.append(canvas_items(win, 'line', fill='#c0c0c0')), '-EDIT_SAVE-'])
+    flows.edit_section_points('Innen Scheibe', FrameCam(), DETAIL, other_points=POINTS)
+    gray_lines = seen[0]
+    assert len(gray_lines) == 4
+    # Die grauen Linien verbinden genau die Punkte des anderen Ausschnitts.
+    ends = {tuple(map(round, line[i:i + 2])) for line in gray_lines for i in (0, 2)}
+    assert ends == {tuple(p) for p in POINTS}
+
+
+def test_editor_ohne_anderen_ausschnitt_keine_grauen_linien(win, monkeypatch):
+    seen = []
+    script(win, monkeypatch, [lambda: seen.append(canvas_items(win, 'line', fill='#c0c0c0')), '-EDIT_SAVE-'])
+    flows.edit_section_points('Ganze Scheibe', FrameCam(), POINTS)
+    assert seen == [[]]
+
+
 def test_editor_ohne_kamerabild(win, monkeypatch):
     messages = []
     monkeypatch.setattr(flows, 'popup', messages.append)
