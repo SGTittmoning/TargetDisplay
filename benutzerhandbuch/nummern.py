@@ -16,7 +16,7 @@ INK, ZOOM, BLINK, TIMER, GREY, ADMIN = '#201c18', '#2f6690', '#a85a15', '#a3311f
 MARKS = {
     '01_hauptbildschirm': [
         (160, 32, 1, INK), (356, 16, 2, INK), (416, 16, 3, INK),
-        (22, 120, 1, ZOOM), (175, 120, 2, ZOOM), (328, 120, 3, ZOOM), (520, 50, 4, ZOOM),
+        (22, 120, 1, ZOOM), (175, 120, 2, ZOOM), (328, 120, 3, ZOOM), (520, 50, 4, ZOOM), (1112, 738, 5, ZOOM),
         (22, 274, 1, BLINK), (175, 274, 2, BLINK), (328, 274, 3, BLINK),
         (22, 406, 1, TIMER), (175, 406, 2, TIMER), (328, 406, 3, TIMER),
         (22, 498, 4, TIMER), (328, 498, 5, TIMER),

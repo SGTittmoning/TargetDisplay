@@ -1,3 +1,4 @@
+import os
 import sys
 import time
 from collections import namedtuple
@@ -57,7 +58,7 @@ BLINK_SWITCH_SEC = 1
 # Rand um die beiden Ausschnitte beim Zuschnitt des Kamerabilds (Pixel).
 CROP_MARGIN = 15
 
-VERSION = '0.13.6'
+VERSION = '0.13.7'
 
 
 # Ergebnis des Assistenten: alles, was der Hauptbildschirm zum Start braucht.
@@ -73,7 +74,8 @@ def load_logo():
     # nicht versionierte Datei ab; sie hat Vorrang vor dem Platzhalter im Repo.
     # Fehlt beides, bleibt der Bildschirm bei "Video aus" schwarz.
     for path in (LOGO_CUSTOM, LOGO_DEFAULT):
-        logo = cv2.imread(path, cv2.IMREAD_UNCHANGED)
+        # Ohne Vorpruefung meldet OpenCV jede fehlende Datei im Journal.
+        logo = cv2.imread(path, cv2.IMREAD_UNCHANGED) if os.path.exists(path) else None
         if logo is not None:
             return logo
     print(f"{LOGO_DEFAULT} nicht gefunden - Blank-Screen-Wasserzeichen bleibt leer.", file=sys.stderr)

@@ -5,7 +5,7 @@
 # Release, das install.yml und update-app.yml ausrollen: ein Git-Tag, kein
 # Branch. So erreicht ein Merge nach main die Staende erst mit dem
 # naechsten Release. Muss zu VERSION in main.py passen (Test).
-targetdisplay_release: v0.13.6
+targetdisplay_release: v0.13.7
 
 targetdisplay_service_user: targetdisplay
 targetdisplay_app_path: "/home/{{ targetdisplay_service_user }}/TargetDisplay"
