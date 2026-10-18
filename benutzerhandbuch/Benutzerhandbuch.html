@@ -475,7 +475,7 @@ footer{
           <li>Bei <b>5&nbsp;&times;&nbsp;3&nbsp;Sek.</b> werden die roten Phasen übersprungen. Zwischen zwei Durchgängen erscheint für eine Sekunde ein rotes Trennbild &bdquo;Durchgang 2/5&ldquo; usw.</li>
           <li>Alle Zoomfunktionen (Ganze Scheibe, Innen Scheibe, Tippen ins Bild, Reset) wirken im Replay wie im Live-Bild.</li>
           <li>Blinken, Timer und Video aus sind während des Replays gesperrt. Ein aktives Blinken läuft nach <b>Replay&nbsp;Ende</b> mit derselben Referenz weiter.</li>
-          <li>Die Aufnahme wird erst beim Start des nächsten Timers verworfen und durch die neue ersetzt. Ein Neustart des Geräts löscht sie ebenfalls.</li>
+          <li>Die Aufnahme wird erst beim Start des nächsten Timers verworfen und durch die neue ersetzt. Ein Neustart der Anzeige oder des Geräts löscht sie ebenfalls.</li>
           <li>Wird ein Timer mit <b>Timer&nbsp;Stop</b> vorzeitig beendet, lässt sich das bis dahin Aufgezeichnete abspielen.</li>
           <li><b>Replay</b> ist gesperrt, solange keine Aufnahme vorliegt, während eines Timers und bei ausgeblendetem Video.</li>
           <li>Fiel die Kamera während der Aufnahme aus, zeigt das Replay an dieser Stelle &bdquo;kein Bild&ldquo;.</li>
@@ -523,7 +523,7 @@ footer{
           <li><span class="legend-num admin">5</span><div><b>Neu starten</b><p>Öffnet die Neustart-Bestätigung.</p></div></li>
           <li><span class="legend-num admin">6</span><div><b>Zurück</b><p>Verlässt das Menü ohne Änderung.</p></div></li>
         </ol>
-        <div class="callout"><p><b>Wichtig:</b> Wird über &bdquo;Ganze/Innen Scheibe&ldquo;, &bdquo;Stand wechseln&ldquo; <b>oder &bdquo;PIN ändern&ldquo;</b> tatsächlich etwas gespeichert, startet das Gerät danach automatisch neu &ndash; einheitlich für alle vier Aktionen, auch wenn ein Neustart für die PIN-Änderung allein technisch nicht nötig wäre. Ein Abbruch in einem Unterdialog führt dagegen nur einen Schritt zurück zu diesem Menü.</p></div>
+        <div class="callout"><p><b>Wichtig:</b> Wird über &bdquo;Ganze/Innen Scheibe&ldquo;, &bdquo;Stand wechseln&ldquo; <b>oder &bdquo;PIN ändern&ldquo;</b> etwas gespeichert, startet die Anzeige danach automatisch neu und zeigt kurz darauf wieder den Hauptbildschirm mit den neuen Einstellungen. Ein Abbruch in einem Unterdialog führt dagegen nur einen Schritt zurück zu diesem Menü.</p></div>
 
         <div class="grp">
         <h3 id="editor">Ausschnitte-Editor (Kalibrierung)</h3>
@@ -535,7 +535,7 @@ footer{
           <li><span class="legend-num admin">2</span><div><b>Vier nummerierte Eckpunkte</b><p>Per Fingertipp greifbar und auf eine Scheibenecke ziehbar. Eine gelbe Linie verbindet sie zur Kontrolle; der jeweils andere, bereits kalibrierte Ausschnitt wird hellgrau zur Orientierung eingeblendet.</p></div></li>
           <li><span class="legend-num admin">3</span><div><b>Lupe</b><p>Blendet beim Ziehen eines Punkts automatisch eine vergrößerte Detailansicht ein (springt in die gegenüberliegende Ecke, um den Punkt nie zu verdecken) &ndash; erleichtert millimetergenaue Platzierung.</p></div></li>
           <li><span class="legend-num admin">4</span><div><b>Neues Bild</b><p>Holt ein frisches Kamerabild, ohne gesetzte Punkte zu verwerfen.</p></div></li>
-          <li><span class="legend-num admin">5</span><div><b>Speichern und neu starten</b><p>Übernimmt die neue Positionierung dauerhaft, startet das Gerät neu.</p></div></li>
+          <li><span class="legend-num admin">5</span><div><b>Speichern und neu starten</b><p>Übernimmt die neue Positionierung dauerhaft, die Anzeige startet neu.</p></div></li>
           <li><span class="legend-num admin">6</span><div><b>Abbrechen</b><p>Verwirft alle Änderungen, zurück zum Einstellungen-Menü.</p></div></li>
         </ol>
 
@@ -546,7 +546,7 @@ footer{
         </div>
         <ol class="legend">
           <li><span class="legend-num admin">1</span><div><b>Liste der Stände</b><p>Ein Fingertipp markiert einen Eintrag.</p></div></li>
-          <li><span class="legend-num admin">2</span><div><b>Auswählen</b><p>Übernimmt den markierten Stand; Gerät verbindet sich mit dessen Kamera und startet neu.</p></div></li>
+          <li><span class="legend-num admin">2</span><div><b>Auswählen</b><p>Übernimmt den markierten Stand; die Anzeige startet neu und zeigt das Bild dieses Standes.</p></div></li>
           <li><span class="legend-num admin">3</span><div><b>Abbrechen</b><p>Zurück zum Einstellungen-Menü ohne Änderung.</p></div></li>
         </ol>
         <div class="callout"><p><b>Wichtig:</b> Nach einem Stand-Wechsel muss in aller Regel auch die Kalibrierung (siehe oben) für den neuen Stand geprüft werden, da sich Kamerawinkel und -position je Stand unterscheiden.</p></div>
@@ -561,7 +561,7 @@ footer{
             <figure class="plate" style="margin-top:14px;"><img src="screenshots/12_neuen_pin_eingeben.png" alt="Neuen PIN eingeben"><figcaption class="fig-note">Abb. 12 &ndash; Neuen PIN eingeben.</figcaption></figure>
           </li>
           <li style="margin-bottom:10px;">Die neue PIN muss zur Kontrolle ein zweites Mal eingegeben werden. Stimmen beide Eingaben nicht überein, erscheint kurz &bdquo;PINs stimmen nicht überein&ldquo;, und es geht zurück zur neuen-PIN-Eingabe &ndash; die bereits bestätigte aktuelle PIN muss dafür nicht erneut eingegeben werden.</li>
-          <li style="margin-bottom:10px;">Nach zweimal übereinstimmender Eingabe wird die neue PIN gespeichert. Genau wie bei den anderen Einstellungsänderungen startet das Gerät danach automatisch neu, damit der neue PIN sauber übernommen wird.</li>
+          <li style="margin-bottom:10px;">Nach zweimal übereinstimmender Eingabe wird die neue PIN gespeichert, danach startet die Anzeige automatisch neu.</li>
           <li><b>Abbrechen</b> ist in jedem Schritt möglich und verwirft die Änderung.</li>
         </ol>
         </div>
