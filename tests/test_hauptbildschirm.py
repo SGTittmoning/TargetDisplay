@@ -422,3 +422,23 @@ def test_kopf_und_fusszeile(gradient, monkeypatch):
     assert b['time'] != a['time']
     match = re.fullmatch(r'FPS: (\d+\.\d) - Frame (\d+)', b['fps'])
     assert match and float(match.group(1)) > 0 and int(match.group(2)) > 1
+
+
+# ------------------------------------------------------ Infozeile im Fuss
+
+def test_tipp_auf_den_fussbereich_blendet_infos_ein_und_aus(gradient, monkeypatch):
+    import sysinfo
+    monkeypatch.setattr(sysinfo, 'ram_percent', lambda: 9.2)
+    monkeypatch.setattr(sysinfo, 'cpu_temperature', lambda: 81.0)
+    monkeypatch.setattr(sysinfo, 'load_average', lambda: (1.0, 0.5, 0.25))
+    probes = {}
+    run_app(gradient, [(1.5, '-PROBE-start-'), (0.1, '-INFO-'), (1.5, '-PROBE-an-'),
+                       (0.1, '-INFO-'), (0.3, '-PROBE-aus-')], monkeypatch, probes=probes)
+    start, an, aus = probes['start'], probes['an'], probes['aus']
+    assert not start['fps_visible'] and start['info'] == ' |  | '
+    assert an['fps_visible'] and an['fps'].startswith('FPS')
+    assert re.fullmatch(r'CPU (\d+|-) % {3}RAM 9 % \| 81 °C \| Last 1,00 0,50 0,25', an['info'])
+    assert not aus['fps_visible'] and aus['info'] == ' |  | '
+    # Das Bedienfeld bleibt bedienbar wie vorher.
+    assert an['clickable'] == start['clickable']
+

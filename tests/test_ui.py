@@ -116,3 +116,22 @@ def test_langer_standname_wird_gekuerzt(win):
 def test_kurzer_standname_bleibt(win):
     win.set_stand_name('Stand 1')
     assert win['-STANDNAME-'].widget.cget('text') == 'Stand 1'
+
+
+def test_tipp_auf_version_oder_infozeile_meldet_info(win):
+    version_row = win['-FPS-'].widget.master
+    version = next(w for w in version_row.winfo_children() if str(w.cget('text')).startswith('V: '))
+    for widget in (version, version_row, win['-USAGE-'].widget, win['-TEMP-'].widget.master):
+        assert posted_by_click(win, widget) == ['-INFO-']
+
+
+def test_infozeile_ein_und_aus(win):
+    ui.show_info(True, usage='CPU 1 %   RAM 2 %', temperature='81 °C', level='hot', load='Last 1,00')
+    win.root.update()
+    assert win['-FPS-'].widget.winfo_manager() != ''
+    assert win['-TEMP-'].widget.cget('text') == '81 °C'
+    assert win['-TEMP-'].widget.cget('fg') == ui.TEMP_COLORS['hot']
+    ui.show_info(False)
+    win.root.update()
+    assert win['-FPS-'].widget.winfo_manager() == ''
+    assert [win[k].widget.cget('text') for k in ('-USAGE-', '-TEMP-', '-LOAD-')] == ['', '', '']

@@ -9,6 +9,7 @@ import numpy as np
 import camera
 import process_handlers
 import replay
+import sysinfo
 import timerlib
 import transformlib as tl
 import ui
@@ -41,7 +42,7 @@ from settings_store import (
     save_sections_override,
 )
 from transformlib import VIDEO_ZOOM_FACTOR, clamp_zoom_center
-from ui import WIN_CLOSED, apply_controls, set_stand_name, show_page
+from ui import WIN_CLOSED, apply_controls, set_stand_name, show_info, show_page
 from watchdog import stale_check_due
 
 # Takt der Hauptschleife (Neuzeichnen, Timer, Uhr). Tasteneingaben wecken
@@ -64,7 +65,7 @@ CROP_MARGIN = 15
 PAN_STEP = 5
 PAN_EDGE_LOW, PAN_EDGE_HIGH = 30, 70
 
-VERSION = '0.13.3'
+VERSION = '0.13.4'
 
 
 def run_setup_wizard(cfg):
@@ -171,6 +172,9 @@ class MainScreen:
         self.last_replay_key = None
         self.last_date_str = None
         self.last_time_str = None
+        # FPS und Systemwerte im Fussbereich, ein-/ausgeblendet per Tipp.
+        self.info_visible = False
+        self.cpu_usage = sysinfo.CpuUsage()
 
         # Einmal nachschlagen statt in jedem Schleifendurchlauf.
         self.window_date = window['-DATE-']
@@ -206,10 +210,12 @@ class MainScreen:
             '-TIMER_STOP-': self.timer_stop,
             '-REPLAY-': self.replay_start_clicked,
             '-REPLAY_END-': self.replay_end,
+            '-INFO-': self.toggle_info,
         }
         for key in timerlib.TIMER_KEYS:
             self._handlers[key] = self.timer_start_clicked
         self.update_controls()
+        self.update_info()
 
     # -- Hilfen ------------------------------------------------------------
 
@@ -278,6 +284,23 @@ class MainScreen:
                 # Gespeichert: Prozess beenden (Exit 0), systemd startet
                 # ihn mit den neuen Werten neu.
                 sys.exit(0)
+
+    def toggle_info(self, event, values):
+        self.info_visible = not self.info_visible
+        # Erster Wert der CPU-Auslastung erst nach einer Sekunde Messzeit.
+        self.cpu_usage.percent()
+        self.update_info()
+
+    def update_info(self):
+        if not self.info_visible:
+            show_info(False)
+            return
+        temp = sysinfo.cpu_temperature()
+        show_info(True,
+                  usage=sysinfo.usage_text(self.cpu_usage.percent(), sysinfo.ram_percent()),
+                  temperature=sysinfo.temperature_text(temp),
+                  level=sysinfo.temperature_level(temp),
+                  load=sysinfo.load_text(sysinfo.load_average()))
 
     def zoom_full(self, event, values):
         self.zoom_level = 'full'
@@ -469,6 +492,9 @@ class MainScreen:
         if time_str != self.last_time_str:
             self.window_time.update(time_str)
             self.last_time_str = time_str
+            # Systemwerte im selben Takt, nur wenn eingeblendet.
+            if self.info_visible:
+                self.update_info()
 
 
 def main():

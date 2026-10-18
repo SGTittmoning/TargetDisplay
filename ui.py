@@ -59,6 +59,8 @@ NEUTRAL_BG = '#eef1f0'
 NEUTRAL_BORDER = '#dde3e1'
 NEUTRAL_FG = '#5a6570'
 DATETIME_BG = '#e3e8e6'
+# Temperatur in der Infozeile (siehe sysinfo.temperature_level).
+TEMP_COLORS = {'ok': FG_MUTED, 'warn': '#c17f27', 'hot': '#c0392b'}
 
 # Farben einer Button-Gruppe: Akzent (bedienbar), blasse Variante (gesperrt)
 # und Namensendung der gesperrten Icons (z.B. grid_zoom_muted.png).
@@ -457,16 +459,29 @@ class Window:
         stop_btn.grid(row=0, column=0, columnspan=3, sticky='nsew')
         replay_btn.grid(row=0, column=4, sticky='nsew')
 
-        # -- Footer, von unten gepackt: Version/FPS ganz unten, darueber Datum und
-        # Uhrzeit. Der freie Platz zwischen Buttons und Footer haelt ihn unten.
+        # -- Footer, von unten gepackt: Version/FPS ganz unten, darueber die
+        # Infozeile, darueber Datum und Uhrzeit. Der freie Platz zwischen Buttons
+        # und Footer haelt ihn unten. Im Normalfall steht nur die Version da; ein
+        # Tipp auf den Fussbereich blendet FPS und Systemwerte ein und wieder aus
+        # (-INFO-). Die Infozeile belegt ihre Hoehe auch leer, das Umschalten
+        # verschiebt also nichts.
         version_row = tk.Frame(left, bg=BG)
         version_row.pack(side='bottom', fill='x')
-        tk.Label(version_row, text='V: ' + self.version, font=('Helvetica', 11),
-                 bg=BG, fg=FG_MUTED).pack(side='left', padx=5, pady=(8, 0))
-        fps_label = tk.Label(version_row, text='', font=('Helvetica', 11),
-                              bg=BG, fg=FG_MUTED, anchor='w')
-        fps_label.pack(side='left', padx=5, pady=(8, 0))
-        self._reg('-FPS-', fps_label)
+        info_row = tk.Frame(left, bg=BG)
+        info_row.pack(side='bottom', fill='x')
+        footer_font = ('Helvetica', 11)
+        version_label = tk.Label(version_row, text='V: ' + self.version, font=footer_font, bg=BG, fg=FG_MUTED)
+        version_label.pack(side='left', padx=5, pady=(2, 0))
+        fps_label = tk.Label(version_row, text='', font=footer_font, bg=BG, fg=FG_MUTED, anchor='w')
+        self._reg('-FPS-', fps_label, show={'side': 'left', 'padx': 5, 'pady': (2, 0)})
+        info_labels = []
+        for key in ('-USAGE-', '-TEMP-', '-LOAD-'):
+            label = tk.Label(info_row, text='', font=footer_font, bg=BG, fg=FG_MUTED, anchor='w')
+            label.pack(side='left', padx=5, pady=(8, 0))
+            self._reg(key, label)
+            info_labels.append(label)
+        for w in (info_row, version_row, version_label, fps_label, *info_labels):
+            w.bind('<Button-1>', lambda e: self.post('-INFO-'))
 
         dt_frame = tk.Frame(left, bg=DATETIME_BG)
         dt_frame.pack(side='bottom', fill='x', pady=(0, 10))
@@ -613,6 +628,14 @@ def popup(message):
 
 def set_stand_name(name):
     window.set_stand_name(name or '')
+
+
+def show_info(visible, usage='', temperature='', level='ok', load=''):
+    """Blendet FPS und Systemwerte im Fussbereich ein oder aus."""
+    window['-FPS-'].update(visible=visible)
+    window['-USAGE-'].update(usage if visible else '')
+    window['-TEMP-'].update(temperature if visible else '', text_color=TEMP_COLORS[level])
+    window['-LOAD-'].update(load if visible else '')
 
 
 def set_icon_buttons(keys, enabled):
