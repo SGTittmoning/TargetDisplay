@@ -55,7 +55,7 @@ def test_klick_auf_die_ganze_flaeche_loest_aus(win, part):
 
 ALL = ('-FULL_VIDEO-', '-DETAIL_VIDEO-', '-RESETZOOM-', '-BLINK_START-', '-BLINK_REF-',
        '-BLINK_STOP-', '-TIMER_5_3_7-', '-TIMER_20-', '-TIMER_10-', '-TIMER_STOP-',
-       '-REPLAY-', '-TOGGLEVIDEO-')
+       '-REPLAY-', '-TOGGLEVIDEO-', '-SETTINGS-')
 ZOOM = ('-FULL_VIDEO-', '-DETAIL_VIDEO-')
 TIMERS = ('-TIMER_5_3_7-', '-TIMER_20-', '-TIMER_10-')
 
@@ -74,12 +74,12 @@ def clicked(win):
 
 
 @pytest.mark.parametrize('state, expected', [
-    (dict(mode='live'), {*ZOOM, '-BLINK_START-', *TIMERS, '-TOGGLEVIDEO-'}),
-    (dict(mode='live', has_recording=True), {*ZOOM, '-BLINK_START-', *TIMERS, '-REPLAY-', '-TOGGLEVIDEO-'}),
-    (dict(mode='live', zoom_level='detail'), {*ZOOM, '-RESETZOOM-', '-BLINK_START-', *TIMERS, '-TOGGLEVIDEO-'}),
-    (dict(mode='live', zoom_center=(40, 50)), {*ZOOM, '-RESETZOOM-', '-BLINK_START-', *TIMERS, '-TOGGLEVIDEO-'}),
-    (dict(mode='live', blink=True), {*ZOOM, '-BLINK_REF-', '-BLINK_STOP-', *TIMERS}),
-    (dict(mode='blank', has_recording=True, zoom_level='detail'), {'-TOGGLEVIDEO-'}),
+    (dict(mode='live'), {*ZOOM, '-BLINK_START-', *TIMERS, '-TOGGLEVIDEO-', '-SETTINGS-'}),
+    (dict(mode='live', has_recording=True), {*ZOOM, '-BLINK_START-', *TIMERS, '-REPLAY-', '-TOGGLEVIDEO-', '-SETTINGS-'}),
+    (dict(mode='live', zoom_level='detail'), {*ZOOM, '-RESETZOOM-', '-BLINK_START-', *TIMERS, '-TOGGLEVIDEO-', '-SETTINGS-'}),
+    (dict(mode='live', zoom_center=(40, 50)), {*ZOOM, '-RESETZOOM-', '-BLINK_START-', *TIMERS, '-TOGGLEVIDEO-', '-SETTINGS-'}),
+    (dict(mode='live', blink=True), {*ZOOM, '-BLINK_REF-', '-BLINK_STOP-', *TIMERS, '-SETTINGS-'}),
+    (dict(mode='blank', has_recording=True, zoom_level='detail'), {'-TOGGLEVIDEO-', '-SETTINGS-'}),
     (dict(mode='timer', blink=True, zoom_level='detail'), {'-TIMER_STOP-'}),
     (dict(mode='replay', blink=True, zoom_level='detail'), {*ZOOM, '-RESETZOOM-', '-REPLAY-'}),
 ])

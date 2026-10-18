@@ -279,6 +279,11 @@ class MainScreen:
             self.window_fps.update('')
 
     def open_settings(self, event, values):
+        # Die Sperren in ui.apply_controls verhindern das Ereignis im Timer und
+        # im Replay; die Pruefung hier faengt eines ab, das trotzdem ankommt
+        # (wie bei allen Handlern, die nur in bestimmten Modi gelten).
+        if self.mode not in ('live', 'blank'):
+            return
         if check_pin(self.settings_pin):
             if run_settings_flow(self.cap, self.section_full, self.section_detail, self.stands):
                 # Gespeichert: Prozess beenden (Exit 0), systemd startet

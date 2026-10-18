@@ -680,6 +680,9 @@ def apply_controls(mode, blink=False, zoom_level='full', zoom_center=None, has_r
     _replay_button(available=(live and has_recording) or replay, active=replay)
     # Video aus: im Livebild (nicht beim Blinken), Video ein: bei Video aus.
     _video_toggle(enabled=(live and not blink) or mode == 'blank', video_on=mode != 'blank')
+    # Einstellungen nur im Livebild und bei Video aus: das PIN-Feld laege sonst
+    # ueber dem laufenden Timer bzw. Replay.
+    _settings_button(enabled=live or mode == 'blank')
 
 
 def _replay_button(available, active):
@@ -691,6 +694,12 @@ def _replay_button(available, active):
     st['icon_off'] = window._icon('exit_timer_muted' if active else 'play_timer_muted')
     st['command_on'] = (lambda: window.post('-REPLAY_END-')) if active else (lambda: window.post('-REPLAY-'))
     set_icon_buttons(('-REPLAY-',), available)
+
+
+def _settings_button(enabled):
+    # Gesperrt wie _video_toggle ueber ein command, das nichts tut.
+    window['-SETTINGS-'].widget.config(
+        command=(lambda: window.post('-SETTINGS-')) if enabled else (lambda: None))
 
 
 def _video_toggle(enabled, video_on):

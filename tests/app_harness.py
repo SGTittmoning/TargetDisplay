@@ -127,7 +127,7 @@ class Driver(threading.Thread):
 MAIN_BUTTONS = ('-FULL_VIDEO-', '-DETAIL_VIDEO-', '-RESETZOOM-',
                 '-BLINK_START-', '-BLINK_REF-', '-BLINK_STOP-',
                 '-TIMER_5_3_7-', '-TIMER_20-', '-TIMER_10-', '-TIMER_STOP-',
-                '-REPLAY-', '-TOGGLEVIDEO-')
+                '-REPLAY-', '-TOGGLEVIDEO-', '-SETTINGS-')
 
 
 def clickable(window, key):
