@@ -69,5 +69,26 @@ SuccessExitStatus=1
 Restart=always
 RestartSec=2
 
+# Sandbox: begrenzt, was ein kompromittierter App-Prozess (z.B. ueber einen
+# Fehler im Video-Decoder) am System veraendern kann. Beschreibbar bleiben
+# nur das Home-Verzeichnis (App, venv, .Xauthority), /boot/firmware (die
+# sudo-Speicherskripte laufen im selben Mount-Namespace) und /var/log
+# (Xorg schreibt dort sein Log).
+# Bewusst nicht: NoNewPrivileges (bricht die sudo-Skripte), PrivateDevices
+# (Grafik und Touch), ProtectHome (App liegt unter /home).
+PrivateTmp=yes
+ProtectSystem=strict
+ReadWritePaths=/home/{{ targetdisplay_service_user }} /boot/firmware /var/log
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+
 [Install]
 WantedBy=multi-user.target
