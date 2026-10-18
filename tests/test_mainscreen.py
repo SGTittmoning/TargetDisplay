@@ -34,6 +34,28 @@ def test_replay_endet_von_selbst_zurueck_im_livebild(monkeypatch):
     assert s.mode == 'live' and s.window.controls['has_recording']
 
 
+def replay_frames(s, seconds):
+    start = len(s.window.draws)
+    s.run(seconds)
+    # Nur Aufnahmebilder: nicht rot (Start-/Trennbild).
+    return [d for d in s.window.draws[start:] if is_replay(d) and tuple(d[200, 150]) != (0, 0, 255)]
+
+
+def test_zoom_wirkt_im_replay(monkeypatch):
+    s = Screen(monkeypatch)
+    s.send('-TIMER_10-').run(21).send('-REPLAY-').run(2)
+    full = replay_frames(s, 1)
+    s.send('-DETAIL_VIDEO-')
+    detail = replay_frames(s, 1)
+    s.send('-VIDEO-', {'-VIDEO-': (80, 50)})
+    tapped = replay_frames(s, 1)
+    # Kanal 1 = x-Verlauf im Kamerabild: Innen Scheibe zeigt einen engeren
+    # Bereich, der Tipp-Zoom einen noch engeren, nach rechts verschoben.
+    span = [int(f[200, 225, 1]) - int(f[200, 75, 1]) for f in (full[-1], detail[-1], tapped[-1])]
+    assert span[0] > span[1] > span[2] > 0
+    assert int(tapped[-1][200, 150, 1]) > int(detail[-1][200, 150, 1])
+
+
 def test_timer_zeigt_countdown_und_ende(monkeypatch):
     s = Screen(monkeypatch)
     s.send('-TIMER_20-')
