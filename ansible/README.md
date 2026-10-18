@@ -98,7 +98,7 @@ Two different kinds of update, two different playbooks:
 
 | What | How | Touches git? |
 |---|---|---|
-| **OS packages** (`apt full-upgrade`, autoremove, clean) | `maintain.yml` (via `targetdisplay-update.sh`, handles the read-only dance and the reboots itself) | no |
+| **OS packages** (`apt full-upgrade`, autoremove, clean) | `maintain.yml` (via `targetdisplay-update.sh`, handles the read-only dance and the reboots itself, one stand at a time, checks overlay, read-only boot and service at the end) | no |
 | **App code** (a new commit on `main`, or another ref) | `update-app.yml` — checkout (`force: yes`), venv, `config.yml`, logo, time sync, boot logo, restart when anything changed; lifts and restores the read-only state itself, checks the overlayroot hook in the initramfs before locking and verifies afterwards that `/` is really mounted as `overlay`. Pin a ref with `-e targetdisplay_git_version=<branch\|tag\|commit>` | yes |
 | **Everything** (packages, hardening, scripts, units, app) | `install.yml` — refuses to run while the overlay is active (see below) | yes |
 
