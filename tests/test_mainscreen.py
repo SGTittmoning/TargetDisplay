@@ -325,23 +325,28 @@ def field_center(s, name):
     return (x0 + x1) / 2 * 100 / 300, (y0 + y1) / 2 * 100 / 300
 
 
-def test_zoomfelder_reagieren_im_replay_nicht_auf_roten_bildern(monkeypatch):
+def tap_at(s, point):
+    s.send('-VIDEO-', {'-VIDEO-': point}).run(0.1)
+
+
+def test_tippen_im_replay_auf_roten_bildern_ohne_wirkung(monkeypatch):
     s = Screen(monkeypatch)
     s.send('-TIMER_5_3_7-').run(72).send('-REPLAY-')
-    # Startbild: rot, die Felder sind nicht zu sehen.
+    # Startbild: rot, weder Felder noch Zoom oder Verschieben wirken.
     s.run(0.3)
     assert s.screen.replay_kind == 'start'
-    s.send('-VIDEO-', {'-VIDEO-': field_center(s, 'in')}).run(0.1)
-    assert s.screen.view.step == 0
-    # Ein Tipp woanders zoomt wie bisher und gilt fuer die folgenden Bilder.
-    s.send('-VIDEO-', {'-VIDEO-': (50, 50)}).run(0.1)
-    assert s.screen.view.step == 1
-    s.send('-VIDEO-', {'-VIDEO-': field_center(s, 'in')}).run(0.1)
-    assert s.screen.view.step == 1
-    # Auf einem Aufnahmebild wirken die Felder.
+    tap_at(s, field_center(s, 'in'))
+    tap_at(s, (50, 50))
+    assert (s.screen.view.step, s.screen.view.center) == (0, None)
+    # Auf einem Aufnahmebild wirken Zoom, Felder und Verschieben.
     s.run(1.5)
     assert s.screen.replay_kind == 'frame'
-    s.send('-VIDEO-', {'-VIDEO-': field_center(s, 'in')}).run(0.1)
+    tap_at(s, (50, 50))
+    assert s.screen.view.step == 1
+    center = s.screen.view.center
+    tap_at(s, (95, 50))
+    assert s.screen.view.center[0] > center[0]
+    tap_at(s, field_center(s, 'in'))
     assert s.screen.view.step == 2
 
 
@@ -354,6 +359,7 @@ def test_zoomfelder_reagieren_im_replay_nicht_beim_trennbild(monkeypatch):
             break
         s.run(0.05)
     assert s.screen.replay_kind == 'separator'
-    step = s.screen.view.step
-    s.send('-VIDEO-', {'-VIDEO-': field_center(s, 'in')}).run(0.1)
-    assert s.screen.view.step == step
+    before = (s.screen.view.step, s.screen.view.center)
+    for point in (field_center(s, 'in'), field_center(s, 'out'), (50, 50), (95, 50)):
+        tap_at(s, point)
+    assert (s.screen.view.step, s.screen.view.center) == before

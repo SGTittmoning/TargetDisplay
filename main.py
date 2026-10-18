@@ -334,12 +334,13 @@ class MainScreen:
         # Livebild stehen.
         if self.mode not in ('live', 'replay'):
             return
+        # Die roten Replay-Bilder (Start, Trennung, Ende) laufen nicht durch den
+        # Zoom und zeigen weder Dreiecke noch Felder: dort bewirkt ein Tipp
+        # nichts, weder Zoom noch Verschieben.
+        if self.mode == 'replay' and self.replay_kind != 'frame':
+            return
         x, y = values['-VIDEO-']
         hit = self.view.hit(x, y)
-        # Die roten Replay-Bilder (Start, Trennung, Ende) laufen nicht durch den
-        # Zoom und zeigen die Felder nicht: ein Tipp dorthin bewirkt nichts.
-        if hit and self.mode == 'replay' and self.replay_kind != 'frame':
-            return
         if hit == 'in':
             self.view.zoom_in()
         elif hit == 'out':
