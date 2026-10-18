@@ -343,3 +343,60 @@ def test_ersteinrichtung_ueberspringt_vorhandene_schritte(tmp_path, monkeypatch)
         monkeypatch.setattr(main, name, unexpected)
     draws = run_app(main, [(1.0, '-FULL_VIDEO-')], monkeypatch)
     assert len(draws) > 3
+
+
+def test_ersteinrichtung_wiederholt_schritte_nach_speicherfehler(tmp_path, monkeypatch):
+    # Jeder Schritt scheitert beim ersten Speichern und erscheint deshalb
+    # noch einmal; erst danach geht es weiter.
+    import json
+    main = load_app(tmp_path, monkeypatch, WIZARD_CONFIG)
+    import settings_store
+    with open(settings_store.STANDS_FILE, 'w') as f:
+        json.dump({'stands': WIZARD_STANDS}, f)
+
+    log = []
+    failed = set()
+
+    def fails_once(step):
+        if step in failed:
+            return False
+        failed.add(step)
+        return True
+
+    def save_active_stand(stand_id):
+        if fails_once('stand'):
+            log.append('stand fehlgeschlagen')
+            return False
+        with open(settings_store.ACTIVE_STAND_FILE, 'w') as f:
+            json.dump({'id': stand_id}, f)
+        return True
+
+    def save_sections(full, detail):
+        if fails_once('ausschnitte'):
+            log.append('ausschnitte fehlgeschlagen')
+            return False
+        with open(settings_store.SECTIONS_OVERRIDE_FILE, 'w') as f:
+            json.dump({'section_full': full, 'section_detail': detail}, f)
+        return True
+
+    def change_pin(current, forced):
+        log.append('pin')
+        # None: Speichern fehlgeschlagen (Meldung kommt aus flows).
+        return None if fails_once('pin') else '2580'
+
+    def edit(label, *args, **kwargs):
+        log.append(label)
+        return WIZARD_FULL if label == 'Ganze Scheibe' else WIZARD_DETAIL
+
+    monkeypatch.setattr(main, 'run_stand_select', lambda stands, forced: log.append('stand') or WIZARD_STANDS[0])
+    monkeypatch.setattr(main, 'save_active_stand', save_active_stand)
+    monkeypatch.setattr(main, 'wait_for_camera_frame', lambda cap: np.zeros((700, 700, 3), np.uint8))
+    monkeypatch.setattr(main, 'edit_section_points', edit)
+    monkeypatch.setattr(main, 'save_sections_override', save_sections)
+    monkeypatch.setattr(main, 'change_pin_flow', change_pin)
+
+    draws = run_app(main, [(1.0, '-FULL_VIDEO-')], monkeypatch)
+    assert log == ['stand', 'stand fehlgeschlagen', 'stand',
+                   'Ganze Scheibe', 'ausschnitte fehlgeschlagen', 'Ganze Scheibe', 'Innen Scheibe',
+                   'pin', 'pin']
+    assert len(draws) > 3
