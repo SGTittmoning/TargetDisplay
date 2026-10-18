@@ -172,7 +172,9 @@ class Viewport:
 
     def hit(self, x, y):
         """'in' oder 'out', wenn der Tipp bei (x, y) (Prozent) eines der beiden
-        Felder trifft, sonst None."""
+        Felder trifft, sonst None. Ohne Tipp-Zoom gibt es keine Felder."""
+        if not self.step:
+            return None
         px, py = x * self.video_size[0] / 100, y * self.video_size[1] / 100
         for name, (x0, y0, x1, y1) in self._control_rects().items():
             if x0 <= px < x1 and y0 <= py < y1:
@@ -180,12 +182,14 @@ class Viewport:
         return None
 
     def render_with_controls(self, raw):
-        """render() mit den Zoomfeldern im Bild ("-" ohne Tipp-Zoom und "+"
-        beim Maximum sind blass) und den Richtungsdreiecken."""
+        """render() mit den Zoomfeldern ("+" beim Maximum ist blass) und den
+        Richtungsdreiecken; beides nur, solange der Tipp-Zoom laeuft."""
         out = self.render(raw)
+        if not self.step:
+            return out
         self._draw_triangles(out)
         for name, (x0, y0, x1, y1) in self._control_rects().items():
-            enabled = not ((name == 'out' and self.step == 0) or (name == 'in' and self.step == 2))
+            enabled = not (name == 'in' and self.step == 2)
             roi = out[y0:y1, x0:x1]
             alpha = CONTROL_ALPHA if enabled else CONTROL_ALPHA_MUTED
             out[y0:y1, x0:x1] = (roi * (1 - alpha) + np.array(CONTROL_BG, np.float32) * alpha).astype(np.uint8)

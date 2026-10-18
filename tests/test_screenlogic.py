@@ -193,41 +193,44 @@ def test_ansicht_wechsel_hebt_beide_stufen_auf(view):
     assert (view.step, view.center) == (0, None)
 
 
-def test_zoomfelder_treffer_nur_auf_plus_und_minus():
+def test_zoomfelder_treffer_nur_auf_plus_und_minus_und_nur_mit_tipp_zoom():
     eye = np.eye(3, dtype=np.float64)
     view = sl.Viewport(eye, eye, (600, 400))
     rects = view._control_rects()
     pct = lambda x, y: (x * 100 / 600, y * 100 / 400)  # noqa: E731
+    centers = {name: pct((r[0] + r[2]) / 2, (r[1] + r[3]) / 2) for name, r in rects.items()}
+    # Ohne Tipp-Zoom gibt es keine Felder.
+    assert view.hit(*centers['in']) is None and view.hit(*centers['out']) is None
+    view.tap(50, 50)
     for name in ('in', 'out'):
-        x0, y0, x1, y1 = rects[name]
-        assert view.hit(*pct((x0 + x1) / 2, (y0 + y1) / 2)) == name
+        assert view.hit(*centers[name]) == name
     x0, y0, x1, y1 = rects['out']
     assert view.hit(*pct(x0 - 2, y0 - 2)) is None
     assert view.hit(50, 50) is None
 
 
-def test_zoomfelder_liegen_im_bild_und_zeigen_den_zustand():
+def test_zoomfelder_nur_mit_tipp_zoom_im_bild_und_zeigen_den_zustand():
     eye = np.eye(3, dtype=np.float64)
     view = sl.Viewport(eye, eye, (600, 400))
     blank = lambda: np.full((400, 600, 3), 100, np.uint8)  # noqa: E731
-    plain = view.render(blank())
     rects = view._control_rects()
     for x0, y0, x1, y1 in rects.values():
         assert 0 <= x0 < x1 <= 600 and 0 <= y0 < y1 <= 400
-    # Nur die Felder unterscheiden sich vom reinen Bild.
-    changed = np.argwhere((view.render_with_controls(blank()) != plain).any(axis=2))
-    assert changed[:, 1].min() >= rects['out'][0] and changed[:, 0].min() >= rects['out'][1]
+    # Ohne Tipp-Zoom bleibt das Bild unveraendert.
+    assert np.array_equal(view.render_with_controls(blank()), view.render(blank()))
+    view.tap(50, 50)
 
     def brightness(name):
         x0, y0, x1, y1 = rects[name]
         return view.render_with_controls(blank())[y0:y1, x0:x1].max()
-    # Ohne Tipp-Zoom ist "-" blass, "+" kraeftig; beim Maximum umgekehrt.
-    assert brightness('out') < brightness('in')
-    view.zoom_in()
+    # Stufe 1: beide Felder kraeftig; Maximum: "+" blass, "-" kraeftig.
+    assert brightness('in') == brightness('out') > 200
     view.zoom_in()
     assert brightness('in') < brightness('out')
+    # Beim Zuruecksetzen verschwinden die Felder wieder.
     view.zoom_out()
-    assert brightness('in') == brightness('out')
+    view.zoom_out()
+    assert np.array_equal(view.render_with_controls(blank()), view.render(blank()))
 
 
 def triangle_image(view, base=120):

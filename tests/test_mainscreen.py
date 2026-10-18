@@ -273,7 +273,8 @@ def test_zoomfelder_im_bild_schalten_die_stufen(monkeypatch):
     rects = s.screen.view._control_rects()
     cx = lambda r: ((r[0] + r[2]) / 2 * 100 / 300, (r[1] + r[3]) / 2 * 100 / 300)  # noqa: E731
     plus, minus = cx(rects['in']), cx(rects['out'])
-    s.send('-VIDEO-', {'-VIDEO-': plus}).run(0.2)
+    # Die Felder gibt es erst nach dem Tipp ins Bild: davor zoomt ein Tipp dorthin normal.
+    s.send('-VIDEO-', {'-VIDEO-': (50, 50)}).run(0.2)
     assert s.screen.view.step == 1 and s.window.controls['zoom_center'] is not None
     s.send('-VIDEO-', {'-VIDEO-': plus}).run(0.2)
     assert s.screen.view.step == 2
@@ -281,7 +282,6 @@ def test_zoomfelder_im_bild_schalten_die_stufen(monkeypatch):
     assert s.screen.view.step == 1
     s.send('-VIDEO-', {'-VIDEO-': minus}).run(0.2)
     assert s.screen.view.step == 0 and s.window.controls['zoom_center'] is None
-    # Ein Tipp aufs Feld vergroessert nicht zusaetzlich um die getippte Stelle.
     assert s.screen.view.center is None
 
 
@@ -293,11 +293,26 @@ def test_zoomfelder_im_timer_ohne_wirkung(monkeypatch):
     assert s.screen.view.step == 0
 
 
-def test_zoomfelder_sind_im_livebild_sichtbar(monkeypatch):
+def test_zoomfelder_erst_mit_tipp_zoom_sichtbar(monkeypatch):
     s = Screen(monkeypatch)
-    s.run(0.5)
-    x0, y0, x1, y1 = s.screen.view._control_rects()['out']
-    assert s.window.draws[-1][y0:y1, x0:x1].mean() < 100
+    view = s.screen.view
+    real = view.render_with_controls
+    plain = []
+
+    def spy(raw):
+        out = real(raw)
+        plain.append(np.array_equal(out, view.render(raw)))
+        return out
+    monkeypatch.setattr(view, 'render_with_controls', spy)
+    s.run(0.6)
+    # Ohne Tipp-Zoom: Bild ohne Felder und Dreiecke.
+    assert plain and all(plain)
+    plain.clear()
+    s.send('-VIDEO-', {'-VIDEO-': (50, 50)}).run(0.6)
+    assert plain and not any(plain[1:])
+    plain.clear()
+    s.send('-RESETZOOM-').run(0.6)
+    assert plain and all(plain)
 
 
 def test_vergroesserung_der_innen_scheibe_aus_den_ausschnitten():
