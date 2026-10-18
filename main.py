@@ -1,6 +1,6 @@
 import sys
 import time
-from collections import deque
+from collections import namedtuple
 from datetime import datetime
 
 import cv2
@@ -19,7 +19,6 @@ from flows import (
     SECTION_LABELS,
     change_pin_flow,
     check_pin,
-    edit_section_points,
     run_settings_flow,
     run_stand_select,
     wait_for_camera_frame,
@@ -32,6 +31,8 @@ from overlays import (
     replay_separator,
     timer_frame,
 )
+from screenlogic import FpsCounter, Viewport
+from section_editor import edit_section_points
 from settings_store import (
     DEFAULT_PIN,
     load_active_stand,
@@ -41,7 +42,6 @@ from settings_store import (
     save_active_stand,
     save_sections_override,
 )
-from transformlib import VIDEO_ZOOM_FACTOR, clamp_zoom_center
 from ui import WIN_CLOSED, apply_controls, popup, set_stand_name, show_info, show_page
 from watchdog import stale_check_due
 
@@ -54,18 +54,14 @@ MAIN_LOOP_TICK_MS = 33
 # Blinken: Referenz und Livebild wechseln im Abstand von so vielen Sekunden.
 BLINK_SWITCH_SEC = 1
 
-# Zeitraum fuer die FPS-Anzeige.
-FPS_WINDOW_SECONDS = 60
-
 # Rand um die beiden Ausschnitte beim Zuschnitt des Kamerabilds (Pixel).
 CROP_MARGIN = 15
 
-# Schrittweite (Prozent) und Randzonen (Prozent der Bildbreite/-hoehe) beim
-# Verschieben des manuellen Ausschnitts per Tippen.
-PAN_STEP = 5
-PAN_EDGE_LOW, PAN_EDGE_HIGH = 30, 70
-
 VERSION = '0.13.4'
+
+
+# Ergebnis des Assistenten: alles, was der Hauptbildschirm zum Start braucht.
+Setup = namedtuple('Setup', 'stands cap section_full section_detail settings_pin')
 
 
 def run_setup_wizard(cfg):
@@ -76,7 +72,7 @@ def run_setup_wizard(cfg):
     /boot/firmware: nach einem Stromausfall geht es beim naechsten Start
     genau mit dem fehlenden Schritt weiter.
 
-    Liefert (stands, cap, section_full, section_detail, settings_pin).
+    Liefert ein Setup.
     """
     stands = load_stands()
 
@@ -128,7 +124,7 @@ def run_setup_wizard(cfg):
         new_pin = change_pin_flow(forced=True)
         if new_pin is not None:
             settings_pin = new_pin
-    return stands, cap, section_full, section_detail, settings_pin
+    return Setup(stands, cap, section_full, section_detail, settings_pin)
 
 
 class MainScreen:
@@ -151,15 +147,11 @@ class MainScreen:
         # 'live' (Kamerabild), 'blank' (Video aus), 'timer' oder 'replay'.
         self.mode = 'live'
         self.video_resumed_at = time.monotonic()
-        self.zoom_level = 'full'
-        # Mitte des Tipp-Zooms in Prozent der Bildgroesse, None ohne Tipp-Zoom.
-        self.zoom_center = None
         self.blink = False
         # Rohes Referenzbild beim Blinken, None bis zum naechsten Livebild.
         self.blink_ref = None
         self.last_frame_id = -1
-        self.frame_count = 0
-        self.frame_timestamps = deque()
+        self.fps = FpsCounter()
         self.timer_type = None
         self.timer_started_at = time.monotonic()
         self.last_timer_state = None
@@ -191,8 +183,9 @@ class MainScreen:
         # Perspektiv-Matrizen einmal berechnen: die Ausschnitte aendern sich
         # nur mit einem Neustart. Sie bilden direkt auf video_size ab, ein
         # eigenes Skalieren entfaellt.
-        self.matrix_full = tl.compute_perspective_matrix(pts_full - [x0, y0], video_size)
-        self.matrix_detail = tl.compute_perspective_matrix(pts_detail - [x0, y0], video_size)
+        self.view = Viewport(tl.compute_perspective_matrix(pts_full - [x0, y0], video_size),
+                             tl.compute_perspective_matrix(pts_detail - [x0, y0], video_size),
+                             video_size)
 
         self._handlers = {
             '-TOGGLEVIDEO-': self.toggle_video,
@@ -219,21 +212,12 @@ class MainScreen:
 
     # -- Hilfen ------------------------------------------------------------
 
-    def render(self, raw):
-        # Rohbild -> Anzeigebild: Entzerrung der aktuellen Zoomstufe, dann der
-        # manuelle Zoom. Gemeinsam fuer Livebild, Blinken und Replay.
-        matrix = self.matrix_detail if self.zoom_level == 'detail' else self.matrix_full
-        out = cv2.warpPerspective(raw, matrix, self.video_size)
-        if self.zoom_center is not None:
-            out = tl.crop(out, VIDEO_ZOOM_FACTOR, self.zoom_center)
-        return out
-
     def has_recording(self):
         return self.recording is not None and self.recording.has_frames()
 
     def update_controls(self):
-        apply_controls(self.mode, blink=self.blink, zoom_level=self.zoom_level,
-                       zoom_center=self.zoom_center, has_recording=self.has_recording())
+        apply_controls(self.mode, blink=self.blink, zoom_level=self.view.level,
+                       zoom_center=self.view.center, has_recording=self.has_recording())
 
     # -- Stream-Ueberwachung -----------------------------------------------
 
@@ -268,7 +252,7 @@ class MainScreen:
 
     def toggle_video(self, event, values):
         if self.mode == 'blank':
-            # frame_count/frame_timestamps laufen weiter, die FPS-Anzeige
+            # Der FPS-Zaehler laeuft weiter, die FPS-Anzeige
             # pausiert nur (wie beim Timer).
             self.mode = 'live'
             self.video_resumed_at = time.monotonic()
@@ -308,12 +292,10 @@ class MainScreen:
                   load=sysinfo.load_text(sysinfo.load_average()))
 
     def zoom_full(self, event, values):
-        self.zoom_level = 'full'
-        self.zoom_center = None
+        self.view.set_level('full')
 
     def zoom_detail(self, event, values):
-        self.zoom_level = 'detail'
-        self.zoom_center = None
+        self.view.set_level('detail')
 
     def tap_video(self, event, values):
         # Zoomen nur, solange ein Bild zu sehen ist: im Timer und bei
@@ -321,23 +303,7 @@ class MainScreen:
         # Livebild stehen.
         if self.mode not in ('live', 'replay'):
             return
-        x, y = values['-VIDEO-']
-        if self.zoom_center is None:
-            # Erster Tipp: Mittelpunkt des Ausschnitts.
-            center = (x, y)
-        else:
-            # Tipp nahe am Rand: Ausschnitt in diese Richtung verschieben.
-            cx, cy = self.zoom_center
-            if x < PAN_EDGE_LOW:
-                cx -= PAN_STEP
-            elif x > PAN_EDGE_HIGH:
-                cx += PAN_STEP
-            if y < PAN_EDGE_LOW:
-                cy -= PAN_STEP
-            elif y > PAN_EDGE_HIGH:
-                cy += PAN_STEP
-            center = (cx, cy)
-        self.zoom_center = clamp_zoom_center(center)
+        self.view.tap(*values['-VIDEO-'])
 
     def blink_start(self, event, values):
         # Das naechste Livebild wird zur Referenz. Zoom bleibt bedienbar, er
@@ -418,7 +384,7 @@ class MainScreen:
         counter = replay.counter_text(view, segments)
         # Neu zeichnen nur, wenn sich Bild, Zaehler (Zehntelsekunden) oder
         # Zoom aendern.
-        replay_key = (view.key, counter, self.zoom_level, self.zoom_center)
+        replay_key = (view.key, counter, self.view.key)
         if replay_key == self.last_replay_key:
             return
         self.last_replay_key = replay_key
@@ -431,7 +397,7 @@ class MainScreen:
         elif view.frame is None:
             frame = replay_no_frame(self.video_size)
         else:
-            frame = self.render(view.frame)
+            frame = self.view.render(view.frame)
         self.window.draw_image(draw_replay_marker(frame, counter))
         self.window_fps.update('')
 
@@ -450,21 +416,15 @@ class MainScreen:
         if self.blink and self.blink_ref is None:
             self.blink_ref = frame
         if self.blink and int(time.monotonic() / BLINK_SWITCH_SEC) % 2 == 1:
-            self.window.draw_image(self.render(self.blink_ref))
+            self.window.draw_image(self.view.render(self.blink_ref))
         else:
-            self.window.draw_image(self.render(frame))
+            self.window.draw_image(self.view.render(frame))
         self.update_fps()
 
     def update_fps(self):
-        self.frame_count += 1
-        now = time.monotonic()
-        self.frame_timestamps.append(now)
-        while self.frame_timestamps and (now - self.frame_timestamps[0]) > FPS_WINDOW_SECONDS:
-            self.frame_timestamps.popleft()
-        window_span = now - self.frame_timestamps[0]
-        if window_span > 0:
-            fps = len(self.frame_timestamps) / window_span
-            self.window_fps.update(f'FPS: {round(fps, 1)} - Frame {self.frame_count}')
+        text = self.fps.tick(time.monotonic())
+        if text is not None:
+            self.window_fps.update(text)
 
     def draw_timer(self):
         elapsed = time.monotonic() - self.timer_started_at
@@ -524,9 +484,9 @@ def main():
     if blank_logo is None:
         print("ressources/logo.png nicht gefunden - Blank-Screen-Wasserzeichen bleibt leer.", file=sys.stderr)
 
-    stands, cap, section_full, section_detail, settings_pin = run_setup_wizard(cfg)
-    screen = MainScreen(window, video_size, cap, section_full, section_detail, stands,
-                        settings_pin, replay_settings, blank_logo)
+    setup = run_setup_wizard(cfg)
+    screen = MainScreen(window, video_size, setup.cap, setup.section_full, setup.section_detail,
+                        setup.stands, setup.settings_pin, replay_settings, blank_logo)
     show_page('-MAINVIEW-')
 
     while True:

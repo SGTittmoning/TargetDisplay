@@ -27,12 +27,13 @@ window = None
 EDITOR_MAX_W, EDITOR_MAX_H = 1000, 620
 
 
-# Maximale Breite des Standnamens in Pixeln (siehe set_stand_name()). Der
-# Header ist 450 px breit, die beiden Icon-Buttons brauchen 102 px. Der
-# Namensrahmen ist 330 px breit; gekuerzt wird ab 310 px, damit das "…"
-# Abstand zu den Icons haelt. Gemessen wird mit der echten Schrift, weil
-# Zeichen unterschiedlich breit sind.
-STANDNAME_MAX_PX = 310
+# Breite der linken Spalte (Kopf, Buttons, Fuss) und des Standnamens im Kopf.
+# Neben dem Namen stehen die zwei Icon-Buttons (zusammen 102 px).
+LEFT_PANEL_W = 450
+NAME_FRAME_W = 330
+# Gekuerzt wird der Standname 20 px vor dem Rahmenende, damit das "…" Abstand
+# zu den Icons haelt (siehe set_stand_name(); gemessen mit der echten Schrift).
+STANDNAME_MAX_PX = NAME_FRAME_W - 20
 
 
 # Abstand zwischen Touch-Buttons (gegen Fehltreffer) und zwischen den
@@ -115,6 +116,28 @@ class Elem:
                 w.pack(**(self._show_kwargs or {}))
             else:
                 w.pack_forget()
+
+
+def _caption(parent, text, color):
+    # Gruppenueberschrift in der Akzentfarbe der Gruppe.
+    tk.Label(parent, text=text.upper(), font=('Helvetica', 13, 'bold'),
+             bg=BG, fg=color, anchor='w').pack(side='top', anchor='w', pady=(0, 7))
+
+
+def _pack_equal(buttons, gap=BTN_GAP):
+    # Gleich breite Buttons per grid(uniform=): pack(expand=True) verteilt nur
+    # den Restplatz gleich, laengere Texte bekaemen breitere Buttons. Der
+    # Abstand ist eine eigene Spalte (minsize=gap, nicht in der uniform-Gruppe);
+    # padx am Button machte die Randbuttons breiter als den mittleren.
+    parent = buttons[0].master
+    col = 0
+    for i, b in enumerate(buttons):
+        parent.grid_columnconfigure(col, weight=1, uniform='btnrow')
+        b.grid(row=0, column=col, sticky='nsew')
+        col += 1
+        if i < len(buttons) - 1:
+            parent.grid_columnconfigure(col, weight=0, minsize=gap)
+            col += 1
 
 
 class AccentButton:
@@ -414,9 +437,9 @@ class Window:
         # Breite landet als Luecke zwischen Button-Spalte und Video (spacer).
         margin = max(0, (self.screen_size[1] - self.video_size[1]) // 2)
 
-        # Feste Breite von 450 px; pack_propagate(False) erzwingt sie. Die
-        # Button-Reihen teilen sie gleichmaessig auf (siehe pack_equal()).
-        left = tk.Frame(page, bg=BG, width=450)
+        # Feste Breite; pack_propagate(False) erzwingt sie. Die Button-Reihen
+        # teilen sie gleichmaessig auf (siehe _pack_equal()).
+        left = tk.Frame(page, bg=BG, width=LEFT_PANEL_W)
         left.pack(side='left', fill='y', padx=(margin, 0), pady=margin)
         left.pack_propagate(False)
 
@@ -429,7 +452,12 @@ class Window:
         video_canvas.bind('<Button-1>', self._on_video_click)
         self.video_canvas = video_canvas
 
-        # -- Header: Standname links, rechts zwei kleine Icon-Buttons (Video aus,
+        self._build_header(left)
+        self._build_button_groups(left)
+        self._build_footer(left)
+
+    def _build_header(self, left):
+        # Standname links, rechts zwei kleine Icon-Buttons (Video aus,
         # Einstellungen mit Schloss). Neu starten ist nur ueber das
         # Einstellungen-Menue erreichbar.
         header = tk.Frame(left, bg=BG)
@@ -438,7 +466,7 @@ class Window:
         # Ein Frame mit fester Groesse und pack_propagate(False) begrenzt den
         # Standnamen hart. width= in Zeichen waere nur eine Mindestbreite, ein
         # langer Name aus targetdisplay-stands.json wuerde das Layout sprengen.
-        name_frame = tk.Frame(header, width=330, height=38, bg=BG)
+        name_frame = tk.Frame(header, width=NAME_FRAME_W, height=38, bg=BG)
         name_frame.pack(side='left')
         name_frame.pack_propagate(False)
         standname_font = ('Helvetica', 24, 'bold')
@@ -468,39 +496,21 @@ class Window:
                                                 lambda: self.post('-SETTINGS-'))
         settings_btn.pack(side='left')
 
+    def _build_button_groups(self, left):
         # Statt Rahmen traegt jede Gruppe eine Ueberschrift in ihrer
         # Akzentfarbe, Abstaende siehe BTN_GAP/GROUP_GAP.
         groups = tk.Frame(left, bg=BG)
         groups.pack(side='top', fill='x')
-
-        def make_caption(parent, text, color):
-            tk.Label(parent, text=text.upper(), font=('Helvetica', 13, 'bold'),
-                     bg=BG, fg=color, anchor='w').pack(side='top', anchor='w', pady=(0, 7))
-
-        def pack_equal(buttons, gap=BTN_GAP):
-            # Gleich breite Buttons per grid(uniform=): pack(expand=True) verteilt
-            # nur den Restplatz gleich, laengere Texte bekaemen breitere Buttons. Der
-            # Abstand ist eine eigene Spalte (minsize=gap, nicht in der uniform-Gruppe);
-            # padx am Button machte die Randbuttons breiter als den mittleren.
-            parent = buttons[0].master
-            col = 0
-            for i, b in enumerate(buttons):
-                parent.grid_columnconfigure(col, weight=1, uniform='btnrow')
-                b.grid(row=0, column=col, sticky='nsew')
-                col += 1
-                if i < len(buttons) - 1:
-                    parent.grid_columnconfigure(col, weight=0, minsize=gap)
-                    col += 1
 
         def button_group(caption, colors, specs, last=False):
             # Ueberschrift und eine Reihe gleich breiter Buttons; specs:
             # (key, text, icon, start_enabled). Liefert die Gruppe.
             group = tk.Frame(groups, bg=BG)
             group.pack(side='top', fill='x', pady=(0, 0 if last else GROUP_GAP))
-            make_caption(group, caption, colors.accent)
+            _caption(group, caption, colors.accent)
             row = tk.Frame(group, bg=BG)
             row.pack(side='top', fill='x')
-            pack_equal([self._make_accent_button(row, key, text, colors, icon, start_enabled=enabled)
+            _pack_equal([self._make_accent_button(row, key, text, colors, icon, start_enabled=enabled)
                         for key, text, icon, enabled in specs])
             return group
 
@@ -535,7 +545,8 @@ class Window:
         stop_btn.grid(row=0, column=0, columnspan=3, sticky='nsew')
         replay_btn.grid(row=0, column=4, sticky='nsew')
 
-        # -- Footer, von unten gepackt: Version/FPS ganz unten, darueber die
+    def _build_footer(self, left):
+        # Von unten gepackt: Version/FPS ganz unten, darueber die
         # Infozeile, darueber Datum und Uhrzeit. Der freie Platz zwischen Buttons
         # und Footer haelt ihn unten. Im Normalfall steht nur die Version da; ein
         # Tipp auf den Fussbereich blendet FPS und Systemwerte ein und wieder aus
