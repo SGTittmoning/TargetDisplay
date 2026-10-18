@@ -34,17 +34,12 @@
 - hosts: targetdisplay
   become: yes
 
+  vars_files:
+    - vars/common.yml
+
   vars:
     targetdisplay_timezone: Europe/Berlin
     targetdisplay_enable_overlay: false
-    targetdisplay_service_user: targetdisplay
-    targetdisplay_app_path: "/home/{{ targetdisplay_service_user }}/TargetDisplay"
-    # Aufloesung aller produktiven Staende - wird per
-    # hdmi_cvt/hdmi_ignore_edid fest erzwungen (tasks/display_setup.yml),
-    # unabhaengig davon welcher Monitor tatsaechlich angeschlossen ist, und
-    # fliesst identisch in config.yml (screenSize) ein.
-    targetdisplay_screen_width: 1280
-    targetdisplay_screen_height: 800
 
   tasks:
 

@@ -11,8 +11,7 @@
 # alte initramfs ohne Hook: Kommandozeile und "raspi-config nonint
 # get_overlay_now" melden "aktiv", das Root-Dateisystem bleibt aber normal
 # beschreibbar - ohne Fehlermeldung, und ein harter Stromausfall waere wieder
-# ungeschuetzt. Beobachtet auf einem Stand, auf dem overlayroot nachtraeglich
-# bei aktivem Boot-RO installiert wurde.
+# ungeschuetzt.
 #
 # Dieser Block prueft das tatsaechliche initramfs und erzeugt es bei Bedarf
 # neu. Er schaltet die Boot-Partition dafuer kurz auf rw und setzt sie danach
@@ -23,14 +22,20 @@
     path: /usr/share/initramfs-tools/hooks/overlayroot
   register: overlay_hook_stat
 
+# Gibt die geladenen initramfs-Dateien ohne overlayroot-Hook aus (vorher
+# und nach dem Neuerzeugen).
+- name: Pruefbefehl fuer den overlayroot-Hook festlegen
+  set_fact:
+    overlay_initramfs_check: |
+      set -o pipefail
+      for f in /boot/firmware/initramfs*; do
+        [ -e "$f" ] || continue
+        n=$(lsinitramfs "$f" 2>/dev/null | grep -c overlayroot) || true
+        [ "${n:-0}" -gt 0 ] || echo "$f"
+      done
+
 - name: Geladene initramfs-Dateien ohne overlayroot-Hook ermitteln
-  shell: |
-    set -o pipefail
-    for f in /boot/firmware/initramfs*; do
-      [ -e "$f" ] || continue
-      n=$(lsinitramfs "$f" 2>/dev/null | grep -c overlayroot) || true
-      [ "${n:-0}" -gt 0 ] || echo "$f"
-    done
+  shell: "{{ overlay_initramfs_check }}"
   args:
     executable: /bin/bash
   register: overlay_initramfs_missing
@@ -54,13 +59,7 @@
       command: update-initramfs -u -k all
 
     - name: Pruefen, dass der Hook jetzt in den geladenen Dateien steckt
-      shell: |
-        set -o pipefail
-        for f in /boot/firmware/initramfs*; do
-          [ -e "$f" ] || continue
-          n=$(lsinitramfs "$f" 2>/dev/null | grep -c overlayroot) || true
-          [ "${n:-0}" -gt 0 ] || echo "$f"
-        done
+      shell: "{{ overlay_initramfs_check }}"
       args:
         executable: /bin/bash
       register: overlay_initramfs_still_missing

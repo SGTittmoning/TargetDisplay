@@ -1,0 +1,11 @@
+---
+# Gemeinsame Werte fuer install.yml und update-app.yml. Beide erzeugen
+# config.yml und den Dienst; abweichende Werte wuerden bei jedem Update
+# etwas anderes einrichten.
+targetdisplay_service_user: targetdisplay
+targetdisplay_app_path: "/home/{{ targetdisplay_service_user }}/TargetDisplay"
+# Aufloesung aller Staende: per hdmi_cvt/hdmi_ignore_edid fest erzwungen
+# (tasks/display_setup.yml), unabhaengig vom angeschlossenen Monitor, und
+# identisch in config.yml (screenSize).
+targetdisplay_screen_width: 1280
+targetdisplay_screen_height: 800

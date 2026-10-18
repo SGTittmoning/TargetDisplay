@@ -20,25 +20,27 @@ def no_pin_file(monkeypatch, tmp_path):
     monkeypatch.setattr(settings_store, 'PIN_FILE', str(tmp_path / 'fehlt.json'))
 
 
-def playbook_vars(name):
-    with open(os.path.join(ANSIBLE, name), encoding='utf-8') as f:
-        return yaml.safe_load(f)[0]['vars']
+def load(*parts):
+    with open(os.path.join(ANSIBLE, *parts), encoding='utf-8') as f:
+        return yaml.safe_load(f)
 
 
 def render(**variables):
     with open(os.path.join(ANSIBLE, 'templates', 'config.yml.j2'), encoding='utf-8') as f:
         template = jinja2.Template(f.read(), undefined=jinja2.StrictUndefined)
-    defaults = {k: v for k, v in playbook_vars('install.yml').items() if k.startswith('targetdisplay_screen_')}
+    defaults = {k: v for k, v in load('vars', 'common.yml').items() if k.startswith('targetdisplay_screen_')}
     text = template.render(**{**defaults, **variables})
     return yamlconfig.Config(yaml.safe_load(text))
 
 
-def test_bildschirmgroesse_in_beiden_playbooks_gleich():
-    # update-app.yml erzeugt config.yml ebenfalls; abweichende Werte wuerden
-    # bei jedem Update die Groesse aendern.
-    keys = ('targetdisplay_screen_width', 'targetdisplay_screen_height')
-    install, update = playbook_vars('install.yml'), playbook_vars('update-app.yml')
-    assert [install[k] for k in keys] == [update[k] for k in keys]
+def test_beide_playbooks_nutzen_die_gemeinsamen_werte():
+    # update-app.yml erzeugt config.yml ebenfalls; eigene Werte dort wuerden
+    # bei jedem Update etwas anderes einrichten.
+    common = load('vars', 'common.yml')
+    for name in ('install.yml', 'update-app.yml'):
+        [play] = load(name)
+        assert play['vars_files'] == ['vars/common.yml']
+        assert not set(play['vars']) & set(common)
 
 
 def test_standardwerte(capsys):

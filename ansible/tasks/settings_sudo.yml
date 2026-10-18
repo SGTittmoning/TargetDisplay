@@ -19,10 +19,10 @@
   copy:
     dest: /etc/sudoers.d/targetdisplay-settings
     content: |
-      targetdisplay ALL=(root) NOPASSWD: /root/bin/targetdisplay-save-sections.sh
-      targetdisplay ALL=(root) NOPASSWD: /root/bin/targetdisplay-save-active-stand.sh
-      targetdisplay ALL=(root) NOPASSWD: /root/bin/targetdisplay-save-pin.sh
-      targetdisplay ALL=(root) NOPASSWD: /usr/sbin/reboot
+      {{ targetdisplay_service_user }} ALL=(root) NOPASSWD: /root/bin/targetdisplay-save-sections.sh
+      {{ targetdisplay_service_user }} ALL=(root) NOPASSWD: /root/bin/targetdisplay-save-active-stand.sh
+      {{ targetdisplay_service_user }} ALL=(root) NOPASSWD: /root/bin/targetdisplay-save-pin.sh
+      {{ targetdisplay_service_user }} ALL=(root) NOPASSWD: /usr/sbin/reboot
     owner: root
     group: root
     mode: "0440"

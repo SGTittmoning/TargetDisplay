@@ -47,13 +47,11 @@
   serial: 1
   max_fail_percentage: 0
 
+  vars_files:
+    - vars/common.yml
+
   vars:
     update_restore_ro: auto
-    targetdisplay_service_user: targetdisplay
-    targetdisplay_app_path: "/home/{{ targetdisplay_service_user }}/TargetDisplay"
-    # Muessen zu install.yml passen (fliessen in config.yml ein).
-    targetdisplay_screen_width: 1280
-    targetdisplay_screen_height: 800
     update_boot_dir: /boot/firmware
     update_marker: /boot/firmware/.targetdisplay-update-restore
     update_writable_script: /root/bin/targetdisplay-writable.sh
