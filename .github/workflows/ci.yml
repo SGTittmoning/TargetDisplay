@@ -71,15 +71,23 @@ jobs:
   tests-python:
     if: github.event.repository.private == false
     name: tests (Python ${{ matrix.python-version }})
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.runner }}
     timeout-minutes: 15
     # Die Stände laufen noch auf Raspbian Bullseye (Python 3.9), Test-Pi und
     # Neuinstallationen auf Debian Trixie (Python 3.13). Beide Versionen
-    # werden getestet.
+    # werden getestet. Python 3.9 gibt es nicht auf dem Runner-Image von
+    # ubuntu-latest (Ubuntu 26.04), deshalb ist dafuer ubuntu-24.04 festgelegt.
+    # Das Image ist regelmaessig zu pruefen (INTERNAL_NOTES.md, Offene Punkte):
+    # sobald 3.9 dort fehlt oder die Flotte auf Python 3.11 oder neuer ist,
+    # entfaellt die Festlegung bzw. der 3.9-Eintrag.
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.9", "3.13"]
+        include:
+          - python-version: "3.9"
+            runner: ubuntu-24.04
+          - python-version: "3.13"
+            runner: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
